@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Metadata SKPK/OPD ───
+model Skpd {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  kategori  KategoriSkpd
+  alamat    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  datasets  Dataset[]
+}
+
+enum KategoriSkpd {
+  DINAS
+  BADAN
+  KANTOR
+  SEKRETARIAT
+  KECAMATAN
+  PUSKESMAS
+  LAINNYA
+}
+
+// ─── Dataset dari SAPA ───
+model Dataset {
+  id              String          @id @default(cuid())
+  skpdId          String
+  skpd            Skpd            @relation(fields: [skpdId], references: [id])
+  nama            String
+  slug            String          @unique
+  deskripsi       String?
+  schema          Json
+  endpointSplp    String?
+  refreshInterval Int?
+  isActive        Boolean         @default(true)
+  lastSync        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  records         DatasetRecord[]
+  indicators      Indicator[]
+}
+
+// ─── Snapshot data dari SPLP ───
+model DatasetRecord {
+  id        String   @id @default(cuid())
+  datasetId String
+  dataset   Dataset  @relation(fields: [datasetId], references: [id])
+  data      Json
+  periode   String
+  checksum  String?
+  fetchedAt DateTime @default(now())
+}
+
+// ─── Indikator Strategis ───
+model Indicator {
+  id          String      @id @default(cuid())
+  datasetId   String
+  dataset     Dataset     @relation(fields: [datasetId], references: [id])
+  nama        String
+  satuan      String
+  threshold   Float?
+  direction   Direction   @default(STABLE)
+  isKunci     Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  alerts      EwsAlert[]
+}
+
+enum Direction {
+  UP_BAD
+  UP_GOOD
+  STABLE
+}
+
+// ─── Chat History (AI Query) ───
+model ChatSession {
+  id         String   @id @default(cuid())
+  userId     String?
+  query      String
+  intent     String?
+  aiResponse Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
+
+// ─── EWS Log ───
+model EwsAlert {
+  id          String   @id @default(cuid())
+  indicatorId String
+  indicator   Indicator @relation(fields: [indicatorId], references: [id])
+  nilaiAktual Float
+  threshold   Float
+  pesan       String
+  severity    Severity @default(WARNING)
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
