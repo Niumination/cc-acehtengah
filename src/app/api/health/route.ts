@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getMockHealth } from '@/lib/mock-data';
 
 export async function GET() {
+  if (process.env.USE_MOCK_DATA === 'true') {
+    return NextResponse.json(getMockHealth());
+  }
+
   const services: Record<string, 'ok' | 'error'> = {};
 
   // Cek PostgreSQL
