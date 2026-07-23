@@ -33,34 +33,39 @@ DATABASE_URL="postgresql://user:password@host:5432/cc_acehtengah?schema=public"
 # ─── AI Provider (REQUIRED) ───
 # Choose ONE provider below and set the 3 values:
 
-## Option A: OpenRouter (Recommended - 100+ models, free tier)
-AI_BASE_URL="https://openrouter.ai/api/v1"
-AI_API_KEY="sk-or-xxxxxxxxxxxxx"
-AI_MODEL="gpt-4o-mini"  # or: anthropic/claude-3.5-sonnet, deepseek/deepseek-chat, meta-llama/llama-3.1-70b
+## Option A: OpenCode Zen (tested, has free models)
+AI_BASE_URL="https://opencode.ai/zen/v1"
+AI_API_KEY="sk-..."
+AI_MODEL="deepseek-v4-flash-free"  # free models: deepseek-v4-flash-free, mimo-v2.5-free, nemotron-3-ultra-free, north-mini-code-free, laguna-s-2.1-free
 
-## Option B: Groq (Free, fast, open models)
+## Option B: OpenRouter (Recommended - 100+ models, free tier)
+# AI_BASE_URL="https://openrouter.ai/api/v1"
+# AI_API_KEY="sk-or-..."
+# AI_MODEL="gpt-4o-mini"  # or: anthropic/claude-3.5-sonnet, deepseek/deepseek-chat, meta-llama/llama-3.1-70b
+
+## Option C: Groq (Free, fast, open models)
 # AI_BASE_URL="https://api.groq.com/openai/v1"
-# AI_API_KEY="gsk_xxxxxxxxxxxxx"
+# AI_API_KEY="***"
 # AI_MODEL="llama-3.1-70b-versatile"
 
-## Option C: Together AI
+## Option D: Together AI
 # AI_BASE_URL="https://api.together.xyz/v1"
 # AI_API_KEY="tgp_xxxxxxxxxxxxx"
 # AI_MODEL="meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
 
-## Option D: DeepSeek
+## Option E: DeepSeek
 # AI_BASE_URL="https://api.deepseek.com/v1"
-# AI_API_KEY="sk-xxxxxxxxxxxxx"
+# AI_API_KEY="***"
 # AI_MODEL="deepseek-chat"
 
-## Option E: Huancheng (Your OpenCode provider)
+## Option F: Huancheng (Your OpenCode provider)
 # AI_BASE_URL="https://api.hcnsec.cn/v1"
-# AI_API_KEY="sk-xxxxxxxxxxxxx"
+# AI_API_KEY="***"
 # AI_MODEL="DeepSeek-V4-Pro"
 
-## Option E: OpenAI Direct
+## Option G: OpenAI Direct
 # AI_BASE_URL="https://api.openai.com/v1"
-# AI_API_KEY="sk-xxxxxxxxxxxxx"
+# AI_API_KEY="***"
 # AI_MODEL="gpt-4o-mini"
 
 # ─── Vector DB - OPTIONAL ───
@@ -112,6 +117,17 @@ createdb cc_acehtengah
 ---
 
 ## 🤖 3. AI Provider Setup
+
+### OpenCode Zen (Current Default)
+1. Go to https://opencode.ai/auth → Sign in
+2. Copy your API key
+3. Use base URL `https://opencode.ai/zen/v1`
+4. Free models work without billing for basic usage:
+   - `deepseek-v4-flash-free`
+   - `mimo-v2.5-free`
+   - `nemotron-3-ultra-free`
+   - `north-mini-code-free`
+   - `laguna-s-2.1-free`
 
 ### OpenRouter (Easiest - Multiple Models)
 1. Go to https://openrouter.ai → Sign up
