@@ -88,7 +88,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
       messages,
       temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 8192,
+      max_tokens: 4096,
     }),
     signal: AbortSignal.timeout(120000), // 120s for reasoning models
   });

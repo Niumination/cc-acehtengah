@@ -75,33 +75,32 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       }
     }
 
-    // Step 4: Pre-aggregate data untuk LLM (lebih efektif)
+    // Step 4: Pre-aggregate data untuk LLM (compact)
     const allOpds = getUniqueOpd(allRecords);
     const allIndicators = getUniqueIndicators(allRecords);
     const filteredOpds = getUniqueOpd(filteredData);
     const filteredIndicators = getUniqueIndicators(filteredData);
 
-    // Build concise data summary for LLM
+    // Build compact data for LLM
     const dataForLLM = {
       ringkasan: {
         total_data: allRecords.length,
         total_opd: allOpds.length,
         total_indikator: allIndicators.length,
-        daftar_opd_lengkap: allOpds.map(o => o.nama).join(', '),
-        tahun_tersedia: [...new Set(allRecords.map(r => r.tahun))].sort().join(', '),
+        opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
+        tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
       },
-      data_terfilter: {
-        jumlah: filteredData.length,
-        opd_filter: opdFilter || 'semua',
+      filtered: {
+        count: filteredData.length,
+        opd: opdFilter || 'semua',
         opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-        indikator_ditemukan: filteredIndicators.map(i => i.nama).join('; '),
-        sample: filteredData.slice(0, 25).map((r) => ({
+        indicators: filteredIndicators.map(i => i.nama).join('; '),
+        sample: filteredData.slice(0, 10).map((r) => ({
           opd: r.opds_nama_opd,
           indikator: r.kode_indikator_nama_indikator,
           nilai: r.variabel,
           satuan: r.satuan,
           tahun: r.tahun,
-          periode: r.jadwal_pemutakhiran,
         })),
       },
     };
@@ -134,34 +133,25 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
 function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
   return `Anda adalah AI Command Center Pemerintah Kabupaten Aceh Tengah.
-Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA (Satu Pintu Akses Data).
+Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA.
 
-STATISTIK SAPA SAAT INI:
-- Total OPD: ${totalOpd}
-- Total Indikator: ${totalIndicators}
-- Sumber: api-splp.layanan.go.id
+STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
 
-DATA YANG TERSEDIA:
-Data SAPA berisi indikator pembangunan dari OPD pemerintah daerah Kabupaten Aceh Tengah.
-Setiap record memiliki: nama OPD, nama indikator, nilai (variabel), satuan, tahun, dan periode pemutakhiran.
+ATURAN:
+1. HANYA gunakan data riil yang diberikan. Jangan mengarang angka.
+2. Jika data tidak cukup, katakan: "Data mengenai [topik] belum tersedia di SAPA."
+3. Selalu sebutkan OPD dan sumber data.
+4. Gunakan Bahasa Indonesia formal, lugas, actionable.
+5. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
 
-ATURAN PENTING:
-1. HANYA gunakan data riil yang diberikan. Jangan berasumsi atau mengarang angka.
-2. Jika data tidak cukup untuk menjawab, katakan dengan jelas: "Data mengenai [topik] belum tersedia di SAPA saat ini. Data yang tersedia mencakup [sebutkan data yang relevan]."
-3. Selalu sebutkan OPD dan sumber data dalam jawaban.
-4. Gunakan Bahasa Indonesia formal, lugas, dan actionable.
-5. Berikan analisis yang bermakna — tidak hanya membaca angka, tapi juga interpretasi.
-6. Jika data menunjukkan tren, analisis penyebab potensial.
-7. Jika ada perbandingan antar OPD, bandingkan secara fair.
+VISUALISASI (pilih salah satu):
+- "table" untuk daftar (columns, rows)
+- "metric" untuk ringkasan angka (metrics: [{label, value, unit}])
+- "chart" untuk tren (xKey, lines/bar, data array)
+- "none" jika tidak perlu
 
-UNTUK VISUALISASI, pilih tipe yang paling cocok:
-- "chart" untuk tren/comparasi (butuh: xKey, lines/bar, data array)
-- "table" untuk daftar perbandingan (butuh: columns, rows)
-- "metric" untuk ringkasan angka (butuh: metrics array dengan label, value, unit)
-- "none" jika tidak perlu visualisasi
-
-FORMAT RESPONS HARUS JSON:
-{"narasi": "...", "visualisasi": {"tipe": "chart|table|metric|none", "konfigurasi": {...}}, "rekomendasi": ["..."]}`;
+FORMAT JSON:
+{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{...}},"rekomendasi":["..."]}`;
 }
 
 function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {
