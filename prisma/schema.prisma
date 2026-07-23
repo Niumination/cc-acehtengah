@@ -29,7 +29,6 @@ enum KategoriSkpd {
   LAINNYA
 }
 
-// ─── Dataset dari SAPA ───
 model Dataset {
   id              String          @id @default(cuid())
   skpdId          String
@@ -48,7 +47,6 @@ model Dataset {
   indicators      Indicator[]
 }
 
-// ─── Snapshot data dari SPLP ───
 model DatasetRecord {
   id        String   @id @default(cuid())
   datasetId String
@@ -59,7 +57,6 @@ model DatasetRecord {
   fetchedAt DateTime @default(now())
 }
 
-// ─── Indikator Strategis ───
 model Indicator {
   id          String      @id @default(cuid())
   datasetId   String
@@ -80,7 +77,6 @@ enum Direction {
   STABLE
 }
 
-// ─── Chat History (AI Query) ───
 model ChatSession {
   id         String   @id @default(cuid())
   userId     String?
@@ -91,7 +87,6 @@ model ChatSession {
   createdAt  DateTime @default(now())
 }
 
-// ─── EWS Log ───
 model EwsAlert {
   id          String   @id @default(cuid())
   indicatorId String

@@ -10,7 +10,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "6.19.3",
     "date-fns": "^4.4.0",
     "leaflet": "^1.9.4",
     "nanoid": "^6.0.0",
@@ -30,11 +30,18 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "prisma": "^7.8.0",
+    "prisma": "6.19.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "prisma@6.19.3": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.12.2": true
   }
 }
