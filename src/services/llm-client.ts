@@ -16,6 +16,38 @@ function getConfig() {
   };
 }
 
+/**
+ * Strip reasoning/thinking prefixes from model output.
+ * Some reasoning models (DeepSeek, etc.) put chain-of-thought before the answer.
+ */
+function stripReasoningPrefix(content: string): string {
+  // Remove "Thinking." or "<think>...</think>" blocks at the start
+  let cleaned = content;
+
+  // Remove think tags
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+  // Remove common reasoning prefixes
+  const prefixes = [
+    /^Thinking[\.\s:]+/i,
+    /^Let me (?:think|analyze|consider|break)/i,
+    /^I need to (?:analyze|consider|look)/i,
+    /^\*{2}Thinking\*{2}[\.\s:]+/i,
+    /^Step \d+[\.\s:]+/i,
+  ];
+
+  for (const prefix of prefixes) {
+    cleaned = cleaned.replace(prefix, '').trim();
+  }
+
+  // If the result still starts with "Thinking" followed by a newline, strip it
+  if (cleaned.startsWith('Thinking\n')) {
+    cleaned = cleaned.replace(/^Thinking\n/, '').trim();
+  }
+
+  return cleaned || content; // Fallback to original if stripping removed everything
+}
+
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
   const config = getConfig();
 
@@ -36,7 +68,6 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 
   if (input.data) {
     const dataStr = JSON.stringify(input.data, null, 2);
-    // Truncate data if too large (keep first 12000 chars for context window)
     const truncated = dataStr.length > 12000 ? dataStr.slice(0, 12000) + '\n...[dipotong]' : dataStr;
     messages.push({
       role: 'system',
@@ -57,9 +88,9 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
       messages,
       temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 8192, // Reasoning models need more tokens for chain-of-thought
+      max_tokens: 8192,
     }),
-    signal: AbortSignal.timeout(90000), // 90s for reasoning models
+    signal: AbortSignal.timeout(120000), // 120s for reasoning models
   });
 
   if (!res.ok) {
@@ -74,15 +105,12 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
     throw new Error('AI returned empty response');
   }
 
-  // Handle reasoning models (DeepSeek, etc.) — content may be in reasoning_content
-  // The actual answer should be in 'content', reasoning in 'reasoning_content'
+  // Handle reasoning models — prefer content, fallback to reasoning_content
   let content = message.content ?? '';
 
-  // If content is empty but reasoning_content exists, the model may have used all tokens for reasoning
+  // If content is empty but reasoning_content exists
   if (!content && message.reasoning_content) {
-    // Log that reasoning was used but no answer was produced
     console.warn('[LLM] Model returned reasoning but no content. Reasoning length:', message.reasoning_content.length);
-    // Try to extract any answer from the end of reasoning
     content = message.reasoning_content;
   }
 
@@ -90,5 +118,6 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
     throw new Error('AI returned completely empty response');
   }
 
-  return content;
+  // Strip reasoning prefixes from the output
+  return stripReasoningPrefix(content);
 }
