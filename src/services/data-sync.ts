@@ -1,7 +1,9 @@
-// ─── Background Sync: tarik data dari SPLP → simpan ke DatasetRecord ───
+// ─── Background Sync: SAPA → Database (optional) ───
+// Sync data dari SAPA API ke PostgreSQL via Prisma.
+// Saat ini optional — app bisa langsung fetch SAPA tanpa DB.
 
 import { prisma } from '@/lib/prisma';
-import { fetchFromSplp, SAPA_DATASET_MAP } from '@/lib/splp-bridge';
+import { fetchSapaData } from '@/lib/sapa-client';
 
 function getCurrentPeriod(): string {
   const now = new Date();
@@ -12,26 +14,20 @@ export async function syncDataset(datasetSlug: string) {
   const dataset = await prisma.dataset.findUnique({ where: { slug: datasetSlug } });
   if (!dataset) throw new Error(`Dataset ${datasetSlug} not found`);
 
-  const splpEndpoint = SAPA_DATASET_MAP[datasetSlug as keyof typeof SAPA_DATASET_MAP];
-  if (!splpEndpoint) throw new Error(`No SPLP mapping for ${datasetSlug}`);
+  const records = await fetchSapaData();
 
-  const result = await fetchFromSplp(splpEndpoint);
+  await prisma.datasetRecord.create({
+    data: {
+      datasetId: dataset.id,
+      data: records as any,
+      periode: getCurrentPeriod(),
+    },
+  });
 
-  if (result.status === 'ok') {
-    await prisma.datasetRecord.create({
-      data: {
-        datasetId: dataset.id,
-        data: result.data,
-        periode: getCurrentPeriod(),
-        checksum: result.meta?.checksum,
-      },
-    });
-
-    await prisma.dataset.update({
-      where: { id: dataset.id },
-      data: { lastSync: new Date() },
-    });
-  }
+  await prisma.dataset.update({
+    where: { id: dataset.id },
+    data: { lastSync: new Date() },
+  });
 }
 
 export async function syncAllDatasets() {

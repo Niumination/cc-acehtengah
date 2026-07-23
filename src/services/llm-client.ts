@@ -1,5 +1,6 @@
-// ─── Local LLM via Ollama ───
-// Model: Qwen 2.5 7B / Llama 3.1 8B
+// ─── Cloud LLM via OpenAI-compatible API ───
+// Supports: OpenAI, OpenRouter, Groq, Together, DeepSeek, etc.
+// Config via env: AI_API_KEY, AI_BASE_URL, AI_MODEL
 
 interface LLMInput {
   query: string;
@@ -7,65 +8,65 @@ interface LLMInput {
   konteks?: any[];
 }
 
-export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
-  const ollamaUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
-  const model = process.env.LLM_MODEL ?? 'qwen2.5:7b';
+function getConfig() {
+  return {
+    baseUrl: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
+    apiKey: process.env.AI_API_KEY ?? '',
+    model: process.env.AI_MODEL ?? 'gpt-4o-mini',
+  };
+}
 
-  const messages = [
+export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
+  const config = getConfig();
+
+  if (!config.apiKey) {
+    throw new Error('AI_API_KEY tidak dikonfigurasi. Set di .env.local');
+  }
+
+  const messages: { role: string; content: string }[] = [
     { role: 'system', content: systemPrompt },
-    ...(input.konteks?.length
-      ? [
-          {
-            role: 'system',
-            content: `Konteks Regulasi:\n${JSON.stringify(input.konteks, null, 2)}`,
-          },
-        ]
-      : []),
-    ...(input.data
-      ? [
-          {
-            role: 'system',
-            content: `Data Terkini:\n${JSON.stringify(input.data, null, 2)}`,
-          },
-        ]
-      : []),
-    { role: 'user', content: input.query },
   ];
 
-  const res = await fetch(`${ollamaUrl}/api/chat`, {
+  if (input.konteks?.length) {
+    messages.push({
+      role: 'system',
+      content: `Konteks Regulasi:\n${JSON.stringify(input.konteks, null, 2)}`,
+    });
+  }
+
+  if (input.data) {
+    const dataStr = JSON.stringify(input.data, null, 2);
+    // Truncate data if too large (keep first 8000 chars for context window)
+    const truncated = dataStr.length > 8000 ? dataStr.slice(0, 8000) + '\n...[dipotong]' : dataStr;
+    messages.push({
+      role: 'system',
+      content: `Data Terkini dari SAPA:\n${truncated}`,
+    });
+  }
+
+  messages.push({ role: 'user', content: input.query });
+
+  const res = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
     body: JSON.stringify({
-      model,
+      model: config.model,
       messages,
-      stream: false,
-      options: {
-        temperature: 0.1,
-        top_p: 0.9,
-      },
+      temperature: 0.1,
+      top_p: 0.9,
+      max_tokens: 2048,
     }),
+    signal: AbortSignal.timeout(60000),
   });
 
   if (!res.ok) {
-    throw new Error(`Ollama error ${res.status}: ${res.statusText}`);
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`AI API error ${res.status}: ${errBody.slice(0, 200)}`);
   }
 
   const data = await res.json();
-  return data.message?.content ?? '';
-}
-
-export async function embedQuery(query: string): Promise<number[]> {
-  const ollamaUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
-
-  const res = await fetch(`${ollamaUrl}/api/embeddings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'nomic-embed-text',
-      prompt: query,
-    }),
-  });
-
-  const data = await res.json();
-  return data.embedding;
+  return data.choices?.[0]?.message?.content ?? '';
 }

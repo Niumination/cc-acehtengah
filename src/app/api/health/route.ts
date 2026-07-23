@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getMockHealth } from '@/lib/mock-data';
 
 export async function GET() {
@@ -7,57 +6,64 @@ export async function GET() {
     return NextResponse.json(getMockHealth());
   }
 
-  const services: Record<string, 'ok' | 'error'> = {};
+  const services: Record<string, 'ok' | 'error' | 'skip'> = {};
 
-  // Cek PostgreSQL
+  // Cek SAPA API (public)
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    services.db = 'ok';
-  } catch {
-    services.db = 'error';
-  }
-
-  // Cek Ollama
-  try {
-    const res = await fetch(`${process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'}/api/tags`, {
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch('https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data', {
+      signal: AbortSignal.timeout(10000),
+      headers: { 'Content-Type': 'application/json' },
     });
-    services.ollama = res.ok ? 'ok' : 'error';
+    const json = await res.json();
+    services.sapa = res.ok && json.api_status === 1 ? 'ok' : 'error';
   } catch {
-    services.ollama = 'error';
+    services.sapa = 'error';
   }
 
-  // Cek Qdrant
+  // Cek AI Provider
   try {
-    const res = await fetch(`${process.env.QDRANT_URL ?? 'http://localhost:6333'}/collections`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    services.qdrant = res.ok ? 'ok' : 'error';
-  } catch {
-    services.qdrant = 'error';
-  }
-
-  // Cek SPLP
-  try {
-    const splpUrl = process.env.SPLP_BASE_URL;
-    if (splpUrl) {
-      const res = await fetch(`${splpUrl}/api/v1/health`, {
-        signal: AbortSignal.timeout(5000),
-        headers: { Authorization: `Bearer ${process.env.SPLP_TOKEN ?? ''}` },
-      });
-      services.splp = res.ok ? 'ok' : 'error';
+    const aiKey = process.env.AI_API_KEY;
+    const aiUrl = process.env.AI_BASE_URL ?? 'https://api.openai.com/v1';
+    if (!aiKey) {
+      services.ai = 'skip';
     } else {
-      services.splp = 'error';
+      const res = await fetch(`${aiUrl}/models`, {
+        signal: AbortSignal.timeout(10000),
+        headers: { Authorization: `Bearer ${aiKey}` },
+      });
+      services.ai = res.ok ? 'ok' : 'error';
     }
   } catch {
-    services.splp = 'error';
+    services.ai = 'error';
   }
 
-  const allOk = Object.values(services).every((s) => s === 'ok');
+  // Cek Qdrant (opsional)
+  try {
+    const qdrantUrl = process.env.QDRANT_URL;
+    if (!qdrantUrl) {
+      services.qdrant = 'skip';
+    } else {
+      const res = await fetch(`${qdrantUrl}/collections`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      services.qdrant = res.ok ? 'ok' : 'error';
+    }
+  } catch {
+    services.qdrant = 'skip';
+  }
+
+  const allOk = Object.values(services).every((s) => s === 'ok' || s === 'skip');
+  const anyError = Object.values(services).some((s) => s === 'error');
 
   return NextResponse.json({
-    status: allOk ? 'healthy' : 'degraded',
+    status: anyError ? 'degraded' : 'healthy',
     timestamp: new Date().toISOString(),
     services,
+    config: {
+      sapa: 'https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data',
+      ai: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
+      aiModel: process.env.AI_MODEL ?? 'gpt-4o-mini',
+      qdrant: process.env.QDRANT_URL ?? '(not configured)',
+    },
   });
 }

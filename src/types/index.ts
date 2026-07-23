@@ -19,6 +19,7 @@ export interface IntentResult {
   lokasi?: string;
   butuhData: boolean;
   intentRaw: string;
+  opdFilter?: string;
 }
 
 export interface SyncResult {

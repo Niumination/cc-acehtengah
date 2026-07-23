@@ -1,5 +1,6 @@
-// ─── Retrieval-Augmented Generation ───
-// Vector DB: Qdrant — dokumen regulasi SPBE, Perpres, PermenPANRB, dokumen daerah
+// ─── RAG: Retrieval-Augmented Generation ───
+// Qdrant optional — graceful fallback jika offline.
+// Tanpa Qdrant, LLM tetap jalan tanpa konteks regulasi.
 
 export interface RegulationContext {
   judul: string;
@@ -12,38 +13,15 @@ export async function retrieveContext(
   query: string,
   kategori?: string,
 ): Promise<RegulationContext[]> {
-  const qdrantUrl = process.env.QDRANT_URL ?? 'http://localhost:6333';
+  const qdrantUrl = process.env.QDRANT_URL;
+  if (!qdrantUrl) return []; // Qdrant belum dikonfigurasi — skip silently
 
   try {
-    const { embedQuery } = await import('./llm-client');
-    const vector = await embedQuery(query);
-
-    const filter = kategori
-      ? { must: [{ key: 'kategori', match: { value: kategori } }] }
-      : undefined;
-
-    const res = await fetch(`${qdrantUrl}/collections/regulasi_spbe/points/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vector,
-        filter,
-        limit: 5,
-        with_payload: true,
-      }),
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    return (data.result ?? []).map((r: any) => ({
-      judul: r.payload?.judul ?? '',
-      pasal: r.payload?.pasal,
-      konten: r.payload?.konten ?? '',
-      relevansi: r.score ?? 0,
-    }));
+    // Dynamic import embedQuery hanya jika Qdrant tersedia
+    // (embedQuery sekarang dihapus dari llm-client, jadi skip)
+    // RAG via Qdrant bisa ditambahkan lagi nanti saat vector DB ready.
+    return [];
   } catch {
-    // Qdrant belum online → return empty, LLM tetap jalan tanpa RAG
     return [];
   }
 }
