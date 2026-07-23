@@ -1,4 +1,4 @@
-// ─── AI Orchestrator — SAPA + Cloud AI ───
+// ─── AI Orchestrator — SAPA + Cloud AI (Optimized) ───
 
 import { detectIntent } from './intent-detector';
 import { callLLM } from './llm-client';
@@ -7,12 +7,26 @@ import {
   fetchSapaData,
   filterByOpd,
   filterByIndicator,
-  getSapaSummary,
+  getUniqueOpd,
+  getUniqueIndicators,
   type SapaRecord,
 } from '@/lib/sapa-client';
 import { HybridResponse } from '@/types';
 
-// In-memory cache (5 menit)
+// ─── SAPA Data Cache (10 menit) ───
+let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
+const SAPA_CACHE_TTL = 10 * 60 * 1000;
+
+async function getCachedSapaData(): Promise<SapaRecord[]> {
+  if (sapaCache && sapaCache.expiresAt > Date.now()) {
+    return sapaCache.records;
+  }
+  const records = await fetchSapaData();
+  sapaCache = { records, expiresAt: Date.now() + SAPA_CACHE_TTL };
+  return records;
+}
+
+// ─── LLM Response Cache (5 menit) ───
 const queryCache = new Map<string, { response: HybridResponse; expiresAt: number }>();
 
 function getCached(query: string): HybridResponse | null {
@@ -24,7 +38,7 @@ function getCached(query: string): HybridResponse | null {
 
 function setCache(query: string, response: HybridResponse) {
   queryCache.set(query, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
-  if (queryCache.size > 100) {
+  if (queryCache.size > 50) {
     const oldest = queryCache.keys().next().value;
     if (oldest) queryCache.delete(oldest);
   }
@@ -39,8 +53,8 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const intent = await detectIntent(query);
     const opdFilter = (intent as any).opdFilter as string | undefined;
 
-    // Step 2: Fetch semua data SAPA
-    const allRecords = await fetchSapaData();
+    // Step 2: Fetch SAPA data (cached)
+    const allRecords = await getCachedSapaData();
 
     // Step 3: Filter sesuai intent
     let filteredData: SapaRecord[] = allRecords;
@@ -50,44 +64,53 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Extract keyword dari query untuk filter indikator
     const keywords = query.toLowerCase().split(/\s+/);
+    const stopWords = ['bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi', 'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan', 'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini', 'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan', 'daftar', 'list', 'show', 'list', 'opd', 'sapa', 'aceh', 'tengah', 'kabupaten'];
     const indicatorKeywords = keywords.filter(
-      (w) => w.length > 3 && !['bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi', 'untuk', 'dari', 'dengan'].includes(w),
+      (w) => w.length > 3 && !stopWords.includes(w),
     );
     if (indicatorKeywords.length > 0 && !opdFilter) {
-      // Try filter by indicator keywords, keep all if no match
       const indicatorFiltered = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
       if (indicatorFiltered.length > 0) {
         filteredData = [...new Map(indicatorFiltered.map((r) => [r.id, r])).values()];
       }
     }
 
-    // Step 4: Ringkas data untuk LLM (jangan kirim 905 records mentah)
-    const summary = getSapaSummary(allRecords);
-    const filteredSummary = getSapaSummary(filteredData);
+    // Step 4: Pre-aggregate data untuk LLM (lebih efektif)
+    const allOpds = getUniqueOpd(allRecords);
+    const allIndicators = getUniqueIndicators(allRecords);
+    const filteredOpds = getUniqueOpd(filteredData);
+    const filteredIndicators = getUniqueIndicators(filteredData);
 
-    // Build data untuk LLM — ringkas tapi informatif
+    // Build concise data summary for LLM
     const dataForLLM = {
-      ringkasan_sapa: summary,
-      data_filtered: {
-        total: filteredData.length,
-        opd_filter: opdFilter ?? 'semua',
-        ringkasan: filteredSummary,
-        sample_data: filteredData.slice(0, 30).map((r) => ({
-          indikator: r.kode_indikator_nama_indikator,
+      ringkasan: {
+        total_data: allRecords.length,
+        total_opd: allOpds.length,
+        total_indikator: allIndicators.length,
+        daftar_opd_lengkap: allOpds.map(o => o.nama).join(', '),
+        tahun_tersedia: [...new Set(allRecords.map(r => r.tahun))].sort().join(', '),
+      },
+      data_terfilter: {
+        jumlah: filteredData.length,
+        opd_filter: opdFilter || 'semua',
+        opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
+        indikator_ditemukan: filteredIndicators.map(i => i.nama).join('; '),
+        sample: filteredData.slice(0, 25).map((r) => ({
           opd: r.opds_nama_opd,
+          indikator: r.kode_indikator_nama_indikator,
           nilai: r.variabel,
           satuan: r.satuan,
-          periode: r.jadwal_pemutakhiran,
           tahun: r.tahun,
+          periode: r.jadwal_pemutakhiran,
         })),
       },
     };
 
-    // Step 5: Ambil konteks regulasi (opsional, Qdrant offline = skip)
+    // Step 5: Ambil konteks regulasi (opsional)
     const konteksRegulasi = await retrieveContext(query, intent.kategori);
 
     // Step 6: Panggil LLM
-    const systemPrompt = buildSystemPrompt();
+    const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
     const llmResponse = await callLLM(systemPrompt, {
       query,
       data: dataForLLM,
@@ -109,24 +132,35 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
   }
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
   return `Anda adalah AI Command Center Pemerintah Kabupaten Aceh Tengah.
 Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA (Satu Pintu Akses Data).
 
-Data yang tersedia adalah data SAPA real Kabupaten Aceh Tengah — indikator pembangunan dari 35+ OPD.
+STATISTIK SAPA SAAT INI:
+- Total OPD: ${totalOpd}
+- Total Indikator: ${totalIndicators}
+- Sumber: api-splp.layanan.go.id
 
-Aturan:
-- HANYA gunakan data riil yang diberikan. Jangan berasumsi atau mengarang angka.
-- Jika data tidak cukup untuk menjawab, katakan "Data tidak tersedia untuk pertanyaan ini."
-- Gunakan Bahasa Indonesia formal.
-- Berikan analisis yang actionable — tidak hanya membaca angka.
-- Untuk visualisasi, pilih tipe yang paling cocok:
-  * "chart" untuk tren/comparasi (butuh data: xKey, lines, data array)
-  * "table" untuk daftar perbandingan (butuh data: columns, rows)
-  * "metric" untuk ringkasan angka (butuh data: metrics array)
-  * "none" jika tidak perlu visualisasi
+DATA YANG TERSEDIA:
+Data SAPA berisi indikator pembangunan dari OPD pemerintah daerah Kabupaten Aceh Tengah.
+Setiap record memiliki: nama OPD, nama indikator, nilai (variabel), satuan, tahun, dan periode pemutakhiran.
 
-Format respons JSON:
+ATURAN PENTING:
+1. HANYA gunakan data riil yang diberikan. Jangan berasumsi atau mengarang angka.
+2. Jika data tidak cukup untuk menjawab, katakan dengan jelas: "Data mengenai [topik] belum tersedia di SAPA saat ini. Data yang tersedia mencakup [sebutkan data yang relevan]."
+3. Selalu sebutkan OPD dan sumber data dalam jawaban.
+4. Gunakan Bahasa Indonesia formal, lugas, dan actionable.
+5. Berikan analisis yang bermakna — tidak hanya membaca angka, tapi juga interpretasi.
+6. Jika data menunjukkan tren, analisis penyebab potensial.
+7. Jika ada perbandingan antar OPD, bandingkan secara fair.
+
+UNTUK VISUALISASI, pilih tipe yang paling cocok:
+- "chart" untuk tren/comparasi (butuh: xKey, lines/bar, data array)
+- "table" untuk daftar perbandingan (butuh: columns, rows)
+- "metric" untuk ringkasan angka (butuh: metrics array dengan label, value, unit)
+- "none" jika tidak perlu visualisasi
+
+FORMAT RESPONS HARUS JSON:
 {"narasi": "...", "visualisasi": {"tipe": "chart|table|metric|none", "konfigurasi": {...}}, "rekomendasi": ["..."]}`;
 }
 
@@ -141,7 +175,6 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
       timestamp: new Date().toISOString(),
     };
   } catch {
-    // LLM tidak return JSON valid — bungkus sebagai narasi
     return {
       narasi: raw,
       visualisasi: { tipe: 'none', konfigurasi: {} },
