@@ -48,13 +48,17 @@ export default function AIResponseRenderer({ response }: Props) {
 
       {/* Rekomendasi */}
       {rekomendasi && rekomendasi.length > 0 && (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5">
-          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-3">💡 Rekomendasi AI</p>
-          <ul className="space-y-2">
+        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/10 border border-amber-500/30 rounded-2xl p-5 shadow-lg shadow-amber-500/5">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-sm">💡</div>
+            <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">Rekomendasi AI</p>
+          </div>
+          <ul className="space-y-2.5 relative">
             {rekomendasi.map((r, i) => (
-              <li key={i} className="flex gap-2 text-xs text-slate-400">
-                <span className="text-amber-500/60 font-mono">{i + 1}.</span>
-                <span>{r}</span>
+              <li key={i} className="flex gap-2.5 text-sm text-slate-300">
+                <span className="flex-shrink-0 w-5 h-5 rounded-md bg-amber-500/15 flex items-center justify-center text-[10px] font-bold text-amber-400">{i + 1}</span>
+                <span className="leading-relaxed">{r}</span>
               </li>
             ))}
           </ul>
