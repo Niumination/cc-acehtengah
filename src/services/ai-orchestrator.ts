@@ -62,7 +62,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       filteredData = filterByOpd(allRecords, opdFilter);
     }
 
-    // Extract keyword — threshold降到2 huruf (misal: 'asn', 'gizi')
+    // Extract keyword — threshold 2 huruf (misal: 'asn', 'gizi')
     const keywords = query.toLowerCase().split(/\s+/);
     const stopWords = new Set([
       'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
@@ -75,11 +75,13 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       (w) => w.length >= 2 && !stopWords.has(w) && !/^\d+$/.test(w),
     );
 
-    // Search indicator names (full text match)
+    // Search indicator names — find ALL matching records
+    let matchedRecords: SapaRecord[] = [];
     if (indicatorKeywords.length > 0 && !opdFilter) {
-      const indicatorFiltered = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
-      if (indicatorFiltered.length > 0) {
-        filteredData = [...new Map(indicatorFiltered.map((r) => [r.id, r])).values()];
+      matchedRecords = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
+      matchedRecords = [...new Map(matchedRecords.map((r) => [r.id, r])).values()];
+      if (matchedRecords.length > 0) {
+        filteredData = matchedRecords;
       }
     }
 
@@ -89,17 +91,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const filteredOpds = getUniqueOpd(filteredData);
     const filteredIndicators = getUniqueIndicators(filteredData);
 
-    // Find related indicators — group by keyword match score
-    const relatedIndicators = allIndicators
-      .filter(ind => {
-        if (!ind.nama) return false;
-        const nameLower = ind.nama.toLowerCase();
-        return indicatorKeywords.some(kw => nameLower.includes(kw));
-      })
-      .map(i => i.nama)
-      .filter(Boolean);
-
-    // Build compact data for LLM — fit within ~8000 chars
+    // Build compact data for LLM — prioritize matched records
     const dataForLLM = {
       ringkasan: {
         total_data: allRecords.length,
@@ -112,10 +104,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
         count: filteredData.length,
         opd: opdFilter || 'semua',
         opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-        // Only send related indicators (not ALL 604)
-        indikator_relevan: relatedIndicators.join('; ') || filteredIndicators.map(i => i.nama).join('; '),
-        // Send sample data — up to 25 records
-        sample: filteredData.slice(0, 25).map((r) => ({
+        // Related indicator names (for context)
+        indikator_relevan: filteredIndicators.map(i => i.nama).join('; '),
+        // MATCHED records — these are the actual data the user wants
+        data_ditemukan: filteredData.map((r) => ({
           opd: r.opds_nama_opd,
           indikator: r.kode_indikator_nama_indikator,
           nilai: r.variabel,
@@ -159,14 +151,17 @@ Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA.
 STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
 
 ATURAN:
-1. HANYA gunakan data riil yang diberikan. Jangan mengarang angka.
-2. Jika data spesifik tidak ditemukan, TETAP tampilkan data terkait yang tersedia.
-   Contoh: User tanya "jumlah ASN" → tampilkan "Jumlah kenaikan pangkat PNS tepat waktu: 62 (periode Triwulan IV)" atau indikator PNS/Kepegawaian lainnya dari field "indikator_relevan".
-   JANGAN langsung bilang "belum tersedia" tanpa menunjukkan data apa pun.
-3. Selalu sebutkan OPD dan sumber data.
-4. Gunakan Bahasa Indonesia formal, lugas, actionable.
-5. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
-6. Jika user bertanya tentang topik tertentu (stunting, gizi, ASN, dll), cari di field "indikator_relevan" untuk melihat indikator yang relevan, lalu tampilkan datanya dari field "sample".
+1. HANYA gunakan data riil dari field "data_ditemukan". Jangan mengarang angka.
+2. Tampilkan data yang ditemukan dengan format yang jelas (nilai + satuan + periode).
+3. Jika data spesifik tidak ada di "data_ditemukan", tampilkan data terkait dari "indikator_relevan".
+4. Selalu sebutkan OPD dan sumber data.
+5. Gunakan Bahasa Indonesia formal, lugas, actionable.
+6. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
+
+CONTOH RESPONS:
+Query: "berapa jumlah ASN"
+Data ditemukan: [{opd:"BKPSDM", indikator:"Jumlah ASN", nilai:"9694", satuan:"orang", periode:"2025"}]
+→ "Berdasarkan data SAPA, jumlah ASN di Kabupaten Aceh Tengah adalah 9.694 orang (sumber: BKPSDM, periode 2025)."
 
 VISUALISASI (pilih salah satu):
 - "table" untuk daftar (columns, rows)

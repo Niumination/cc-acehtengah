@@ -68,7 +68,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 
   if (input.data) {
     const dataStr = JSON.stringify(input.data, null, 2);
-    const truncated = dataStr.length > 12000 ? dataStr.slice(0, 12000) + '\n...[dipotong]' : dataStr;
+    const truncated = dataStr.length > 15000 ? dataStr.slice(0, 15000) + '\n...[dipotong]' : dataStr;
     messages.push({
       role: 'system',
       content: `Data Terkini dari SAPA:\n${truncated}`,
