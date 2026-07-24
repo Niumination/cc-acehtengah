@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { HybridResponse } from '@/types';
-import MetricCard from './MetricCard';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -49,28 +48,73 @@ export default function AiChatPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query.trim() }),
+        signal: AbortSignal.timeout(120000), // 120s for AI reasoning
       });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const data: HybridResponse = await res.json();
 
       const aiMsg: ChatMessage = {
         role: 'assistant',
-        content: data.narasi,
+        content: data.narasi || 'Tidak ada jawaban dari AI.',
         response: data,
-        timestamp: data.timestamp,
+        timestamp: data.timestamp || new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMsg]);
-    } catch {
+    } catch (err: any) {
+      const errMsg = err.name === 'TimeoutError'
+        ? 'Maaf, AI membutuhkan waktu terlalu lama. Coba pertanyaan yang lebih singkat.'
+        : `Maaf, terjadi kesalahan: ${err.message || 'Unknown error'}. Silakan coba lagi.`;
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Maaf, terjadi kesalahan. Silakan coba lagi.',
+          content: errMsg,
           timestamp: new Date().toISOString(),
         },
       ]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** Render table visualization — supports both array rows and object rows */
+  const renderTable = (config: any) => {
+    const columns: string[] = config.columns ?? [];
+    const rawRows: any[] = config.rows ?? [];
+
+    if (columns.length === 0 || rawRows.length === 0) return null;
+
+    return (
+      <div className="overflow-x-auto max-h-[300px]">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-slate-800/80">
+            <tr className="border-b border-slate-700/50">
+              {columns.map((col: string) => (
+                <th key={col} className="text-left py-1.5 px-2 font-medium text-slate-400 whitespace-nowrap">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rawRows.slice(0, 20).map((row: any, i: number) => (
+              <tr key={i} className="border-b border-slate-700/30">
+                {columns.map((col: string, ci: number) => (
+                  <td key={col} className="py-1.5 px-2">
+                    {/* Support both array rows and object rows */}
+                    {Array.isArray(row) ? (row[ci] ?? '-') : (row[col] ?? '-')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
@@ -128,55 +172,20 @@ export default function AiChatPanel() {
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                 msg.role === 'user'
                   ? 'bg-blue-600 text-white'
                   : 'bg-slate-800 text-slate-200 border border-slate-700/50'
               }`}
             >
-              <p className="text-sm leading-relaxed">{msg.content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
 
               {/* Visualisasi from AI */}
               {msg.response?.visualisasi &&
                 msg.response.visualisasi.tipe !== 'none' && (
                   <div className="mt-3 pt-3 border-t border-slate-700/30">
                     {msg.response.visualisasi.tipe === 'table' && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-700/50">
-                              {(
-                                msg.response.visualisasi.konfigurasi.columns ?? []
-                              ).map((col: string) => (
-                                <th
-                                  key={col}
-                                  className="text-left py-1.5 px-2 font-medium text-slate-400"
-                                >
-                                  {col}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(
-                              msg.response.visualisasi.konfigurasi.rows ?? []
-                            ).slice(0, 10).map((row: Record<string, string>, i: number) => (
-                              <tr
-                                key={i}
-                                className="border-b border-slate-700/30"
-                              >
-                                {(
-                                  msg.response!.visualisasi.konfigurasi.columns ?? []
-                                ).map((col: string) => (
-                                  <td key={col} className="py-1.5 px-2">
-                                    {row[col] ?? '-'}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      renderTable(msg.response.visualisasi.konfigurasi)
                     )}
                     {msg.response.visualisasi.tipe === 'metric' && (
                       <div className="grid grid-cols-2 gap-2">
