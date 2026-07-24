@@ -83,29 +83,38 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       }
     }
 
-    // Step 4: Build rich context for LLM
+    // Step 4: Build context for LLM
     const allOpds = getUniqueOpd(allRecords);
     const allIndicators = getUniqueIndicators(allRecords);
     const filteredOpds = getUniqueOpd(filteredData);
     const filteredIndicators = getUniqueIndicators(filteredData);
 
-    // Build compact data for LLM
+    // Find related indicators — group by keyword match score
+    const relatedIndicators = allIndicators
+      .filter(ind => {
+        if (!ind.nama) return false;
+        const nameLower = ind.nama.toLowerCase();
+        return indicatorKeywords.some(kw => nameLower.includes(kw));
+      })
+      .map(i => i.nama)
+      .filter(Boolean);
+
+    // Build compact data for LLM — fit within ~8000 chars
     const dataForLLM = {
       ringkasan: {
         total_data: allRecords.length,
         total_opd: allOpds.length,
         total_indikator: allIndicators.length,
-        opd_list: allOpds.map(o => `${o.nama}(${o.jumlah})`).join(', '),
+        opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
         tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
       },
       filtered: {
         count: filteredData.length,
         opd: opdFilter || 'semua',
         opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-        // Send ALL indicator names for keyword search (not just filtered)
-        semua_indikator: allIndicators.map(i => i.nama).filter(Boolean).join('; '),
-        indikator_relevan: filteredIndicators.map(i => i.nama).join('; '),
-        // Send MORE samples — 25 records instead of 10
+        // Only send related indicators (not ALL 604)
+        indikator_relevan: relatedIndicators.join('; ') || filteredIndicators.map(i => i.nama).join('; '),
+        // Send sample data — up to 25 records
         sample: filteredData.slice(0, 25).map((r) => ({
           opd: r.opds_nama_opd,
           indikator: r.kode_indikator_nama_indikator,
@@ -152,12 +161,12 @@ STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layan
 ATURAN:
 1. HANYA gunakan data riil yang diberikan. Jangan mengarang angka.
 2. Jika data spesifik tidak ditemukan, TETAP tampilkan data terkait yang tersedia.
-   Contoh: User tanya "jumlah ASN" → tampilkan "Jumlah kenaikan pangkat PNS tepat waktu: 62 (periode Triwulan IV)" atau indikator PNS lainnya yang ada.
+   Contoh: User tanya "jumlah ASN" → tampilkan "Jumlah kenaikan pangkat PNS tepat waktu: 62 (periode Triwulan IV)" atau indikator PNS/Kepegawaian lainnya dari field "indikator_relevan".
    JANGAN langsung bilang "belum tersedia" tanpa menunjukkan data apa pun.
 3. Selalu sebutkan OPD dan sumber data.
 4. Gunakan Bahasa Indonesia formal, lugas, actionable.
 5. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
-6. Jika user bertanya tentang topik tertentu (stunting, gizi, ASN, dll), cari di field "semua_indikator" untuk melihat indikator yang relevan, lalu tampilkan datanya dari field "sample".
+6. Jika user bertanya tentang topik tertentu (stunting, gizi, ASN, dll), cari di field "indikator_relevan" untuk melihat indikator yang relevan, lalu tampilkan datanya dari field "sample".
 
 VISUALISASI (pilih salah satu):
 - "table" untuk daftar (columns, rows)
