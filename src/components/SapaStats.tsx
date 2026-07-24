@@ -46,6 +46,12 @@ interface SapaStatsData {
 
 const CHART_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
+/** Truncate long indicator names for chart readability */
+function truncateName(name: string, maxLen: number = 35): string {
+  if (name.length <= maxLen) return name;
+  return name.slice(0, maxLen) + '…';
+}
+
 function SkeletonCard() {
   return (
     <div className="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/30">
@@ -110,8 +116,18 @@ export default function SapaStats() {
   if (!data) return null;
 
   const sortedOpds = [...data.opds].sort((a, b) => b.jumlahIndikator - a.jumlahIndikator);
-  const top10 = [...data.topIndicators].slice(0, 10);
+  const top10 = [...data.topIndicators].slice(0, 10).map(ind => ({
+    ...ind,
+    shortName: truncateName(ind.nama, 32),
+  }));
   const years = [...data.dataByYear].sort((a, b) => a.year.localeCompare(b.year));
+
+  // Format lastFetched as readable date
+  const lastFetchedStr = data.overview.lastFetched
+    ? new Date(data.overview.lastFetched).toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : '-';
 
   return (
     <div className="space-y-6 animate-fadeIn" id="opd">
@@ -169,11 +185,9 @@ export default function SapaStats() {
             <span className="text-lg">🔄</span>
           </div>
           <p className="text-sm font-bold text-white">
-            {data.overview.latestUpdate
-              ? new Date(data.overview.latestUpdate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-              : '-'}
+            {data.overview.latestUpdate || '-'}
           </p>
-          <p className="text-[10px] text-slate-500 mt-1">Pemutakhiran data</p>
+          <p className="text-[10px] text-slate-500 mt-1">Terakhir diambil: {lastFetchedStr}</p>
         </div>
       </div>
 
@@ -218,21 +232,22 @@ export default function SapaStats() {
           <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">
             📊 Top 10 Indikator Terbanyak
           </h3>
-          <ResponsiveContainer width="100%" height={340}>
-            <BarChart data={top10} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={380}>
+            <BarChart data={top10} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
               <XAxis type="number" stroke="#64748b" tick={{ fontSize: 11 }} />
               <YAxis
                 type="category"
-                dataKey="nama"
+                dataKey="shortName"
                 stroke="#64748b"
-                tick={{ fontSize: 10 }}
-                width={140}
+                tick={{ fontSize: 9 }}
+                width={160}
               />
               <Tooltip
                 contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#e2e8f0' }}
                 labelStyle={{ color: '#94a3b8' }}
+                formatter={(value: any, _name: any, props: any) => [`${value} record`, props.payload?.nama ?? '']}
               />
               <Bar dataKey="jumlah" name="Jumlah Record" radius={[0, 6, 6, 0]}>
                 {top10.map((_, i) => (
