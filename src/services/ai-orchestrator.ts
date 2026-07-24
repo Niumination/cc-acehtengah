@@ -62,12 +62,20 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       filteredData = filterByOpd(allRecords, opdFilter);
     }
 
-    // Extract keyword dari query untuk filter indikator
+    // Extract keyword — threshold降到2 huruf (misal: 'asn', 'gizi')
     const keywords = query.toLowerCase().split(/\s+/);
-    const stopWords = ['bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi', 'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan', 'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini', 'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan', 'daftar', 'list', 'show', 'list', 'opd', 'sapa', 'aceh', 'tengah', 'kabupaten'];
+    const stopWords = new Set([
+      'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
+      'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
+      'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
+      'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan',
+      'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten',
+    ]);
     const indicatorKeywords = keywords.filter(
-      (w) => w.length > 3 && !stopWords.includes(w),
+      (w) => w.length >= 2 && !stopWords.has(w) && !/^\d+$/.test(w),
     );
+
+    // Search indicator names (full text match)
     if (indicatorKeywords.length > 0 && !opdFilter) {
       const indicatorFiltered = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
       if (indicatorFiltered.length > 0) {
@@ -75,7 +83,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       }
     }
 
-    // Step 4: Pre-aggregate data untuk LLM (compact)
+    // Step 4: Build rich context for LLM
     const allOpds = getUniqueOpd(allRecords);
     const allIndicators = getUniqueIndicators(allRecords);
     const filteredOpds = getUniqueOpd(filteredData);
@@ -87,20 +95,24 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
         total_data: allRecords.length,
         total_opd: allOpds.length,
         total_indikator: allIndicators.length,
-        opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
+        opd_list: allOpds.map(o => `${o.nama}(${o.jumlah})`).join(', '),
         tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
       },
       filtered: {
         count: filteredData.length,
         opd: opdFilter || 'semua',
         opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-        indicators: filteredIndicators.map(i => i.nama).join('; '),
-        sample: filteredData.slice(0, 10).map((r) => ({
+        // Send ALL indicator names for keyword search (not just filtered)
+        semua_indikator: allIndicators.map(i => i.nama).filter(Boolean).join('; '),
+        indikator_relevan: filteredIndicators.map(i => i.nama).join('; '),
+        // Send MORE samples — 25 records instead of 10
+        sample: filteredData.slice(0, 25).map((r) => ({
           opd: r.opds_nama_opd,
           indikator: r.kode_indikator_nama_indikator,
           nilai: r.variabel,
           satuan: r.satuan,
           tahun: r.tahun,
+          periode: r.jadwal_pemutakhiran,
         })),
       },
     };
@@ -139,10 +151,13 @@ STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layan
 
 ATURAN:
 1. HANYA gunakan data riil yang diberikan. Jangan mengarang angka.
-2. Jika data tidak cukup, katakan: "Data mengenai [topik] belum tersedia di SAPA."
+2. Jika data spesifik tidak ditemukan, TETAP tampilkan data terkait yang tersedia.
+   Contoh: User tanya "jumlah ASN" → tampilkan "Jumlah kenaikan pangkat PNS tepat waktu: 62 (periode Triwulan IV)" atau indikator PNS lainnya yang ada.
+   JANGAN langsung bilang "belum tersedia" tanpa menunjukkan data apa pun.
 3. Selalu sebutkan OPD dan sumber data.
 4. Gunakan Bahasa Indonesia formal, lugas, actionable.
 5. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
+6. Jika user bertanya tentang topik tertentu (stunting, gizi, ASN, dll), cari di field "semua_indikator" untuk melihat indikator yang relevan, lalu tampilkan datanya dari field "sample".
 
 VISUALISASI (pilih salah satu):
 - "table" untuk daftar (columns, rows)
