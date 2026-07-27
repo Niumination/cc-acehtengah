@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${
-      isDark ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900'
+      isDark ? 'bg-[#0F2A1E] text-[#C8DFC8]' : 'bg-[#0F2A1E] text-[#C8DFC8]'
     }`}>
       {/* Sidebar */}
       <div className="hidden md:block h-full flex-shrink-0">
@@ -46,8 +46,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Header */}
         <header className={`border-b px-4 py-3 flex items-center justify-between flex-shrink-0 transition-colors duration-300 ${
           isDark
-            ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-blue-900/30 border-slate-800'
-            : 'bg-gradient-to-r from-white via-white to-blue-50 border-slate-200'
+            ? 'bg-gradient-to-r from-[#1B4332] via-[#1B4332] to-[#D9C284]/10 border-[#2D6A4F]'
+            : 'bg-gradient-to-r from-[#0F2A1E] via-[#0F2A1E] to-[#D9C284]/5 border-[#40916C]/30'
         }`}>
           <div className="flex items-center gap-3">
             {/* Sidebar Toggle */}
@@ -55,8 +55,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setSidebarCollapsed((c) => !c)}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
                 isDark
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700'
-                  : 'bg-slate-200 hover:bg-slate-300 text-slate-600 hover:text-slate-900 border border-slate-300'
+                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]'
+                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]'
               }`}
               title={sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
             >
@@ -79,16 +79,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-lg flex-shrink-0 ${
               isDark
-                ? 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/20 text-white'
-                : 'bg-gradient-to-br from-blue-500 to-blue-700 shadow-blue-500/20 text-white'
+                ? 'bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#D9C284]/20 text-[#C8DFC8]'
+                : 'bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#D9C284]/20 text-[#C8DFC8]'
             }`}>
               🏛️
             </div>
             <div>
-              <h1 className={`text-sm font-bold tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h1 className={`text-sm font-bold tracking-wide ${isDark ? 'text-[#C8DFC8]' : 'text-[#C8DFC8]'}`}>
                 Aceh Tengah Command Center
               </h1>
-              <p className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <p className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-[#6B8F71]' : 'text-[#6B8F71]'}`}>
                 Diskominfo · AI-Powered
               </p>
             </div>
@@ -97,10 +97,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3 text-sm">
             {/* Live Clock */}
             <div className="text-right">
-              <p className={`font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <p className={`font-mono text-xs ${isDark ? 'text-[#A7C4A0]' : 'text-[#52796F]'}`}>
                 {mounted ? currentTime : '--:--:--'}
               </p>
-              <p className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+              <p className={`text-[10px] ${isDark ? 'text-[#52796F]' : 'text-[#8FBC8F]'}`}>
                 {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -110,8 +110,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={toggleTheme}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
                 isDark
-                  ? 'bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-slate-700'
-                  : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border border-slate-300'
+                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#D9C284] border border-[#40916C]'
+                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]/40'
               }`}
               title={isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
             >
@@ -136,20 +136,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Connection Status */}
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-              isDark ? 'bg-green-900/30 border border-green-800/50' : 'bg-green-100 border border-green-200'
+              isDark ? 'bg-[#52B788]/15 border border-[#52B788]/30' : 'bg-[#52B788]/15 border border-[#52B788]/30'
             }`}>
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#52B788] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#52B788]" />
               </span>
-              <span className={`text-[11px] font-medium ${isDark ? 'text-green-400' : 'text-green-700'}`}>Online</span>
+              <span className={`text-[11px] font-medium ${isDark ? 'text-[#52B788]' : 'text-[#52B788]'}`}>Online</span>
             </div>
 
             {/* SAPA Badge */}
             <div className={`px-3 py-1.5 rounded-full ${
-              isDark ? 'bg-blue-900/30 border border-blue-800/50' : 'bg-blue-100 border border-blue-200'
+              isDark ? 'bg-[#D9C284]/10 border border-[#D9C284]/30' : 'bg-[#D9C284]/15 border border-blue-200'
             }`}>
-              <span className={`text-[11px] font-medium ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+              <span className={`text-[11px] font-medium ${isDark ? 'text-[#D9C284]' : 'text-[#1B4332]'}`}>
                 📡 SAPA Connected
               </span>
             </div>
@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Content */}
         <main className={`flex-1 overflow-y-auto p-6 transition-colors duration-300 ${
-          isDark ? 'bg-slate-950' : 'bg-slate-50'
+          isDark ? 'bg-[#0F2A1E]' : 'bg-[#0F2A1E]'
         }`}>
           {children}
         </main>
@@ -170,8 +170,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ewsOpen
               ? 'hidden'
               : isDark
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-r-0 border-slate-700'
-                : 'bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 border border-r-0 border-slate-300'
+                ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8] border border-r-0 border-[#40916C]'
+                : 'bg-[#0F2A1E] hover:bg-[#C8DFC8]/10 text-[#8FBC8F] hover:text-[#2D6A4F] border border-r-0 border-[#40916C]/40'
           }`}
           title="Tampilkan panel EWS"
         >
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }`}
       >
         <div className={`w-72 h-full border-l p-4 overflow-y-auto ${
-          isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'
+          isDark ? 'bg-[#1B4332]/80 border-[#2D6A4F]' : 'bg-[#0F2A1E] border-[#40916C]/30'
         }`}>
           <div className="flex items-center justify-between mb-3">
             <EwsPanel />
@@ -196,8 +196,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setEwsOpen(false)}
               className={`ml-2 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
                 isDark
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
-                  : 'bg-slate-200 hover:bg-slate-300 text-slate-500 hover:text-slate-800'
+                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8]'
+                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#6B8F71] hover:text-[#2D6A4F]'
               }`}
               title="Tutup panel EWS"
             >

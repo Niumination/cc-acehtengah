@@ -1,46 +1,65 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════
+   cc-acehtengah — Gayo Highlands Theme
+   Based on cc.acehtengahkab.go.id official palette
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
-  --primary: #3b82f6;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --card-bg: #1e293b;
-  --border: #334155;
+  --background: #0F2A1E;
+  --foreground: #C8DFC8;
+  --primary: #D9C284;
+  --primary-dark: #1B4332;
+  --primary-container: #2D6A4F;
+  --secondary: #D9C284;
+  --secondary-container: rgba(241,228,194,0.15);
+  --tertiary: #C97A4A;
+  --tertiary-container: rgba(201,122,74,0.15);
+  --success: #52B788;
+  --warning: #D9C284;
+  --danger: #E07A5F;
+  --card-bg: #1B4332;
+  --card-bg-alt: #2D6A4F;
+  --border: #40916C;
+  --border-subtle: rgba(64,145,108,0.3);
+  --text-primary: #C8DFC8;
+  --text-secondary: #8FBC8F;
+  --text-muted: #6B8F71;
+  --surface: #0F2A1E;
+  --surface-raised: #1B4332;
+  --surface-overlay: #2D6A4F;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', var(--font-geist-mono), monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar — green-tinted */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0F2A1E;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #40916C;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #52B788;
 }
 
 /* Animations */
@@ -83,9 +102,9 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
-/* Loading skeleton */
+/* Loading skeleton — green-tinted */
 .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background: linear-gradient(90deg, #1B4332 25%, #2D6A4F 50%, #1B4332 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 0.5rem;
@@ -98,27 +117,27 @@ body {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 25px -5px rgba(15, 42, 30, 0.5);
 }
 
-/* Recharts tooltip styling */
+/* Recharts tooltip styling — green themed */
 .recharts-tooltip-wrapper {
   outline: none !important;
 }
 
 .recharts-default-tooltip {
-  background: #1e293b !important;
-  border: 1px solid #334155 !important;
+  background: #1B4332 !important;
+  border: 1px solid #40916C !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 42, 30, 0.5) !important;
 }
 
 .recharts-tooltip-label {
-  color: #94a3b8 !important;
+  color: #8FBC8F !important;
   font-size: 11px !important;
 }
 
 .recharts-tooltip-item {
-  color: #e2e8f0 !important;
+  color: #C8DFC8 !important;
   font-size: 12px !important;
 }

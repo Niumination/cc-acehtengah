@@ -37,9 +37,9 @@ interface GeoData {
 const AcehTengahCenter: [number, number] = [4.5833, 96.7500];
 
 function getColor(records: number): string {
-  if (records > 40) return '#22c55e';
-  if (records > 20) return '#f59e0b';
-  return '#ef4444';
+  if (records > 40) return '#52B788';
+  if (records > 20) return '#C97A4A';
+  return '#E07A5F';
 }
 
 function getRadius(records: number): number {
@@ -60,14 +60,14 @@ function LeafletMap({ data }: { data: GeoData }) {
     });
   }, []);
 
-  if (!L) return <div className="h-[600px] bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">Loading map library...</div>;
+  if (!L) return <div className="h-[600px] bg-[#2D6A4F] rounded-2xl flex items-center justify-center text-[#8FBC8F]">Loading map library...</div>;
 
   return (
     <MapContainer
       center={AcehTengahCenter}
       zoom={11}
-      className="h-[600px] rounded-2xl border border-slate-700/50"
-      style={{ background: '#0f172a' }}
+      className="h-[600px] rounded-2xl border border-[#40916C]/50"
+      style={{ background: '#0F2A1E' }}
     >
       <TileLayer
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
@@ -87,29 +87,29 @@ function LeafletMap({ data }: { data: GeoData }) {
         >
           <Popup>
             <div className="text-sm min-w-[250px]">
-              <h3 className="font-bold text-slate-800 text-base mb-2">📍 {kec.nama}</h3>
+              <h3 className="font-bold text-[#2D6A4F] text-base mb-2">📍 {kec.nama}</h3>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="bg-blue-50 rounded-lg p-1.5 text-center">
-                  <p className="text-[10px] text-blue-600">Records</p>
-                  <p className="font-bold text-blue-700">{kec.totalRecords}</p>
+                  <p className="text-[10px] text-[#D9C284]">Records</p>
+                  <p className="font-bold text-[#1B4332]">{kec.totalRecords}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-1.5 text-center">
                   <p className="text-[10px] text-green-600">Indicators</p>
-                  <p className="font-bold text-green-700">{kec.totalIndicators}</p>
+                  <p className="font-bold text-[#52B788]">{kec.totalIndicators}</p>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 mb-1"><strong>OPD Terkait:</strong></p>
+              <p className="text-[10px] text-[#6B8F71] mb-1"><strong>OPD Terkait:</strong></p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {kec.opds.map(opd => (
-                  <span key={opd} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{opd}</span>
+                  <span key={opd} className="text-[10px] bg-[#C8DFC8]/20 text-[#52796F] px-1.5 py-0.5 rounded">{opd}</span>
                 ))}
               </div>
               {kec.sampleData.length > 0 && (
                 <>
-                  <p className="text-[10px] text-slate-500 mb-1"><strong>Sample Data:</strong></p>
+                  <p className="text-[10px] text-[#6B8F71] mb-1"><strong>Sample Data:</strong></p>
                   <table className="text-[10px] w-full">
                     <thead>
-                      <tr className="border-b border-slate-200">
+                      <tr className="border-b border-[#40916C]/30">
                         <th className="text-left py-0.5">OPD</th>
                         <th className="text-left py-0.5">Indikator</th>
                         <th className="text-right py-0.5">Nilai</th>
@@ -117,7 +117,7 @@ function LeafletMap({ data }: { data: GeoData }) {
                     </thead>
                     <tbody>
                       {kec.sampleData.slice(0, 3).map((d, i) => (
-                        <tr key={i} className="border-b border-slate-100">
+                        <tr key={i} className="border-b border-[#40916C]/20">
                           <td className="py-0.5">{d.opd.split(' ').slice(0, 2).join(' ')}</td>
                           <td className="py-0.5">{d.indicator?.slice(0, 25)}...</td>
                           <td className="py-0.5 text-right">{d.value} {d.unit}</td>
@@ -164,12 +164,12 @@ export default function GisPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">🗺️ Peta GIS Aceh Tengah</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#8FBC8F] mt-1">
             Distribusi data SAPA per kecamatan
           </p>
         </div>
         {data && (
-          <div className="text-right text-xs text-slate-500">
+          <div className="text-right text-xs text-[#6B8F71]">
             <p>Terakhir update: {new Date(data.lastFetched).toLocaleString('id-ID')}</p>
           </div>
         )}
@@ -185,8 +185,8 @@ export default function GisPage() {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-slate-400">
-        <span className="font-medium text-slate-300">Legenda Density:</span>
+      <div className="flex items-center gap-6 text-xs text-[#8FBC8F]">
+        <span className="font-medium text-[#A7C4A0]">Legenda Density:</span>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full bg-green-500" />
           <span>{'>'}40 records (Tinggi)</span>
@@ -203,20 +203,20 @@ export default function GisPage() {
 
       {/* Map */}
       {loading && (
-        <div className="h-[600px] bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700/50">
+        <div className="h-[600px] bg-[#2D6A4F] rounded-2xl flex items-center justify-center border border-[#40916C]/50">
           <div className="text-center">
             <div className="text-4xl mb-3">🗺️</div>
-            <p className="text-sm text-slate-400">Memuat data geospasial...</p>
+            <p className="text-sm text-[#8FBC8F]">Memuat data geospasial...</p>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="h-[600px] bg-slate-800 rounded-2xl flex items-center justify-center border border-red-500/30">
+        <div className="h-[600px] bg-[#2D6A4F] rounded-2xl flex items-center justify-center border border-[#E07A5F]/30">
           <div className="text-center">
             <div className="text-4xl mb-3">⚠️</div>
-            <p className="text-sm text-red-400 mb-3">{error}</p>
-            <button onClick={fetchData} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-500">
+            <p className="text-sm text-[#E07A5F] mb-3">{error}</p>
+            <button onClick={fetchData} className="px-4 py-2 bg-[#1B4332] text-white text-sm rounded-lg hover:bg-[#2D6A4F]">
               Coba Lagi
             </button>
           </div>
@@ -229,14 +229,14 @@ export default function GisPage() {
 
       {/* Kecamatan Table */}
       {data && (
-        <div className="bg-slate-900/80 rounded-2xl border border-slate-700/50 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-700/50">
+        <div className="bg-[#1B4332]/80 rounded-2xl border border-[#40916C]/50 overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#40916C]/50">
             <h2 className="text-sm font-bold text-white">📋 Detail per Kecamatan</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-700/50 text-slate-400">
+                <tr className="border-b border-[#40916C]/50 text-[#8FBC8F]">
                   <th className="text-left px-4 py-3 font-medium">#</th>
                   <th className="text-left px-4 py-3 font-medium">KECAMATAN</th>
                   <th className="text-left px-4 py-3 font-medium">OPD TERKAIT</th>
@@ -250,24 +250,24 @@ export default function GisPage() {
                 {data.kecamatan
                   .sort((a, b) => b.totalRecords - a.totalRecords)
                   .map((kec, idx) => (
-                  <tr key={kec.nama} className="border-b border-slate-800/50 hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3 text-slate-500">{idx + 1}</td>
+                  <tr key={kec.nama} className="border-b border-[#2D6A4F]/50 hover:bg-[#2D6A4F]/40 transition-colors">
+                    <td className="px-4 py-3 text-[#6B8F71]">{idx + 1}</td>
                     <td className="px-4 py-3 text-white font-medium">📍 {kec.nama}</td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-[#8FBC8F]">
                       <div className="flex flex-wrap gap-1">
                         {kec.opds.map(opd => (
-                          <span key={opd} className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px]">{opd.split(' ').slice(0, 3).join(' ')}</span>
+                          <span key={opd} className="bg-[#2D6A4F] px-1.5 py-0.5 rounded text-[10px]">{opd.split(' ').slice(0, 3).join(' ')}</span>
                         ))}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-white">{kec.totalRecords}</td>
-                    <td className="px-4 py-3 text-right font-mono text-blue-400">{kec.totalIndicators}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-400">{Math.round(kec.dataDensity)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[#D9C284]">{kec.totalIndicators}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[#8FBC8F]">{Math.round(kec.dataDensity)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        kec.totalRecords > 40 ? 'bg-green-500/20 text-green-400' :
+                        kec.totalRecords > 40 ? 'bg-[#52B788]/15 text-[#52B788]' :
                         kec.totalRecords > 20 ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-red-500/20 text-red-400'
+                        'bg-[#E07A5F]/15 text-[#E07A5F]'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           kec.totalRecords > 40 ? 'bg-green-400' :
@@ -290,13 +290,13 @@ export default function GisPage() {
 
 function SummaryCard({ icon, label, value, sub }: { icon: string; label: string; value: number; sub: string }) {
   return (
-    <div className="bg-slate-900/80 rounded-2xl border border-slate-700/50 p-5">
+    <div className="bg-[#1B4332]/80 rounded-2xl border border-[#40916C]/50 p-5">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-lg">{icon}</div>
+        <div className="w-10 h-10 rounded-xl bg-[#2D6A4F] flex items-center justify-center text-lg">{icon}</div>
         <div>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{label}</p>
+          <p className="text-[10px] text-[#6B8F71] uppercase tracking-wider font-medium">{label}</p>
           <p className="text-2xl font-bold text-white">{value.toLocaleString()}</p>
-          <p className="text-[10px] text-slate-600">{sub}</p>
+          <p className="text-[10px] text-[#52796F]">{sub}</p>
         </div>
       </div>
     </div>

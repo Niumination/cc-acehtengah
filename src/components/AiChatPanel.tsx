@@ -91,10 +91,10 @@ export default function AiChatPanel() {
     return (
       <div className="overflow-x-auto max-h-[300px]">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-slate-800/80">
-            <tr className="border-b border-slate-700/50">
+          <thead className="sticky top-0 bg-[#2D6A4F]/80">
+            <tr className="border-b border-[#40916C]/50">
               {columns.map((col: string) => (
-                <th key={col} className="text-left py-1.5 px-2 font-medium text-slate-400 whitespace-nowrap">
+                <th key={col} className="text-left py-1.5 px-2 font-medium text-[#8FBC8F] whitespace-nowrap">
                   {col}
                 </th>
               ))}
@@ -102,7 +102,7 @@ export default function AiChatPanel() {
           </thead>
           <tbody>
             {rawRows.slice(0, 20).map((row: any, i: number) => (
-              <tr key={i} className="border-b border-slate-700/30">
+              <tr key={i} className="border-b border-[#40916C]/30">
                 {columns.map((col: string, ci: number) => (
                   <td key={col} className="py-1.5 px-2">
                     {/* Support both array rows and object rows */}
@@ -118,20 +118,20 @@ export default function AiChatPanel() {
   };
 
   return (
-    <div id="ai" className="bg-slate-900/80 border border-slate-700/50 rounded-2xl overflow-hidden backdrop-blur-sm">
+    <div id="ai" className="bg-[#1B4332]/80 border border-[#40916C]/50 rounded-2xl overflow-hidden backdrop-blur-sm">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-700/50 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm shadow-lg shadow-blue-500/20">
+      <div className="px-6 py-4 border-b border-[#40916C]/50 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#D9C284] flex items-center justify-center text-sm shadow-lg shadow-[#D9C284]/20">
           🤖
         </div>
         <div>
           <h2 className="text-sm font-bold text-white">AI Asisten SAPA</h2>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-[#6B8F71]">
             Tanya data pembangunan Aceh Tengah secara natural
           </p>
         </div>
         {isLoading && (
-          <div className="ml-auto flex items-center gap-2 text-blue-400 text-xs">
+          <div className="ml-auto flex items-center gap-2 text-[#D9C284] text-xs">
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             Memproses...
           </div>
@@ -142,13 +142,13 @@ export default function AiChatPanel() {
       <div className="h-[400px] overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-3xl mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-[#2D6A4F] flex items-center justify-center text-3xl mb-4">
               💬
             </div>
-            <h3 className="text-sm font-semibold text-slate-300 mb-1">
+            <h3 className="text-sm font-semibold text-[#A7C4A0] mb-1">
               Mulai Percakapan
             </h3>
-            <p className="text-xs text-slate-500 max-w-md mb-6">
+            <p className="text-xs text-[#6B8F71] max-w-md mb-6">
               Tanyakan apa saja tentang data pembangunan Kabupaten Aceh Tengah.
               AI akan menjawab berdasarkan data SAPA real-time.
             </p>
@@ -157,7 +157,7 @@ export default function AiChatPanel() {
                 <button
                   key={s}
                   onClick={() => handleSend(s)}
-                  className="text-left text-xs px-3 py-2.5 rounded-xl bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-200 border border-slate-700/50 transition-all duration-200"
+                  className="text-left text-xs px-3 py-2.5 rounded-xl bg-[#2D6A4F]/80 text-[#8FBC8F] hover:bg-[#40916C] hover:text-[#C8DFC8] border border-[#40916C]/50 transition-all duration-200"
                 >
                   {s}
                 </button>
@@ -174,8 +174,8 @@ export default function AiChatPanel() {
             <div
               className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                 msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-200 border border-slate-700/50'
+                  ? 'bg-[#1B4332] text-white'
+                  : 'bg-[#2D6A4F] text-[#C8DFC8] border border-[#40916C]/50'
               }`}
             >
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
@@ -183,7 +183,7 @@ export default function AiChatPanel() {
               {/* Visualisasi from AI */}
               {msg.response?.visualisasi &&
                 msg.response.visualisasi.tipe !== 'none' && (
-                  <div className="mt-3 pt-3 border-t border-slate-700/30">
+                  <div className="mt-3 pt-3 border-t border-[#40916C]/30">
                     {msg.response.visualisasi.tipe === 'table' && (
                       renderTable(msg.response.visualisasi.konfigurasi)
                     )}
@@ -194,16 +194,16 @@ export default function AiChatPanel() {
                         ).map((m: any) => (
                           <div
                             key={m.label}
-                            className="bg-slate-700/30 rounded-lg p-2 text-center"
+                            className="bg-[#40916C]/30 rounded-lg p-2 text-center"
                           >
-                            <p className="text-[10px] text-slate-400">
+                            <p className="text-[10px] text-[#8FBC8F]">
                               {m.label}
                             </p>
                             <p className="text-sm font-bold text-white">
                               {m.value}
                             </p>
                             {m.unit && (
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-[10px] text-[#6B8F71]">
                                 {m.unit}
                               </p>
                             )}
@@ -217,17 +217,17 @@ export default function AiChatPanel() {
               {/* Rekomendasi */}
               {msg.response?.rekomendasi &&
                 msg.response.rekomendasi.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-700/30">
-                    <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1.5">
+                  <div className="mt-3 pt-3 border-t border-[#40916C]/30">
+                    <p className="text-[10px] font-semibold text-[#D9C284] uppercase tracking-wider mb-1.5">
                       💡 Rekomendasi
                     </p>
                     <ul className="space-y-1">
                       {msg.response.rekomendasi.map((r, i) => (
                         <li
                           key={i}
-                          className="text-xs text-slate-400 flex gap-1.5"
+                          className="text-xs text-[#8FBC8F] flex gap-1.5"
                         >
-                          <span className="text-slate-600">{i + 1}.</span>
+                          <span className="text-[#52796F]">{i + 1}.</span>
                           <span>{r}</span>
                         </li>
                       ))}
@@ -235,7 +235,7 @@ export default function AiChatPanel() {
                   </div>
                 )}
 
-              <p className="text-[10px] text-slate-600 mt-2">
+              <p className="text-[10px] text-[#52796F] mt-2">
                 {msg.response?.dataSource
                   ? `Sumber: ${msg.response.dataSource}`
                   : new Date(msg.timestamp).toLocaleTimeString('id-ID')}
@@ -246,12 +246,12 @@ export default function AiChatPanel() {
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl px-4 py-3">
-              <div className="flex items-center gap-2 text-slate-400">
+            <div className="bg-[#2D6A4F] border border-[#40916C]/50 rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-2 text-[#8FBC8F]">
                 <span className="flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0F2A1E]0 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0F2A1E]0 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0F2A1E]0 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </span>
                 <span className="text-xs">Menganalisis data SAPA...</span>
               </div>
@@ -262,7 +262,7 @@ export default function AiChatPanel() {
       </div>
 
       {/* Input */}
-      <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-900/50">
+      <div className="px-6 py-4 border-t border-[#40916C]/50 bg-[#1B4332]/50">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -275,18 +275,18 @@ export default function AiChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Tanya tentang data Aceh Tengah..."
-            className="flex-1 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700/50 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-[#2D6A4F] border border-[#40916C]/50 text-sm text-white placeholder-[#6B8F71] focus:outline-none focus:ring-2 focus:ring-[#D9C284]/50 focus:border-[#D9C284]/50 transition-all"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-blue-600/20"
+            className="px-5 py-2.5 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20"
           >
             {isLoading ? '⏳' : '➤'}
           </button>
         </form>
-        <p className="text-[10px] text-slate-600 mt-2 text-center">
+        <p className="text-[10px] text-[#52796F] mt-2 text-center">
           Didukung oleh SAPA Kabupaten Aceh Tengah & OpenCode Zen AI
         </p>
       </div>
