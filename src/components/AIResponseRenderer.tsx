@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { HybridResponse } from '@/types';
 
-const COLORS = ['#D9C284', '#52B788', '#C97A4A', '#E07A5F', '#6B8F71', '#2D6A4F', '#C97A4A', '#8FBC8F', '#D9C284', '#52796F'];
+const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
 interface Props {
   response: HybridResponse;
@@ -19,12 +19,12 @@ export default function AIResponseRenderer({ response }: Props) {
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Query Title */}
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#52B788] flex items-center justify-center text-sm">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0F2A1E] to-[#1B4332] flex items-center justify-center text-sm">
           📊
         </div>
         <div>
-          <h2 className="text-base font-bold text-white">Hasil Analisis AI</h2>
-          <p className="text-[10px] text-[#6B8F71]">
+          <h2 className="text-base font-bold text-[#1B4332]">Hasil Analisis AI</h2>
+          <p className="text-[10px] text-[#767D6F]">
             {response.dataSource} · {new Date(response.timestamp).toLocaleString('id-ID')}
           </p>
         </div>
@@ -32,7 +32,7 @@ export default function AIResponseRenderer({ response }: Props) {
 
       {/* Dynamic Visualization */}
       {visualisasi && visualisasi.tipe !== 'none' && (
-        <div className="bg-[#1B4332]/80 border border-[#40916C]/50 rounded-2xl p-5">
+        <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-5">
           {visualisasi.tipe === 'metric' && <MetricRenderer config={visualisasi.konfigurasi} />}
           {visualisasi.tipe === 'table' && <TableRenderer config={visualisasi.konfigurasi} />}
           {visualisasi.tipe === 'chart' && <ChartRenderer config={visualisasi.konfigurasi} />}
@@ -41,23 +41,23 @@ export default function AIResponseRenderer({ response }: Props) {
 
       {/* Narasi */}
       {narasi && (
-        <div className="bg-[#1B4332]/60 border border-[#40916C]/30 rounded-2xl p-5">
-          <p className="text-sm text-[#A7C4A0] leading-relaxed whitespace-pre-wrap">{narasi}</p>
+        <div className="bg-[#FFFFFF]/60 border border-[#C6C3B4] rounded-2xl p-5">
+          <p className="text-sm text-[#4B5249] leading-relaxed whitespace-pre-wrap">{narasi}</p>
         </div>
       )}
 
       {/* Rekomendasi */}
       {rekomendasi && rekomendasi.length > 0 && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/10 border border-[#C97A4A]/30 rounded-2xl p-5 shadow-lg shadow-amber-500/5">
+        <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-amber-500/10 border border-[#A15C38]/20 rounded-2xl p-5 shadow-lg shadow-amber-500/5">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-[#C97A4A]/15 flex items-center justify-center text-sm">💡</div>
-            <p className="text-xs font-bold text-[#D9C284] uppercase tracking-wider">Rekomendasi AI</p>
+            <div className="w-7 h-7 rounded-lg bg-[#F3DCC9] flex items-center justify-center text-sm">💡</div>
+            <p className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">Rekomendasi AI</p>
           </div>
           <ul className="space-y-2.5 relative">
             {rekomendasi.map((r, i) => (
-              <li key={i} className="flex gap-2.5 text-sm text-[#A7C4A0]">
-                <span className="flex-shrink-0 w-5 h-5 rounded-md bg-[#C97A4A]/15 flex items-center justify-center text-[10px] font-bold text-[#D9C284]">{i + 1}</span>
+              <li key={i} className="flex gap-2.5 text-sm text-[#4B5249]">
+                <span className="flex-shrink-0 w-5 h-5 rounded-md bg-[#F3DCC9] flex items-center justify-center text-[10px] font-bold text-[#1B4332]">{i + 1}</span>
                 <span className="leading-relaxed">{r}</span>
               </li>
             ))}
@@ -76,10 +76,10 @@ function MetricRenderer({ config }: { config: any }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {metrics.map((m: any, i: number) => (
-        <div key={i} className="bg-[#2D6A4F]/60 rounded-xl p-4 text-center border border-[#40916C]/30">
-          <p className="text-[10px] text-[#6B8F71] uppercase tracking-wider mb-1">{m.label}</p>
-          <p className="text-xl font-bold text-white">{m.value}</p>
-          {m.unit && <p className="text-[10px] text-[#6B8F71] mt-0.5">{m.unit}</p>}
+        <div key={i} className="bg-[#E9E6DA] rounded-xl p-4 text-center border border-[#C6C3B4]">
+          <p className="text-[10px] text-[#767D6F] uppercase tracking-wider mb-1">{m.label}</p>
+          <p className="text-xl font-bold text-[#1B4332]">{m.value}</p>
+          {m.unit && <p className="text-[10px] text-[#767D6F] mt-0.5">{m.unit}</p>}
         </div>
       ))}
     </div>
@@ -96,10 +96,10 @@ function TableRenderer({ config }: { config: any }) {
   return (
     <div className="overflow-x-auto max-h-[500px]">
       <table className="w-full text-xs">
-        <thead className="sticky top-0 bg-[#2D6A4F]/90">
-          <tr className="border-b border-[#40916C]/50">
+        <thead className="sticky top-0 bg-[#E9E6DA]">
+          <tr className="border-b border-[#C6C3B4]">
             {columns.map((col: string) => (
-              <th key={col} className="text-left py-2.5 px-3 font-semibold text-[#8FBC8F] whitespace-nowrap">
+              <th key={col} className="text-left py-2.5 px-3 font-semibold text-[#767D6F] whitespace-nowrap">
                 {col}
               </th>
             ))}
@@ -107,9 +107,9 @@ function TableRenderer({ config }: { config: any }) {
         </thead>
         <tbody>
           {rawRows.map((row: any, i: number) => (
-            <tr key={i} className="border-b border-[#40916C]/30 hover:bg-[#2D6A4F]/40 transition-colors">
+            <tr key={i} className="border-b border-[#C6C3B4] hover:bg-[#E9E6DA] transition-colors">
               {columns.map((col: string, ci: number) => (
-                <td key={col} className="py-2 px-3 text-[#A7C4A0]">
+                <td key={col} className="py-2 px-3 text-[#4B5249]">
                   {Array.isArray(row) ? (row[ci] ?? '-') : (row[col] ?? '-')}
                 </td>
               ))}
@@ -134,9 +134,9 @@ function ChartRenderer({ config }: { config: any }) {
     <ResponsiveContainer width="100%" height={350}>
       {chartType === 'line' ? (
         <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#40916C/40" />
-          <XAxis dataKey={xKey} stroke="#8FBC8F" tick={{ fontSize: 11 }} />
-          <YAxis stroke="#8FBC8F" tick={{ fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
+          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 11 }} />
+          <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
           <Tooltip content={<ChartTooltip />} />
           {lines.map((line: string, i: number) => (
             <Line key={line} type="monotone" dataKey={line} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
@@ -144,9 +144,9 @@ function ChartRenderer({ config }: { config: any }) {
         </LineChart>
       ) : (
         <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#40916C/40" />
-          <XAxis dataKey={xKey} stroke="#8FBC8F" tick={{ fontSize: 11 }} />
-          <YAxis stroke="#8FBC8F" tick={{ fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
+          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 11 }} />
+          <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
           <Tooltip content={<ChartTooltip />} />
           {lines.map((bar: string, i: number) => (
             <Bar key={bar} dataKey={bar} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
@@ -161,8 +161,8 @@ function ChartRenderer({ config }: { config: any }) {
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="p-2.5 bg-[#2D6A4F] border border-[#52796F] rounded-lg shadow-xl text-xs">
-      <p className="font-bold text-white mb-1">{label}</p>
+    <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
+      <p className="font-bold text-[#1B4332] mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color || p.fill }}>
           {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}

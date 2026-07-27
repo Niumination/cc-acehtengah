@@ -25,20 +25,20 @@ export default function QueryInput({ onQuery, isLoading }: QueryInputProps) {
   };
 
   return (
-    <div className="bg-[#1B4332] rounded-xl p-4 shadow-sm border border-[#40916C]/50">
+    <div className="bg-[#FFFFFF] rounded-xl p-4 shadow-sm border border-[#C6C3B4]">
       <form onSubmit={handleSubmit} className="flex gap-3">
         <input
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tanya data daerah... (contoh: bagaimana tren stunting?)"
-          className="flex-1 px-4 py-2.5 border border-[#40916C]/50 rounded-lg bg-[#2D6A4F] text-sm text-[#C8DFC8] placeholder-[#6B8F71] focus:outline-none focus:ring-2 focus:ring-[#D9C284]/50 focus:border-transparent"
+          className="flex-1 px-4 py-2.5 border border-[#C6C3B4] rounded-lg bg-[#E9E6DA] text-sm text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-transparent"
           disabled={isLoading}
         />
         <button
           type="submit"
           disabled={isLoading || text.trim().length < 3}
-          className="px-5 py-2.5 bg-[#1B4332] text-[#C8DFC8] rounded-lg text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[#40916C]/50"
+          className="px-5 py-2.5 bg-[#FFFFFF] text-[#1E2420] rounded-lg text-sm font-medium hover:bg-[#E9E6DA] disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-[#C6C3B4]"
         >
           {isLoading ? '⏳...' : '🔍 Tanya'}
         </button>
@@ -46,12 +46,12 @@ export default function QueryInput({ onQuery, isLoading }: QueryInputProps) {
 
       {/* Contoh Query */}
       <div className="mt-3 flex flex-wrap gap-2">
-        <span className="text-xs text-[#6B8F71] self-center">Contoh:</span>
+        <span className="text-xs text-[#767D6F] self-center">Contoh:</span>
         {QUERY_EXAMPLES.map((q) => (
           <button
             key={q}
             onClick={() => setText(q)}
-            className="text-xs px-2.5 py-1 rounded-full bg-[#2D6A4F]/50 text-[#8FBC8F] hover:bg-[#D9C284]/15 hover:text-[#D9C284] transition-colors"
+            className="text-xs px-2.5 py-1 rounded-full bg-[#E9E6DA] text-[#767D6F] hover:bg-[#DCE8DE] hover:text-[#1B4332] transition-colors"
           >
             {q}
           </button>

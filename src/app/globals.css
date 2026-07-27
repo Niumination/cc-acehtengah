@@ -1,33 +1,38 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════
-   cc-acehtengah — Gayo Highlands Theme
+   cc-acehtengah — Gayo Highlands Light Theme
    Based on cc.acehtengahkab.go.id official palette
+   Light body (#F5F3EC), dark header (#0F2A1E), forest green primary
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --background: #0F2A1E;
-  --foreground: #C8DFC8;
-  --primary: #D9C284;
-  --primary-dark: #1B4332;
+  --background: #F5F3EC;
+  --foreground: #1E2420;
+  --primary: #1B4332;
   --primary-container: #2D6A4F;
-  --secondary: #D9C284;
-  --secondary-container: rgba(241,228,194,0.15);
-  --tertiary: #C97A4A;
-  --tertiary-container: rgba(201,122,74,0.15);
-  --success: #52B788;
+  --on-primary: #FFFFFF;
+  --secondary: #8A6E1D;
+  --secondary-container: #F1E4C2;
+  --tertiary: #A15C38;
+  --tertiary-container: #C97A4A;
+  --surface: #F5F3EC;
+  --surface-container: #E9E6DA;
+  --surface-container-low: #EFEDE3;
+  --surface-container-lowest: #FFFFFF;
+  --surface-container-high: #E1DDCD;
+  --outline: #767D6F;
+  --outline-variant: #C6C3B4;
+  --accent: #D9C284;
+  --accent-light: #C9D4C7;
+  --header-bg: #0F2A1E;
+  --success: #2D6A4F;
+  --success-light: #DCE8DE;
   --warning: #D9C284;
-  --danger: #E07A5F;
-  --card-bg: #1B4332;
-  --card-bg-alt: #2D6A4F;
-  --border: #40916C;
-  --border-subtle: rgba(64,145,108,0.3);
-  --text-primary: #C8DFC8;
-  --text-secondary: #8FBC8F;
-  --text-muted: #6B8F71;
-  --surface: #0F2A1E;
-  --surface-raised: #1B4332;
-  --surface-overlay: #2D6A4F;
+  --danger: #B3261E;
+  --danger-light: #FBE3DE;
+  --error: #B3261E;
+  --error-container: #FBE3DE;
 }
 
 @theme inline {
@@ -43,55 +48,39 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Custom Scrollbar — green-tinted */
+/* Custom Scrollbar — warm themed */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0F2A1E;
+  background: #E9E6DA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #40916C;
+  background: #C6C3B4;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52B788;
+  background: #767D6F;
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-fadeIn {
@@ -102,9 +91,9 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
-/* Loading skeleton — green-tinted */
+/* Loading skeleton */
 .skeleton {
-  background: linear-gradient(90deg, #1B4332 25%, #2D6A4F 50%, #1B4332 75%);
+  background: linear-gradient(90deg, #E9E6DA 25%, #E1DDCD 50%, #E9E6DA 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 0.5rem;
@@ -117,27 +106,27 @@ body {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(15, 42, 30, 0.5);
+  box-shadow: 0 8px 25px -5px rgba(15, 42, 30, 0.12);
 }
 
-/* Recharts tooltip styling — green themed */
+/* Recharts tooltip styling — light themed */
 .recharts-tooltip-wrapper {
   outline: none !important;
 }
 
 .recharts-default-tooltip {
-  background: #1B4332 !important;
-  border: 1px solid #40916C !important;
+  background: #FFFFFF !important;
+  border: 1px solid #C6C3B4 !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 42, 30, 0.5) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 42, 30, 0.15) !important;
 }
 
 .recharts-tooltip-label {
-  color: #8FBC8F !important;
+  color: #767D6F !important;
   font-size: 11px !important;
 }
 
 .recharts-tooltip-item {
-  color: #C8DFC8 !important;
+  color: #1E2420 !important;
   font-size: 12px !important;
 }

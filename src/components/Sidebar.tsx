@@ -23,26 +23,26 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
   return (
     <aside
-      className={`flex flex-col h-full border-r bg-[#1B4332]/90 backdrop-blur-sm transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-[68px] border-[#2D6A4F]/80' : 'w-56 border-[#2D6A4F]/80'
+      className={`flex flex-col h-full border-r border-[#C6C3B4] bg-[#FFFFFF] transition-all duration-300 ease-in-out ${
+        collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      {/* Logo */}
-      <div className={`border-b border-[#2D6A4F]/60 ${collapsed ? 'px-2 py-4' : 'px-5 py-5'}`}>
+      {/* Logo — dark forest header like website */}
+      <div className={`border-b border-[#C6C3B4] ${collapsed ? 'px-2 py-4' : 'px-5 py-5'} bg-[#0F2A1E]`}>
         {collapsed ? (
           <div className="flex justify-center">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#52B788] flex items-center justify-center text-white text-xs font-black shadow-lg shadow-[#D9C284]/25">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-white text-xs font-black shadow-lg">
               CC
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#52B788] flex items-center justify-center text-white text-xs font-black shadow-lg shadow-[#D9C284]/25 flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-white text-xs font-black shadow-lg flex-shrink-0">
               CC
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-              <p className="text-[10px] text-[#6B8F71] font-medium">Command Center</p>
+              <p className="text-[10px] text-[#C6C3B4] font-medium">Command Center</p>
             </div>
           </div>
         )}
@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
 
       {/* Navigation */}
       <nav className={`flex-1 py-4 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <p className={`text-[9px] font-bold text-[#52796F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
+        <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
           {collapsed ? '•' : 'Navigasi'}
         </p>
         {NAV_ITEMS.map((item) => {
@@ -64,25 +64,25 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
                 collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
               } ${
                 isActive
-                  ? 'bg-[#D9C284]/15 text-[#D9C284] border border-[#D9C284]/20'
-                  : 'text-[#8FBC8F] hover:bg-[#2D6A4F]/60 hover:text-[#C8DFC8] border border-transparent'
+                  ? 'bg-[#DCE8DE] text-[#1B4332] border border-[#2D6A4F]/20'
+                  : 'text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] border border-transparent'
               }`}
             >
               <span className="text-base flex-shrink-0">{item.icon}</span>
               {!collapsed && (
                 <div className="min-w-0">
-                  <p className={`text-xs font-semibold truncate ${isActive ? 'text-[#D9C284]' : 'text-[#A7C4A0]'}`}>
+                  <p className={`text-xs font-semibold truncate ${isActive ? 'text-[#1B4332]' : 'text-[#4B5249]'}`}>
                     {item.label}
                   </p>
-                  <p className="text-[10px] text-[#52796F] truncate">{item.desc}</p>
+                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
                 </div>
               )}
             </Link>
           );
         })}
 
-        <div className="pt-3 mt-3 border-t border-[#2D6A4F]/60">
-          <p className={`text-[9px] font-bold text-[#52796F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
+        <div className="pt-3 mt-3 border-t border-[#C6C3B4]">
+          <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
             {collapsed ? '•' : 'Tools'}
           </p>
           {SECONDARY_ITEMS.map((item) => (
@@ -90,15 +90,15 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
               key={item.label}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-xl text-sm text-[#8FBC8F] hover:bg-[#2D6A4F]/60 hover:text-slate-200 transition-all duration-200 border border-transparent ${
+              className={`flex items-center gap-3 rounded-xl text-sm text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] transition-all duration-200 border border-transparent ${
                 collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
               }`}
             >
               <span className="text-base flex-shrink-0">{item.icon}</span>
               {!collapsed && (
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[#A7C4A0] truncate">{item.label}</p>
-                  <p className="text-[10px] text-[#52796F] truncate">{item.desc}</p>
+                  <p className="text-xs font-semibold text-[#4B5249] truncate">{item.label}</p>
+                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
                 </div>
               )}
             </a>
@@ -107,13 +107,13 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
       </nav>
 
       {/* System Status */}
-      <div className={`border-t border-[#2D6A4F]/60 ${collapsed ? 'px-2 py-3' : 'px-4 py-4 space-y-2'}`}>
-        {!collapsed && <p className="text-[9px] font-bold text-[#52796F] uppercase tracking-widest">Sistem</p>}
+      <div className={`border-t border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4 space-y-2'}`}>
+        {!collapsed && <p className="text-[9px] font-bold text-[#767D6F] uppercase tracking-widest">Sistem</p>}
         <div className="space-y-1.5">
-          <StatusRow label="SAPA" status="●" color="text-emerald-400" collapsed={collapsed} />
-          <StatusRow label="AI" status="●" color="text-[#D9C284]" collapsed={collapsed} />
+          <StatusRow label="SAPA" status="●" color="text-[#2D6A4F]" collapsed={collapsed} />
+          <StatusRow label="AI" status="●" color="text-[#1B4332]" collapsed={collapsed} />
         </div>
-        {!collapsed && <p className="text-[10px] text-[#52796F] pt-2">Diskominfo Aceh Tengah</p>}
+        {!collapsed && <p className="text-[10px] text-[#767D6F] pt-2">Diskominfo Aceh Tengah</p>}
       </div>
     </aside>
   );
@@ -129,7 +129,7 @@ function StatusRow({ label, status, color, collapsed }: { label: string; status:
   }
   return (
     <div className="flex items-center justify-between text-[10px]">
-      <span className="text-[#6B8F71]">{label}</span>
+      <span className="text-[#767D6F]">{label}</span>
       <div className="flex items-center gap-1.5">
         <span className={`w-1.5 h-1.5 rounded-full ${color.replace('text-', 'bg-')}`} />
         <span className={`font-medium ${color}`}>Active</span>

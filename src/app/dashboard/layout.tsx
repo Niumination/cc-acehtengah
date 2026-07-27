@@ -9,7 +9,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [ewsOpen, setEwsOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
     setMounted(true);
@@ -20,22 +19,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(timer);
   }, []);
 
-  // Apply theme to document
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.classList.toggle('light', theme === 'light');
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  }, []);
-
-  const isDark = theme === 'dark';
-
   return (
-    <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${
-      isDark ? 'bg-[#0F2A1E] text-[#C8DFC8]' : 'bg-[#0F2A1E] text-[#C8DFC8]'
-    }`}>
+    <div className="flex h-screen overflow-hidden bg-[#F5F3EC] text-[#1E2420]">
       {/* Sidebar */}
       <div className="hidden md:block h-full flex-shrink-0">
         <Sidebar collapsed={sidebarCollapsed} />
@@ -43,21 +28,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
-        {/* Header */}
-        <header className={`border-b px-4 py-3 flex items-center justify-between flex-shrink-0 transition-colors duration-300 ${
-          isDark
-            ? 'bg-gradient-to-r from-[#1B4332] via-[#1B4332] to-[#D9C284]/10 border-[#2D6A4F]'
-            : 'bg-gradient-to-r from-[#0F2A1E] via-[#0F2A1E] to-[#D9C284]/5 border-[#40916C]/30'
-        }`}>
+        {/* Header — dark forest, matches cc.acehtengahkab.go.id */}
+        <header className="bg-[#0F2A1E] border-b border-[#1B4332] px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             {/* Sidebar Toggle */}
             <button
               onClick={() => setSidebarCollapsed((c) => !c)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                isDark
-                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]'
-                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]'
-              }`}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 bg-[#1B4332] hover:bg-[#2D6A4F] text-[#C6C3B4] hover:text-white border border-[#2D6A4F]"
               title={sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -77,18 +54,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </svg>
             </button>
 
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-lg flex-shrink-0 ${
-              isDark
-                ? 'bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#D9C284]/20 text-[#C8DFC8]'
-                : 'bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#D9C284]/20 text-[#C8DFC8]'
-            }`}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-lg flex-shrink-0 bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#1B4332]/20 text-white">
               🏛️
             </div>
             <div>
-              <h1 className={`text-sm font-bold tracking-wide ${isDark ? 'text-[#C8DFC8]' : 'text-[#C8DFC8]'}`}>
+              <h1 className="text-sm font-bold tracking-wide text-white">
                 Aceh Tengah Command Center
               </h1>
-              <p className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-[#6B8F71]' : 'text-[#6B8F71]'}`}>
+              <p className="text-[10px] uppercase tracking-widest text-[#C6C3B4]">
                 Diskominfo · AI-Powered
               </p>
             </div>
@@ -97,69 +70,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3 text-sm">
             {/* Live Clock */}
             <div className="text-right">
-              <p className={`font-mono text-xs ${isDark ? 'text-[#A7C4A0]' : 'text-[#52796F]'}`}>
+              <p className="font-mono text-xs text-[#C6C3B4]">
                 {mounted ? currentTime : '--:--:--'}
               </p>
-              <p className={`text-[10px] ${isDark ? 'text-[#52796F]' : 'text-[#8FBC8F]'}`}>
+              <p className="text-[10px] text-[#767D6F]">
                 {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
 
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
-                isDark
-                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#D9C284] border border-[#40916C]'
-                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#8FBC8F] hover:text-[#C8DFC8] border border-[#40916C]/40'
-              }`}
-              title={isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
-            >
-              {isDark ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-              )}
-            </button>
-
             {/* Connection Status */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
-              isDark ? 'bg-[#52B788]/15 border border-[#52B788]/30' : 'bg-[#52B788]/15 border border-[#52B788]/30'
-            }`}>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D6A4F]/30 border border-[#2D6A4F]/50">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#52B788] opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#52B788]" />
               </span>
-              <span className={`text-[11px] font-medium ${isDark ? 'text-[#52B788]' : 'text-[#52B788]'}`}>Online</span>
+              <span className="text-[11px] font-medium text-[#52B788]">Online</span>
             </div>
 
             {/* SAPA Badge */}
-            <div className={`px-3 py-1.5 rounded-full ${
-              isDark ? 'bg-[#D9C284]/10 border border-[#D9C284]/30' : 'bg-[#D9C284]/15 border border-blue-200'
-            }`}>
-              <span className={`text-[11px] font-medium ${isDark ? 'text-[#D9C284]' : 'text-[#1B4332]'}`}>
+            <div className="px-3 py-1.5 rounded-full bg-[#D9C284]/15 border border-[#D9C284]/30">
+              <span className="text-[11px] font-medium text-[#D9C284]">
                 📡 SAPA Connected
               </span>
             </div>
           </div>
         </header>
 
-        {/* Content */}
-        <main className={`flex-1 overflow-y-auto p-6 transition-colors duration-300 ${
-          isDark ? 'bg-[#0F2A1E]' : 'bg-[#0F2A1E]'
-        }`}>
+        {/* Content — light background */}
+        <main className="flex-1 overflow-y-auto p-6 bg-[#F5F3EC]">
           {children}
         </main>
 
@@ -169,9 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 w-6 h-14 rounded-l-lg flex items-center justify-center transition-all duration-200 shadow-lg ${
             ewsOpen
               ? 'hidden'
-              : isDark
-                ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8] border border-r-0 border-[#40916C]'
-                : 'bg-[#0F2A1E] hover:bg-[#C8DFC8]/10 text-[#8FBC8F] hover:text-[#2D6A4F] border border-r-0 border-[#40916C]/40'
+              : 'bg-[#FFFFFF] hover:bg-[#E9E6DA] text-[#767D6F] hover:text-[#1B4332] border border-r-0 border-[#C6C3B4]'
           }`}
           title="Tampilkan panel EWS"
         >
@@ -187,18 +123,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ewsOpen ? 'w-72' : 'w-0'
         }`}
       >
-        <div className={`w-72 h-full border-l p-4 overflow-y-auto ${
-          isDark ? 'bg-[#1B4332]/80 border-[#2D6A4F]' : 'bg-[#0F2A1E] border-[#40916C]/30'
-        }`}>
+        <div className="w-72 h-full border-l border-[#C6C3B4] p-4 overflow-y-auto bg-[#FFFFFF]">
           <div className="flex items-center justify-between mb-3">
             <EwsPanel />
             <button
               onClick={() => setEwsOpen(false)}
-              className={`ml-2 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
-                isDark
-                  ? 'bg-[#2D6A4F] hover:bg-[#40916C] text-[#8FBC8F] hover:text-[#C8DFC8]'
-                  : 'bg-[#2D6A4F]/40 hover:bg-[#2D6A4F]/60 text-[#6B8F71] hover:text-[#2D6A4F]'
-              }`}
+              className="ml-2 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors bg-[#E9E6DA] hover:bg-[#C6C3B4] text-[#767D6F] hover:text-[#1B4332]"
               title="Tutup panel EWS"
             >
               ✕

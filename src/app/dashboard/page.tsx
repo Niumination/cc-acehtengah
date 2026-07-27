@@ -63,9 +63,9 @@ export default function DashboardPage() {
       {mode === 'default' && <DefaultDashboard />}
 
       {mode === 'ai-response' && !isLoading && error && (
-        <div className="bg-[#1B4332]/80 border border-[#E07A5F]/30 rounded-2xl p-8 text-center">
+        <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-8 text-center">
           <div className="text-4xl mb-3">⚠️</div>
-          <p className="text-sm text-[#E07A5F] mb-4">{error}</p>
+          <p className="text-sm text-[#B3261E] mb-4">{error}</p>
           <button
             onClick={handleReset}
             className="px-4 py-2 bg-[#1B4332] text-white text-sm rounded-lg hover:bg-[#2D6A4F]"
@@ -80,10 +80,10 @@ export default function DashboardPage() {
       )}
 
       {mode === 'ai-response' && isLoading && (
-        <div className="bg-[#1B4332]/80 border border-[#40916C]/50 rounded-2xl p-12 text-center">
+        <div className="bg-[#E9E6DA] border border-[#C6C3B4] rounded-2xl p-12 text-center">
           <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm text-[#8FBC8F]">AI sedang menganalisis data SAPA...</p>
-          <p className="text-[10px] text-[#52796F] mt-1">Memproses permintaan Anda</p>
+          <p className="text-sm text-[#767D6F]">AI sedang menganalisis data SAPA...</p>
+          <p className="text-[10px] text-[#4B5249] mt-1">Memproses permintaan Anda</p>
         </div>
       )}
     </div>
