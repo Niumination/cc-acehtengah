@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const from = searchParams.get('from') || '/dashboard/laporan';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +37,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  if (!mounted) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center"
@@ -137,5 +132,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f1a12' }}>
+        <div className="text-[#D4A853] text-lg">Memuat...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
