@@ -15,7 +15,15 @@ export async function GET(req: NextRequest) {
     const to = url.searchParams.get('to');
 
     // Ensure table exists (auto-migration on first request)
-    await ensureChatSessionTable();
+    const tableExists = await ensureChatSessionTable();
+
+    // If table wasn't created, return empty results gracefully
+    if (!tableExists) {
+      return NextResponse.json({
+        logs: [], total: 0, limit, offset, stats: [],
+        _note: 'ChatSession table not available yet',
+      });
+    }
 
     const where: any = {};
     if (intent && intent !== 'all') where.intent = intent;
