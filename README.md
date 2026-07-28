@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KOMANDO AT — Command Center AI Aceh Tengah
 
-## Getting Started
+> Dashboard AI-powered untuk Pemerintah Kabupaten Aceh Tengah
+> Integrasi data SAPA (Satu Pintu Akses Data) dengan AI assistant
 
-First, run the development server:
+**Live:** https://cc-acehtengah.vercel.app
+**Reference:** https://cc.acehtengahkab.go.id
+
+## Features
+
+- 🤖 **AI Smart Query** — Tanya data SAPA dalam bahasa natural
+- 📊 **Dashboard Analytics** — Visualisasi data OPD, indikator, tren
+- 🗺️ **Peta GIS** — Peta interaktif kabupaten Aceh Tengah
+- 📋 **Laporan AI** — Log otomatis setiap query AI (auth required)
+- ⚠️ **Early Warning System** — Monitoring threshold indikator
+- 🔐 **Admin Auth** — JWT-based login untuk akses laporan
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16, React 19, Tailwind CSS, Recharts, Leaflet |
+| Backend | Next.js API Routes, Prisma 6 |
+| Database | Supabase PostgreSQL (Supavisor pooler) |
+| Auth | bcryptjs + jose (JWT) + httpOnly cookie |
+| AI | OpenAI-compatible API (OpenCode Zen / OpenRouter / Groq) |
+| Data Source | SAPA public API (api-splp.layanan.go.id) |
+
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Setup database
+npx prisma generate
+
+# Create admin account (first time)
+curl -X POST http://localhost:3000/api/setup/admin
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Open http://localhost:3000/dashboard
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Default Admin Credentials
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin123` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+⚠️ **Ganti password setelah login pertama!**
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+See `VERCEL_ENV.md` for full configuration. Key variables:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+DATABASE_URL=postgresql://postgres.xxx:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false
+AI_BASE_URL=https://opencode.ai/zen/v1
+AI_API_KEY=sk-...
+AI_MODEL=deepseek-v4-flash-free
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── api/auth/         # Login, logout, session
+│   ├── api/chat-logs/    # AI query logs
+│   ├── api/query/        # AI Smart Query
+│   ├── dashboard/        # Main dashboard
+│   └── login/            # Login page
+├── components/           # UI components
+├── lib/                  # Auth, Prisma, SAPA client
+├── middleware.ts          # Route protection
+└── services/             # AI pipeline, data sync
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Internal — Diskominfo Kabupaten Aceh Tengah
