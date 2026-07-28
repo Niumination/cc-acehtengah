@@ -2,7 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import EwsPanel from '@/components/EwsPanel';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState('');
@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen overflow-hidden bg-[#F5F3EC] text-[#1E2420]">
       {/* Sidebar */}
       <div className="hidden md:block h-full flex-shrink-0">
-        <Sidebar collapsed={sidebarCollapsed} />
+        <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       </div>
 
       {/* Main Content */}
@@ -31,38 +31,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Header — dark forest, matches cc.acehtengahkab.go.id */}
         <header className="bg-[#0F2A1E] border-b border-[#1B4332] px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            {/* Sidebar Toggle */}
-            <button
-              onClick={() => setSidebarCollapsed((c) => !c)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 bg-[#1B4332] hover:bg-[#2D6A4F] text-[#C6C3B4] hover:text-white border border-[#2D6A4F]"
-              title={sidebarCollapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {sidebarCollapsed ? (
-                  <>
-                    <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
-                    <rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor" />
-                    <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
-                  </>
-                ) : (
-                  <>
-                    <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
-                    <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
-                    <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
-                  </>
-                )}
-              </svg>
-            </button>
-
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-lg flex-shrink-0 bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] shadow-[#1B4332]/20 text-white">
-              🏛️
-            </div>
+            {/* Official Logo */}
+            <img
+              src="/logo-aceh-tengah.png"
+              alt="Lambang Aceh Tengah"
+              className="w-9 h-9 rounded-lg object-contain flex-shrink-0"
+            />
             <div>
               <h1 className="text-sm font-bold tracking-wide text-white">
-                Aceh Tengah Command Center
+                Command Center
               </h1>
               <p className="text-[10px] uppercase tracking-widest text-[#C6C3B4]">
-                Diskominfo · AI-Powered
+                Aceh Tengah · Diskominfo
               </p>
             </div>
           </div>

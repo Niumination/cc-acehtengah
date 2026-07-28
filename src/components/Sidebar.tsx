@@ -17,9 +17,10 @@ const SECONDARY_ITEMS = [
 
 interface SidebarProps {
   collapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export default function Sidebar({ collapsed = false }: SidebarProps) {
+export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -28,25 +29,28 @@ export default function Sidebar({ collapsed = false }: SidebarProps) {
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      {/* Logo — dark forest header like website */}
-      <div className={`border-b border-[#C6C3B4] ${collapsed ? 'px-2 py-4' : 'px-5 py-5'} bg-[#0F2A1E]`}>
-        {collapsed ? (
-          <div className="flex justify-center">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-white text-xs font-black shadow-lg">
-              CC
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-white text-xs font-black shadow-lg flex-shrink-0">
-              CC
-            </div>
+      {/* Header — Hamburger + Logo */}
+      <div className={`border-b border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'} bg-[#0F2A1E]`}>
+        <div className="flex items-center gap-2.5">
+          {/* Hamburger Button */}
+          <button
+            onClick={onToggle}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 bg-[#1B4332] hover:bg-[#2D6A4F] text-[#C6C3B4] hover:text-white border border-[#2D6A4F]"
+            title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
+              <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
+              <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
+            </svg>
+          </button>
+          {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
               <p className="text-[10px] text-[#C6C3B4] font-medium">Command Center</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
