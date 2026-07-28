@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
 } from 'recharts';
 
 interface Overview {
@@ -235,12 +235,12 @@ export default function SapaStats() {
           <ResponsiveContainer width="100%" height={380}>
             <BarChart data={top10} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" horizontal={false} />
-              <XAxis type="number" stroke="#C6C3B4" tick={{ fontSize: 11 }} />
+              <XAxis type="number" stroke="#C6C3B4" tick={{ fontSize: 11, fill: '#1E2420' }} />
               <YAxis
                 type="category"
                 dataKey="shortName"
                 stroke="#C6C3B4"
-                tick={{ fontSize: 9 }}
+                tick={{ fontSize: 9, fill: '#1E2420' }}
                 width={160}
               />
               <Tooltip
@@ -267,20 +267,21 @@ export default function SapaStats() {
             📅 Distribusi Data per Tahun
           </h3>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={years} margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+            <BarChart data={years} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" vertical={false} />
-              <XAxis dataKey="year" stroke="#C6C3B4" tick={{ fontSize: 12 }} />
-              <YAxis stroke="#C6C3B4" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="year" stroke="#C6C3B4" tick={{ fontSize: 12, fill: '#1E2420' }} />
+              <YAxis stroke="#C6C3B4" tick={{ fontSize: 11, fill: '#1E2420' }} />
               <Tooltip
                 contentStyle={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#1E2420' }}
                 labelStyle={{ color: '#C6C3B4' }}
               />
               <Bar dataKey="count" name="Jumlah Record" radius={[6, 6, 0, 0]}>
-                {years.map((_, i) => (
+                {years.map((entry, i) => (
                   <Cell key={i} fill={i % 2 === 0 ? '#1B4332' : '#2D6A4F'} />
                 ))}
               </Bar>
+              <LabelList dataKey="count" position="top" style={{ fill: '#1E2420', fontSize: 12, fontWeight: 700 }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
