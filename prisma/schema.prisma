@@ -87,6 +87,22 @@ model ChatSession {
   createdAt  DateTime @default(now())
 }
 
+// ─── Admin Auth ───
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String   // bcrypt hash
+  nama      String
+  role      AdminRole @default(ADMIN)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+enum AdminRole {
+  ADMIN
+  SUPERADMIN
+}
+
 model EwsAlert {
   id          String   @id @default(cuid())
   indicatorId String

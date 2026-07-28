@@ -112,16 +112,27 @@ export default function LaporanPage() {
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A6E1D', marginBottom: '4px' }}>
-          📋 Laporan & Monitoring
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A6E1D', marginBottom: '4px' }}>
+            📋 Laporan & Monitoring
+          </div>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E2420', margin: '0 0 6px' }}>
+            Riwayat AI Query
+          </h1>
+          <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5 }}>
+            Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
+          </p>
         </div>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E2420', margin: '0 0 6px' }}>
-          Riwayat AI Query
-        </h1>
-        <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5 }}>
-          Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
-        </p>
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+          }}
+          style={{ padding: '8px 16px', borderRadius: '8px', background: '#B3261E', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '4px' }}
+        >
+          🚪 Logout
+        </button>
       </div>
 
       {/* Stats bar */}
