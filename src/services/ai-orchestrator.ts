@@ -12,6 +12,7 @@ import {
   type SapaRecord,
 } from '@/lib/sapa-client';
 import { HybridResponse } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
@@ -132,15 +133,50 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // Step 7: Parse & cache
     const result = parseHybridResponse(llmResponse, filteredData);
     setCache(query, result);
+
+    // Step 8: Simpan ke database ChatSession (non-blocking)
+    try {
+      await prisma.chatSession.create({
+        data: {
+          query,
+          intent: intent.kategori,
+          aiResponse: result as any,
+          metadata: {
+            opdFilter: opdFilter || null,
+            totalData: allRecords.length,
+            filteredCount: filteredData.length,
+            matchedCount: matchedRecords.length,
+          },
+        },
+      });
+    } catch (dbErr) {
+      // Jangan sampai error DB menggagalkan response ke user
+      console.error('[AI] DB save failed (non-blocking):', dbErr);
+    }
+
     return result;
   } catch (err) {
     console.error('[AI] Fallback triggered:', err);
-    return {
+    const errorResult: HybridResponse = {
       narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
       visualisasi: { tipe: 'none', konfigurasi: {} },
       dataSource: 'error',
       timestamp: new Date().toISOString(),
     };
+
+    // Simpan error ke DB juga
+    try {
+      await prisma.chatSession.create({
+        data: {
+          query,
+          intent: 'error',
+          aiResponse: errorResult as any,
+          metadata: { error: err instanceof Error ? err.message : 'Unknown' },
+        },
+      });
+    } catch { /* silent */ }
+
+    return errorResult;
   }
 }
 
