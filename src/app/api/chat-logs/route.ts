@@ -2,7 +2,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureChatSessionTable } from '@/lib/db-migration';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,17 +13,6 @@ export async function GET(req: NextRequest) {
     const from = url.searchParams.get('from');
     const to = url.searchParams.get('to');
 
-    // Ensure table exists (auto-migration on first request)
-    const tableExists = await ensureChatSessionTable();
-
-    // If table wasn't created, return empty results gracefully
-    if (!tableExists) {
-      return NextResponse.json({
-        logs: [], total: 0, limit, offset, stats: [],
-        _note: 'ChatSession table not available yet',
-      });
-    }
-
     const where: any = {};
     if (intent && intent !== 'all') where.intent = intent;
     if (search) where.query = { contains: search, mode: 'insensitive' };
@@ -34,18 +22,34 @@ export async function GET(req: NextRequest) {
       if (to) where.createdAt.lte = new Date(to);
     }
 
-    const [logs, total] = await Promise.all([
-      prisma.chatSession.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      prisma.chatSession.count({ where }),
-    ]);
+    // Try querying directly — table should exist after manual SQL
+    let logs: any[] = [];
+    let total = 0;
+    let stats: any[] = [];
 
-    const stats = await prisma.chatSession.groupBy({ by: ['intent'], _count: true })
-      .then((r) => r.map((s) => ({ intent: s.intent, count: s._count })));
+    try {
+      [logs, total] = await Promise.all([
+        prisma.chatSession.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: offset,
+        }),
+        prisma.chatSession.count({ where }),
+      ]);
+      stats = await prisma.chatSession.groupBy({ by: ['intent'], _count: true })
+        .then((r) => r.map((s) => ({ intent: s.intent, count: s._count })));
+    } catch (dbErr: any) {
+      const msg = dbErr?.message || '';
+      // If table doesn't exist, return empty gracefully
+      if (msg.includes('does not exist') || msg.includes('ChatSession') || msg.includes('relation')) {
+        return NextResponse.json({
+          logs: [], total: 0, limit, offset, stats: [],
+          _note: 'ChatSession table not found — run SQL migration in Supabase',
+        });
+      }
+      throw dbErr;
+    }
 
     return NextResponse.json({ logs, total, limit, offset, stats });
   } catch (err) {

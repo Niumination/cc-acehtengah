@@ -137,7 +137,6 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 8: Simpan ke database ChatSession (non-blocking)
     try {
-      await ensureChatSessionTable();
       await prisma.chatSession.create({
         data: {
           query,
