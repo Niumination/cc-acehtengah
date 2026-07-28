@@ -13,6 +13,7 @@ import {
 } from '@/lib/sapa-client';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
+import { ensureChatSessionTable } from '@/lib/db-migration';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
@@ -136,6 +137,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 8: Simpan ke database ChatSession (non-blocking)
     try {
+      await ensureChatSessionTable();
       await prisma.chatSession.create({
         data: {
           query,
