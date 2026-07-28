@@ -2,7 +2,11 @@
 
 > **Next.js 16 + Prisma 7 + LLM + RAG** — Integrasi SAPA → SPLP → Command Center AI
 > **Path:** `projects/cc-acehtengah/`
-> **Status:** 🔜 Fase 1 selesai — Foundation
+> **Status:** 🟢 **Active — Fase 2: Analytics + GIS + AI selesai**
+> **HEAD:** `5d0b106` | **Remote:** SSH (github.com/Niumination/cc-acehtengah)
+> **Deploy:** GitHub + Vercel configured
+> **Last major update:** Jul 28, 2026 — Light theme rebrand (Gayo Highlands palette matching cc.acehtengahkab.go.id)
+> **Backlog priority:** P2 ⬆ (promoted from P3, +27 commits in 14 days)
 
 ## Arsitektur
 
