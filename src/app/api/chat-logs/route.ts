@@ -52,8 +52,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ logs, total, limit, offset, stats });
-  } catch (err) {
+  } catch (err: any) {
+    // Return detailed error for debugging
+    const detail = { error: err?.message || 'Unknown', code: err?.code, stack: err?.stack?.split('\n').slice(0, 3) };
     console.error('[chat-logs] Error:', err);
-    return NextResponse.json({ error: 'Gagal mengambil riwayat query' }, { status: 500 });
+    return NextResponse.json(detail, { status: 500 });
   }
 }
