@@ -73,8 +73,12 @@ function stripReasoningPrefix(content: string): string {
 
 /** Extract "narasi" field value from a partial/full JSON string (progressive rendering). */
 export function extractNarasiPartial(raw: string): string {
+  // Strip leading markdown fences / prose before the JSON object
+  const start = raw.indexOf('{');
+  if (start === -1) return '';
+  const jsonish = raw.slice(start);
   // Match "narasi":"... (handles escaped quotes)
-  const match = raw.match(/"narasi"\s*:\s*"((?:[^"\\]|\\.)*)/);
+  const match = jsonish.match(/"narasi"\s*:\s*"((?:[^"\\]|\\.)*)/);
   if (!match) return '';
   // Unescape common sequences
   return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
@@ -82,7 +86,8 @@ export function extractNarasiPartial(raw: string): string {
 
 /**
  * Non-streaming LLM call (fallback / simple path).
- * max_tokens lowered to 1024 + 45s timeout for faster responses.
+ * max_tokens kept at 4096 — model is a reasoning model that spends tokens
+ * on reasoning_content before content; too-low budgets truncate the answer.
  */
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
   const config = getConfig();
@@ -104,7 +109,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
       messages,
       temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 1024,
+      max_tokens: 4096,
     }),
     signal: AbortSignal.timeout(45000), // 45s — cukup untuk free tier
   });
@@ -123,6 +128,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 
   let content = message.content ?? '';
 
+  // Reasoning model fallback: if content empty but reasoning_content exists
   if (!content && message.reasoning_content) {
     console.warn('[LLM] Model returned reasoning but no content. Reasoning length:', message.reasoning_content.length);
     content = message.reasoning_content;
@@ -138,6 +144,8 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 /**
  * Streaming LLM call — calls onChunk(delta) as tokens arrive, returns the full content.
  * Retries once if the request fails BEFORE the first chunk (idempotent-safe).
+ * max_tokens kept at 4096: this is a reasoning model — reasoning_content consumes
+ * budget before content starts; small budgets truncate or empty the answer.
  */
 export async function streamLLM(
   systemPrompt: string,
@@ -156,7 +164,7 @@ export async function streamLLM(
     messages,
     temperature: 0.1,
     top_p: 0.9,
-    max_tokens: 1024,
+    max_tokens: 4096,
     stream: true,
   });
 
@@ -196,6 +204,7 @@ export async function streamLLM(
   const decoder = new TextDecoder();
   let buffer = '';
   let fullContent = '';
+  let fullReasoning = '';
 
   while (true) {
     const { done, value } = await reader.read();
@@ -213,10 +222,15 @@ export async function streamLLM(
 
       try {
         const chunk = JSON.parse(payload);
-        const delta = chunk.choices?.[0]?.delta?.content ?? '';
-        if (delta) {
-          fullContent += delta;
-          onChunk(delta);
+        const delta = chunk.choices?.[0]?.delta ?? {};
+        const text = delta.content ?? '';
+        const reasoning = delta.reasoning_content ?? delta.reasoning ?? '';
+        if (text) {
+          fullContent += text;
+          onChunk(text);
+        } else if (reasoning) {
+          // Reasoning model: accumulate reasoning, don't leak it to the user
+          fullReasoning += reasoning;
         }
       } catch {
         // Ignore malformed chunk lines (heartbeats, etc.)
@@ -224,5 +238,11 @@ export async function streamLLM(
     }
   }
 
-  return stripReasoningPrefix(fullContent);
+  // If content is empty but reasoning exists, fall back to reasoning (better than nothing)
+  const cleaned = stripReasoningPrefix(fullContent);
+  if (!cleaned && fullReasoning) {
+    console.warn('[LLM] Stream returned reasoning but no content. Reasoning length:', fullReasoning.length);
+    return stripReasoningPrefix(fullReasoning);
+  }
+  return cleaned;
 }

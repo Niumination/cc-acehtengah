@@ -294,9 +294,51 @@ FORMAT JSON:
 {"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
 }
 
+/**
+ * Robust JSON extraction — handles markdown code fences (```json ... ```),
+ * surrounding prose, and truncated-but-complete objects.
+ */
+function extractJsonObject(raw: string): any | null {
+  // Strip markdown code fences
+  let cleaned = raw.replace(/```(?:json)?/gi, '').trim();
+
+  // Fallback: if there's a JSON object anywhere, extract the first balanced {...}
+  const start = cleaned.indexOf('{');
+  if (start === -1) return null;
+  cleaned = cleaned.slice(start);
+
+  // Find matching closing brace (respecting strings)
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        const candidate = cleaned.slice(0, i + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = extractJsonObject(raw) ?? JSON.parse(raw);
     return {
       narasi: parsed.narasi ?? raw,
       visualisasi: parsed.visualisasi ?? { tipe: 'none', konfigurasi: {} },
