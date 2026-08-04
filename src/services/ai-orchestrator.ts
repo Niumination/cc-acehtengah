@@ -93,6 +93,19 @@ async function buildContext(query: string) {
   const aggregated = aggregateByIndicator(filteredData);
   const aggregatedAll = aggregateByIndicator(normalizedRecords);
 
+  // PRIORITASKAN indikator yang match token query — letakkan di paling depan
+  // (model free tier tidak teliti membaca payload panjang; data relevan harus
+  //  terlihat di awal prompt)
+  const tokenNorm = tokens.map(normalizeText);
+  const prioritized: typeof aggregated = [];
+  const rest: typeof aggregated = [];
+  for (const a of aggregated) {
+    const namaNorm = normalizeText(a.nama);
+    const hit = tokenNorm.some((t) => namaNorm.includes(t));
+    (hit ? prioritized : rest).push(a);
+  }
+  const ordered = [...prioritized, ...rest];
+
   // Compact data for LLM — ringkasan agregat semua indikator relevan
   const dataForLLM = {
     ringkasan: {
@@ -107,8 +120,8 @@ async function buildContext(query: string) {
       opd: opdFilter || 'semua',
       opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
       indikator_relevan: filteredIndicators.slice(0, 40).map(i => i.nama).join('; '),
-      // Semua indikator unik ter-agregasi (nilai terakhir per indikator)
-      data_ditemukan: aggregated.slice(0, 150).map((a) => ({
+      // Semua indikator unik ter-agregasi — data match query DI DEPAN
+      data_ditemukan: ordered.slice(0, 150).map((a) => ({
         opd: a.opd,
         indikator: a.nama,
         nilai: a.nilai,
