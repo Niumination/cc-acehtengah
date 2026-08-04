@@ -1,7 +1,7 @@
-// ─── AI Orchestrator — SAPA + Cloud AI (Optimized) ───
+// ─── AI Orchestrator — SAPA + Cloud AI (Optimized + Streaming) ───
 
 import { detectIntent } from './intent-detector';
-import { callLLM } from './llm-client';
+import { callLLM, streamLLM, extractNarasiPartial } from './llm-client';
 import { retrieveContext } from './rag-retriever';
 import {
   fetchSapaData,
@@ -46,115 +46,136 @@ function setCache(query: string, response: HybridResponse) {
   }
 }
 
+// ─── Core pipeline: intent + fetch + filter + build context ───
+async function buildContext(query: string) {
+  const intent = await detectIntent(query);
+  const opdFilter = (intent as any).opdFilter as string | undefined;
+
+  const allRecords = await getCachedSapaData();
+
+  let filteredData: SapaRecord[] = allRecords;
+  if (opdFilter) {
+    filteredData = filterByOpd(allRecords, opdFilter);
+  }
+
+  // Extract keyword — threshold 2 huruf (misal: 'asn', 'gizi')
+  const keywords = query.toLowerCase().split(/\s+/);
+  const stopWords = new Set([
+    'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
+    'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
+    'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
+    'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan',
+    'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten',
+  ]);
+  const indicatorKeywords = keywords.filter(
+    (w) => w.length >= 2 && !stopWords.has(w) && !/^\d+$/.test(w),
+  );
+
+  let matchedRecords: SapaRecord[] = [];
+  if (indicatorKeywords.length > 0 && !opdFilter) {
+    matchedRecords = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
+    matchedRecords = [...new Map(matchedRecords.map((r) => [r.id, r])).values()];
+    if (matchedRecords.length > 0) {
+      filteredData = matchedRecords;
+    }
+  }
+
+  const allOpds = getUniqueOpd(allRecords);
+  const allIndicators = getUniqueIndicators(allRecords);
+  const filteredOpds = getUniqueOpd(filteredData);
+  const filteredIndicators = getUniqueIndicators(filteredData);
+
+  // Compact data for LLM — cap matched records to top 50 (smaller prompt = faster)
+  const dataForLLM = {
+    ringkasan: {
+      total_data: allRecords.length,
+      total_opd: allOpds.length,
+      total_indikator: allIndicators.length,
+      opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
+      tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
+    },
+    filtered: {
+      count: filteredData.length,
+      opd: opdFilter || 'semua',
+      opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
+      indikator_relevan: filteredIndicators.slice(0, 30).map(i => i.nama).join('; '),
+      data_ditemukan: filteredData.slice(0, 50).map((r) => ({
+        opd: r.opds_nama_opd,
+        indikator: r.kode_indikator_nama_indikator,
+        nilai: r.variabel,
+        satuan: r.satuan,
+        tahun: r.tahun,
+        periode: r.jadwal_pemutakhiran,
+      })),
+    },
+  };
+
+  const konteksRegulasi = await retrieveContext(query, intent.kategori);
+  const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
+
+  return { intent, opdFilter, allRecords, filteredData, matchedRecords, dataForLLM, konteksRegulasi, systemPrompt };
+}
+
+// ─── Non-blocking DB save with latency metadata ───
+async function saveChatSession(params: {
+  query: string;
+  intent: string;
+  result: HybridResponse;
+  metadata: Record<string, any>;
+}) {
+  try {
+    await prisma.chatSession.create({
+      data: {
+        query: params.query,
+        intent: params.intent,
+        aiResponse: params.result as any,
+        metadata: params.metadata,
+      },
+    });
+  } catch (dbErr) {
+    // Jangan sampai error DB menggagalkan response ke user
+    console.error('[AI] DB save failed (non-blocking):', dbErr);
+  }
+}
+
 export async function processAIQuery(query: string): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
 
+  const startedAt = Date.now();
+  const steps: Record<string, number> = {};
+
   try {
-    // Step 1: Deteksi intent
-    const intent = await detectIntent(query);
-    const opdFilter = (intent as any).opdFilter as string | undefined;
+    // Step 1-3: intent + fetch + filter (context build)
+    const ctx = await buildContext(query);
+    steps.context = Date.now() - startedAt;
 
-    // Step 2: Fetch SAPA data (cached)
-    const allRecords = await getCachedSapaData();
-
-    // Step 3: Filter sesuai intent
-    let filteredData: SapaRecord[] = allRecords;
-    if (opdFilter) {
-      filteredData = filterByOpd(allRecords, opdFilter);
-    }
-
-    // Extract keyword — threshold 2 huruf (misal: 'asn', 'gizi')
-    const keywords = query.toLowerCase().split(/\s+/);
-    const stopWords = new Set([
-      'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
-      'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
-      'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
-      'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan',
-      'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten',
-    ]);
-    const indicatorKeywords = keywords.filter(
-      (w) => w.length >= 2 && !stopWords.has(w) && !/^\d+$/.test(w),
-    );
-
-    // Search indicator names — find ALL matching records
-    let matchedRecords: SapaRecord[] = [];
-    if (indicatorKeywords.length > 0 && !opdFilter) {
-      matchedRecords = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
-      matchedRecords = [...new Map(matchedRecords.map((r) => [r.id, r])).values()];
-      if (matchedRecords.length > 0) {
-        filteredData = matchedRecords;
-      }
-    }
-
-    // Step 4: Build context for LLM
-    const allOpds = getUniqueOpd(allRecords);
-    const allIndicators = getUniqueIndicators(allRecords);
-    const filteredOpds = getUniqueOpd(filteredData);
-    const filteredIndicators = getUniqueIndicators(filteredData);
-
-    // Build compact data for LLM — prioritize matched records
-    const dataForLLM = {
-      ringkasan: {
-        total_data: allRecords.length,
-        total_opd: allOpds.length,
-        total_indikator: allIndicators.length,
-        opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
-        tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
-      },
-      filtered: {
-        count: filteredData.length,
-        opd: opdFilter || 'semua',
-        opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-        // Related indicator names (for context)
-        indikator_relevan: filteredIndicators.map(i => i.nama).join('; '),
-        // MATCHED records — these are the actual data the user wants
-        data_ditemukan: filteredData.map((r) => ({
-          opd: r.opds_nama_opd,
-          indikator: r.kode_indikator_nama_indikator,
-          nilai: r.variabel,
-          satuan: r.satuan,
-          tahun: r.tahun,
-          periode: r.jadwal_pemutakhiran,
-        })),
-      },
-    };
-
-    // Step 5: Ambil konteks regulasi (opsional)
-    const konteksRegulasi = await retrieveContext(query, intent.kategori);
-
-    // Step 6: Panggil LLM
-    const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
-    const llmResponse = await callLLM(systemPrompt, {
+    // Step 4: Panggil LLM (non-streaming fallback path)
+    const llmStarted = Date.now();
+    const llmResponse = await callLLM(ctx.systemPrompt, {
       query,
-      data: dataForLLM,
-      konteks: konteksRegulasi,
+      data: ctx.dataForLLM,
+      konteks: ctx.konteksRegulasi,
     });
+    steps.llm = Date.now() - llmStarted;
 
-    // Step 7: Parse & cache
-    const result = parseHybridResponse(llmResponse, filteredData);
+    // Step 5: Parse & cache
+    const result = parseHybridResponse(llmResponse, ctx.filteredData);
+
+    // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
+    const metadata = {
+      opdFilter: ctx.opdFilter || null,
+      totalData: ctx.allRecords.length,
+      filteredCount: ctx.filteredData.length,
+      matchedCount: ctx.matchedRecords.length,
+      latencyMs: Date.now() - startedAt,
+      stepsMs: steps,
+      model: process.env.AI_MODEL,
+      streamed: false,
+    };
+    void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
+
     setCache(query, result);
-
-    // Step 8: Simpan ke database ChatSession (non-blocking)
-    try {
-      await prisma.chatSession.create({
-        data: {
-          query,
-          intent: intent.kategori,
-          aiResponse: result as any,
-          metadata: {
-            opdFilter: opdFilter || null,
-            totalData: allRecords.length,
-            filteredCount: filteredData.length,
-            matchedCount: matchedRecords.length,
-          },
-        },
-      });
-    } catch (dbErr) {
-      // Jangan sampai error DB menggagalkan response ke user
-      console.error('[AI] DB save failed (non-blocking):', dbErr);
-    }
-
     return result;
   } catch (err) {
     console.error('[AI] Fallback triggered:', err);
@@ -165,21 +186,84 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       timestamp: new Date().toISOString(),
     };
 
-    // Simpan error ke DB juga
-    try {
-      await prisma.chatSession.create({
-        data: {
-          query,
-          intent: 'error',
-          aiResponse: errorResult as any,
-          metadata: { error: err instanceof Error ? err.message : 'Unknown' },
-        },
-      });
-    } catch { /* silent */ }
+    void saveChatSession({
+      query,
+      intent: 'error',
+      result: errorResult,
+      metadata: { error: err instanceof Error ? err.message : 'Unknown', latencyMs: Date.now() - startedAt },
+    });
 
     return errorResult;
   }
 }
+
+/**
+ * Streaming pipeline — onStatus() for progress events, onChunk() for narasi deltas.
+ * Returns the final parsed HybridResponse.
+ */
+export async function processAIQueryStreaming(
+  query: string,
+  onStatus: (status: string) => void,
+  onChunk: (delta: string) => void,
+): Promise<HybridResponse> {
+  const cached = getCached(query);
+  if (cached) return cached;
+
+  const startedAt = Date.now();
+  const steps: Record<string, number> = {};
+
+  try {
+    // Step 1: Deteksi intent & ambil data
+    onStatus('Menganalisis pertanyaan...');
+    const ctx = await buildContext(query);
+    steps.context = Date.now() - startedAt;
+
+    // Step 2: Panggil LLM dengan streaming
+    onStatus('AI sedang menyusun jawaban...');
+    const llmStarted = Date.now();
+    const llmResponse = await streamLLM(ctx.systemPrompt, { query, data: ctx.dataForLLM, konteks: ctx.konteksRegulasi }, onChunk);
+    steps.llm = Date.now() - llmStarted;
+
+    // Step 3: Parse & cache
+    const result = parseHybridResponse(llmResponse, ctx.filteredData);
+
+    // Step 4: Simpan ke DB (non-blocking)
+    const metadata = {
+      opdFilter: ctx.opdFilter || null,
+      totalData: ctx.allRecords.length,
+      filteredCount: ctx.filteredData.length,
+      matchedCount: ctx.matchedRecords.length,
+      latencyMs: Date.now() - startedAt,
+      stepsMs: steps,
+      model: process.env.AI_MODEL,
+      streamed: true,
+    };
+    void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
+
+    setCache(query, result);
+    return result;
+  } catch (err) {
+    console.error('[AI] Streaming fallback triggered:', err);
+    const errorResult: HybridResponse = {
+      narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
+      visualisasi: { tipe: 'none', konfigurasi: {} },
+      dataSource: 'error',
+      timestamp: new Date().toISOString(),
+    };
+
+    void saveChatSession({
+      query,
+      intent: 'error',
+      result: errorResult,
+      metadata: { error: err instanceof Error ? err.message : 'Unknown', latencyMs: Date.now() - startedAt },
+    });
+
+    return errorResult;
+  }
+}
+
+/** Extract progressive narasi from accumulated LLM stream (for live rendering). */
+export { extractNarasiPartial };
 
 function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
   return `Anda adalah AI Command Center Pemerintah Kabupaten Aceh Tengah.
@@ -207,7 +291,7 @@ VISUALISASI (pilih salah satu):
 - "none" jika tidak perlu
 
 FORMAT JSON:
-{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{...}},"rekomendasi":["..."]}`;
+{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
 }
 
 function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {

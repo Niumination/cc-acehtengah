@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import QueryBar from '@/components/QueryBar';
 import DefaultDashboard from '@/components/SapaStats';
 import AIResponseRenderer from '@/components/AIResponseRenderer';
@@ -13,40 +13,136 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [aiResponse, setAiResponse] = useState<HybridResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [liveNarasi, setLiveNarasi] = useState<string>('');
+  const abortRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveNarasiRef = useRef('');
 
   const handleQuery = useCallback(async (query: string) => {
+    // Abort previous request if any
+    abortRef.current?.abort();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
     try {
       setIsLoading(true);
       setError(null);
+      setAiResponse(null);
+      liveNarasiRef.current = '';
+      setLiveNarasi('');
+      setStatusText('Menganalisis pertanyaan...');
+      setMode('ai-response');
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+      timeoutRef.current = setTimeout(() => controller.abort(), 45000);
 
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query }),
-        signal: AbortSignal.timeout(120000),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error ?? `HTTP ${res.status}`);
+      }
 
-      const data: HybridResponse = await res.json();
-      setAiResponse(data);
-      setMode('ai-response');
+      // SSE stream reader
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('Streaming tidak tersedia');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResult: HybridResponse | null = null;
+      let streamError: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+
+        for (const eventBlock of events) {
+          const eventLines = eventBlock.split('\n');
+          let eventName = 'message';
+          let eventData = '';
+
+          for (const line of eventLines) {
+            if (line.startsWith('event:')) eventName = line.slice(6).trim();
+            else if (line.startsWith('data:')) eventData += line.slice(5).trim();
+          }
+
+          if (!eventData) continue;
+
+          try {
+            const payload = JSON.parse(eventData);
+            if (eventName === 'status') {
+              setStatusText(payload.status ?? null);
+            } else if (eventName === 'narasi') {
+              liveNarasiRef.current = payload.text ?? '';
+              setLiveNarasi(liveNarasiRef.current);
+            } else if (eventName === 'result') {
+              finalResult = payload as HybridResponse;
+            } else if (eventName === 'error') {
+              streamError = payload.error ?? 'Terjadi kesalahan';
+            }
+          } catch {
+            // Skip malformed JSON (partial chunks)
+          }
+        }
+      }
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      if (streamError) throw new Error(streamError);
+
+      if (finalResult) {
+        setAiResponse(finalResult);
+      } else if (liveNarasiRef.current) {
+        // Fallback: narasi streaming tanpa JSON lengkap — build minimal response
+        setAiResponse({
+          narasi: liveNarasiRef.current,
+          visualisasi: { tipe: 'none', konfigurasi: {} },
+          dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        throw new Error('AI tidak mengembalikan respons');
+      }
+
+      setStatusText(null);
+      liveNarasiRef.current = '';
+      setLiveNarasi('');
     } catch (err: any) {
-      const errMsg = err.name === 'TimeoutError'
-        ? 'AI membutuhkan waktu terlalu lama. Coba pertanyaan yang lebih singkat.'
-        : `Terjadi kesalahan: ${err.message}`;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      const errMsg = err?.name === 'AbortError'
+        ? 'AI membutuhkan waktu terlalu lama (45 detik). Coba pertanyaan yang lebih singkat.'
+        : `Terjadi kesalahan: ${err?.message ?? 'Unknown'}`;
       setError(errMsg);
       setMode('ai-response');
       setAiResponse(null);
+      liveNarasiRef.current = '';
+      setLiveNarasi('');
+      setStatusText(null);
     } finally {
       setIsLoading(false);
+      abortRef.current = null;
     }
   }, []);
 
   const handleReset = useCallback(() => {
+    abortRef.current?.abort();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setMode('default');
     setAiResponse(null);
     setError(null);
+    liveNarasiRef.current = '';
+    setLiveNarasi('');
+    setStatusText(null);
   }, []);
 
   return (
@@ -82,8 +178,19 @@ export default function DashboardPage() {
       {mode === 'ai-response' && isLoading && (
         <div className="bg-[#E9E6DA] border border-[#C6C3B4] rounded-2xl p-12 text-center">
           <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm text-[#767D6F]">AI sedang menganalisis data SAPA...</p>
-          <p className="text-[10px] text-[#4B5249] mt-1">Memproses permintaan Anda</p>
+          <p className="text-sm text-[#767D6F]">{statusText ?? 'AI sedang menganalisis data SAPA...'}</p>
+          {liveNarasi ? (
+            <div className="mt-4 max-w-2xl mx-auto text-left">
+              <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-xl p-4">
+                <p className="text-sm text-[#4B5249] leading-relaxed whitespace-pre-wrap">
+                  {liveNarasi}
+                  <span className="inline-block w-2 h-4 bg-[#1B4332] ml-0.5 animate-pulse" />
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[10px] text-[#4B5249] mt-1">Memproses permintaan Anda</p>
+          )}
         </div>
       )}
     </div>
