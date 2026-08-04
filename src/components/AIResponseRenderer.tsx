@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { HybridResponse } from '@/types';
@@ -135,17 +135,53 @@ function ChartRenderer({ config }: { config: any }) {
       {chartType === 'line' ? (
         <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
-          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 11 }} />
+          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
           <Tooltip content={<ChartTooltip />} />
           {lines.map((line: string, i: number) => (
             <Line key={line} type="monotone" dataKey={line} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
           ))}
         </LineChart>
+      ) : chartType === 'area' ? (
+        <AreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <defs>
+            {lines.map((line: string, i: number) => (
+              <linearGradient key={line} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={COLORS[i % COLORS.length]} stopOpacity={0.6} />
+                <stop offset="95%" stopColor={COLORS[i % COLORS.length]} stopOpacity={0.05} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
+          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
+          <Tooltip content={<ChartTooltip />} />
+          {lines.map((line: string, i: number) => (
+            <Area key={line} type="monotone" dataKey={line} stroke={COLORS[i % COLORS.length]} fill={`url(#grad-${i})`} strokeWidth={2} />
+          ))}
+        </AreaChart>
+      ) : chartType === 'pie' || chartType === 'donut' ? (
+        <PieChart>
+          <Tooltip content={<ChartTooltip />} />
+          <Pie
+            data={data}
+            dataKey={lines[0] ?? 'value'}
+            nameKey={xKey}
+            cx="50%" cy="50%"
+            innerRadius={chartType === 'donut' ? 60 : 0}
+            outerRadius={120}
+            paddingAngle={2}
+            label={({ name, percent }: any) => `${(percent * 100).toFixed(0)}%`}
+          >
+            {data.map((_: any, i: number) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
+          </Pie>
+        </PieChart>
       ) : (
         <BarChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
-          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 11 }} />
+          <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
           <Tooltip content={<ChartTooltip />} />
           {lines.map((bar: string, i: number) => (

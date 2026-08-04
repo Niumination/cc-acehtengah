@@ -161,6 +161,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 5: Parse & cache
     const result = parseHybridResponse(llmResponse, ctx.filteredData);
+    // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
+    if (result.visualisasi.tipe === 'none') {
+      result.visualisasi = generateAutoChart(ctx.filteredData);
+    }
 
     // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
     const metadata = {
@@ -226,6 +230,10 @@ export async function processAIQueryStreaming(
 
     // Step 3: Parse & cache
     const result = parseHybridResponse(llmResponse, ctx.filteredData);
+    // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
+    if (result.visualisasi.tipe === 'none') {
+      result.visualisasi = generateAutoChart(ctx.filteredData);
+    }
 
     // Step 4: Simpan ke DB (non-blocking)
     const metadata = {
@@ -287,7 +295,10 @@ Data ditemukan: [{opd:"BKPSDM", indikator:"Jumlah ASN", nilai:"9694", satuan:"or
 VISUALISASI (pilih salah satu):
 - "table" untuk daftar (columns, rows)
 - "metric" untuk ringkasan angka (metrics: [{label, value, unit}])
-- "chart" untuk tren (xKey, lines/bar, data array)
+- "chart" untuk tren/perbandingan/komposisi:
+  * bar: {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
+  * line/area: untuk tren antar tahun {type:"line", xKey:"tahun", data:[{tahun, nilai}], lines:["nilai"]}
+  * pie/donut: untuk komposisi/rasio {type:"donut", xKey:"indikator", data:[{indikator, nilai}], lines:["nilai"]}
 - "none" jika tidak perlu
 
 FORMAT JSON:
@@ -354,6 +365,48 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
       timestamp: new Date().toISOString(),
     };
   }
+}
+
+/**
+ * Auto-generate a statistical chart from SAPA records when the model
+ * didn't provide a visualization. Groups numeric values per indicator
+ * and returns a bar chart config the frontend renderer understands.
+ */
+function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi: Record<string, any> } {
+  // Ambil indikator unik + nilai numerik terakhir per indikator
+  const byIndicator = new Map<string, { nama: string; opd: string; nilai: number; satuan: string }>();
+
+  for (const r of records) {
+    const nama = r.kode_indikator_nama_indikator?.trim();
+    if (!nama) continue;
+    const nilai = Number(String(r.variabel).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(nilai)) continue;
+
+    const existing = byIndicator.get(nama);
+    if (!existing || (existing.nilai === 0 && nilai > 0)) {
+      byIndicator.set(nama, { nama, opd: r.opds_nama_opd, nilai, satuan: r.satuan });
+    }
+  }
+
+  const entries = [...byIndicator.values()].sort((a, b) => b.nilai - a.nilai).slice(0, 10);
+  if (entries.length < 2) {
+    // Terlalu sedikit data → metric card saja
+    return { tipe: 'chart', konfigurasi: { type: 'bar', xKey: 'indikator', data: [], bars: ['nilai'] } };
+  }
+
+  return {
+    tipe: 'chart',
+    konfigurasi: {
+      type: 'bar',
+      xKey: 'indikator',
+      data: entries.map((e) => ({
+        indikator: e.nama.length > 35 ? e.nama.slice(0, 32) + '…' : e.nama,
+        nilai: e.nilai,
+        satuan: e.satuan,
+      })),
+      bars: ['nilai'],
+    },
+  };
 }
 
 /**
