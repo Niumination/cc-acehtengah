@@ -341,7 +341,7 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
     const parsed = extractJsonObject(raw) ?? JSON.parse(raw);
     return {
       narasi: parsed.narasi ?? raw,
-      visualisasi: parsed.visualisasi ?? { tipe: 'none', konfigurasi: {} },
+      visualisasi: normalizeVisualization(parsed.visualisasi),
       rekomendasi: parsed.rekomendasi,
       dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
       timestamp: new Date().toISOString(),
@@ -354,4 +354,64 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
       timestamp: new Date().toISOString(),
     };
   }
+}
+
+/**
+ * Normalize visualization config to the format the frontend renderer expects:
+ * - "metric"  → { metrics: [{label, value, unit}] } (accepts {nilai,satuan,label,detail} from some models)
+ * - "table"   → { columns, rows } (accepts {kolom, baris})
+ * - "chart"   → { type, xKey, data, lines } (accepts {jenis, sumbuX, data, garis})
+ * - "none"    → {}
+ */
+function normalizeVisualization(vis: any): { tipe: 'chart' | 'table' | 'map' | 'metric' | 'none'; konfigurasi: Record<string, any> } {
+  const rawTipe = vis?.tipe ?? 'none';
+  const tipe: 'chart' | 'table' | 'map' | 'metric' | 'none' =
+    ['chart', 'table', 'map', 'metric', 'none'].includes(rawTipe) ? rawTipe : 'none';
+  const cfg = vis?.konfigurasi ?? {};
+
+  if (tipe === 'metric') {
+    // Format A (deepseek): { metrics: [{label, value, unit}] }
+    if (Array.isArray(cfg.metrics)) {
+      return { tipe, konfigurasi: { metrics: cfg.metrics } };
+    }
+    // Format B (ling): { nilai, satuan, label, detail: [{label, nilai, satuan}] }
+    const metrics: any[] = [];
+    if (cfg.nilai != null) {
+      metrics.push({ label: cfg.label ?? 'Nilai', value: cfg.nilai, unit: cfg.satuan ?? '' });
+    }
+    if (Array.isArray(cfg.detail)) {
+      for (const d of cfg.detail) {
+        metrics.push({
+          label: d.label ?? 'Nilai',
+          value: d.nilai ?? d.value,
+          unit: d.satuan ?? d.unit ?? '',
+        });
+      }
+    }
+    if (metrics.length > 0) return { tipe, konfigurasi: { metrics } };
+    return { tipe, konfigurasi: {} };
+  }
+
+  if (tipe === 'table') {
+    // Format B: { kolom, baris } → { columns, rows }
+    if (Array.isArray(cfg.kolom)) {
+      return { tipe, konfigurasi: { columns: cfg.kolom, rows: cfg.baris ?? [] } };
+    }
+    return { tipe, konfigurasi: { columns: cfg.columns ?? [], rows: cfg.rows ?? [] } };
+  }
+
+  if (tipe === 'chart') {
+    // Format B: { jenis, sumbuX, data, garis } → { type, xKey, data, lines }
+    return {
+      tipe,
+      konfigurasi: {
+        type: cfg.type ?? cfg.jenis ?? 'bar',
+        xKey: cfg.xKey ?? cfg.sumbuX ?? 'name',
+        data: cfg.data ?? [],
+        lines: cfg.lines ?? cfg.garis ?? cfg.bars ?? [],
+      },
+    };
+  }
+
+  return { tipe, konfigurasi: cfg };
 }
