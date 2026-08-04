@@ -1,8 +1,58 @@
-// ─── SAPA Direct Client ───
-// Fetch langsung dari api-splp.layanan.go.id (public, tanpa auth)
-// Ganti SPLP bridge yang lama.
+// ─── SAPA Client — Direct API (OAuth) + SPLP fallback ───
+// Prioritas: Direct API (sapa.acehtengahkab.go.id) dengan OAuth token.
+// Fallback: SPLP nasional (api-splp.layanan.go.id) jika direct gagal.
 
-const SAPA_BASE = 'https://api-splp.layanan.go.id/sapa/1.0/api';
+const DIRECT_TOKEN_URL = process.env.SAPA_TOKEN_URL ?? 'https://sapa.acehtengahkab.go.id/oauth/token';
+const DIRECT_API_URL = process.env.SAPA_API_URL ?? 'https://sapa.acehtengahkab.go.id/api';
+const SPLP_BASE = 'https://api-splp.layanan.go.id/sapa/1.0/api';
+
+const BROWSER_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+// ─── OAuth Token Cache ───
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
+async function getOAuthToken(): Promise<string> {
+  // Gunakan cache jika masih valid (kurangi 60s margin)
+  if (tokenCache && tokenCache.expiresAt > Date.now() + 60000) {
+    return tokenCache.token;
+  }
+
+  const clientId = process.env.SAPA_CLIENT_ID ?? '3';
+  const clientSecret = process.env.SAPA_CLIENT_SECRET ?? '';
+
+  if (!clientSecret) {
+    throw new Error('SAPA_CLIENT_SECRET tidak dikonfigurasi');
+  }
+
+  const form = new URLSearchParams();
+  form.set('grant_type', 'client_credentials');
+  form.set('client_id', clientId);
+  form.set('client_secret', clientSecret);
+
+  const res = await fetch(DIRECT_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': BROWSER_UA },
+    body: form.toString(),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`SAPA OAuth error ${res.status}: ${errBody.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  if (!data.access_token) {
+    throw new Error('SAPA OAuth response tanpa access_token');
+  }
+
+  tokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+  };
+  return tokenCache.token;
+}
 
 // ─── Types ───
 
@@ -15,7 +65,7 @@ export interface SapaRecord {
   opds_nama_opd: string;
   jadwal_pemutakhiran: string;
   satuan: string;
-  tahun: string;
+  tahun: string | null;
   variabel: string;
 }
 
@@ -25,39 +75,84 @@ export interface SapaResponse {
   data: SapaRecord[];
 }
 
-// ─── Client ───
+// ─── Fetch: Direct API (OAuth) dengan fallback SPLP ───
 
 export async function fetchSapaData(): Promise<SapaRecord[]> {
-  const res = await fetch(`${SAPA_BASE}/daftar_data`, {
-    headers: { 'Content-Type': 'application/json' },
+  // 1. Coba Direct API dengan OAuth token
+  try {
+    const token = await getOAuthToken();
+    const res = await fetch(`${DIRECT_API_URL}/daftar_data`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'User-Agent': BROWSER_UA },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Direct SAPA API error ${res.status}`);
+    }
+
+    const json: SapaResponse = await res.json();
+    if (json.api_status !== 1 || !Array.isArray(json.data)) {
+      throw new Error(`Direct SAPA API failed: ${json.api_message}`);
+    }
+    return json.data;
+  } catch (directErr) {
+    console.warn('[SAPA] Direct API gagal, fallback ke SPLP:', directErr instanceof Error ? directErr.message : directErr);
+  }
+
+  // 2. Fallback: SPLP nasional
+  const res = await fetch(`${SPLP_BASE}/daftar_data`, {
+    headers: { 'Content-Type': 'application/json', 'User-Agent': BROWSER_UA },
     signal: AbortSignal.timeout(30000),
   });
 
   if (!res.ok) {
-    throw new Error(`SAPA API error ${res.status}: ${res.statusText}`);
+    throw new Error(`SPLP API error ${res.status}: ${res.statusText}`);
   }
 
   const json: SapaResponse = await res.json();
-
   if (json.api_status !== 1) {
-    throw new Error(`SAPA API failed: ${json.api_message}`);
+    throw new Error(`SPLP API failed: ${json.api_message}`);
   }
-
   return json.data;
 }
 
-// ─── Helpers: Aggregate SAPA data ───
+// ─── Helpers: Normalisasi & Filtering ───
+
+/** Normalize text: lowercase, strip diacritics-ish, collapse spaces. */
+export function normalizeText(s: string | null | undefined): string {
+  return (s ?? '')
+    .toLowerCase()
+    .replace(/[.,;:'"()[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Token set dari query — hapus stopwords umum. */
+export function tokenizeQuery(query: string): string[] {
+  const stopWords = new Set([
+    'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
+    'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
+    'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
+    'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan',
+    'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten', 'aceh',
+    'tengah', 'saja', 'saya', 'mau', 'ingin', 'tolong', 'hitung',
+    'jumlah', 'total', 'berapa', 'banyak', 'sebutkan', 'jelaskan',
+  ]);
+  return normalizeText(query)
+    .split(' ')
+    .filter((w) => w.length >= 3 && !stopWords.has(w) && !/^\d+$/.test(w));
+}
 
 /** Unique OPD list from records */
 export function getUniqueOpd(records: SapaRecord[]): { nama: string; id: number; jumlah: number }[] {
   const map = new Map<string, { nama: string; id: number; jumlah: number }>();
   for (const r of records) {
-    const key = r.opds_nama_opd.trim();
+    const key = normalizeText(r.opds_nama_opd) || 'unknown';
     const existing = map.get(key);
     if (existing) {
       existing.jumlah++;
     } else {
-      map.set(key, { nama: key, id: r.id_opds, jumlah: 1 });
+      map.set(key, { nama: r.opds_nama_opd.trim(), id: r.id_opds, jumlah: 1 });
     }
   }
   return [...map.values()].sort((a, b) => b.jumlah - a.jumlah);
@@ -78,18 +173,86 @@ export function getUniqueIndicators(records: SapaRecord[]): { kode: string | nul
   return [...map.values()].sort((a, b) => b.jumlah - a.jumlah);
 }
 
-/** Filter by OPD name (case-insensitive, partial match) */
+/** Filter by OPD name (case-insensitive, partial match, normalized) */
 export function filterByOpd(records: SapaRecord[], opdQuery: string): SapaRecord[] {
-  const q = opdQuery.toLowerCase();
-  return records.filter(r => r.opds_nama_opd.toLowerCase().includes(q));
+  const q = normalizeText(opdQuery);
+  const tokens = q.split(' ').filter(Boolean);
+  return records.filter((r) => {
+    const name = normalizeText(r.opds_nama_opd);
+    return tokens.every((t) => name.includes(t));
+  });
 }
 
-/** Filter by indicator keyword (partial match on nama_indikator) */
+/** Filter by indicator keyword — OR over tokens (more permissive than AND) */
 export function filterByIndicator(records: SapaRecord[], keyword: string): SapaRecord[] {
-  const q = keyword.toLowerCase();
-  return records.filter(r =>
-    r.kode_indikator_nama_indikator?.toLowerCase().includes(q) ?? false
-  );
+  const q = normalizeText(keyword);
+  if (!q) return [];
+  return records.filter((r) => {
+    const name = normalizeText(r.kode_indikator_nama_indikator);
+    return name.includes(q);
+  });
+}
+
+/** Filter by ANY of the given keywords (token-level OR match) */
+export function filterByAnyKeyword(records: SapaRecord[], keywords: string[]): SapaRecord[] {
+  const normalized = keywords.map(normalizeText).filter(Boolean);
+  if (normalized.length === 0) return [];
+  return records.filter((r) => {
+    const name = normalizeText(r.kode_indikator_nama_indikator);
+    return normalized.some((kw) => name.includes(kw));
+  });
+}
+
+/**
+ * Aggregate records per indicator — latest numeric value per indicator.
+ * Prefers records WITH a year (tahun), then falls back to year-less ones.
+ * Returns list sorted by value descending, with dedup by id_kode_indikator.
+ */
+export function aggregateByIndicator(records: SapaRecord[]): {
+  id: number;
+  nama: string;
+  opd: string;
+  nilai: string;
+  nilaiNumber: number;
+  satuan: string;
+  tahun: string | null;
+}[] {
+  const map = new Map<number, {
+    id: number; nama: string; opd: string; nilai: string; nilaiNumber: number;
+    satuan: string; tahun: string | null;
+  }>();
+
+  for (const r of records) {
+    const nama = r.kode_indikator_nama_indikator?.trim();
+    if (!nama) continue;
+    const nilaiNumber = Number(String(r.variabel).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(nilaiNumber)) continue;
+
+    const existing = map.get(r.id_kode_indikator);
+    // Prefer record with a year; if both have years, keep the larger value
+    if (!existing) {
+      map.set(r.id_kode_indikator, {
+        id: r.id_kode_indikator,
+        nama,
+        opd: r.opds_nama_opd.trim(),
+        nilai: r.variabel,
+        nilaiNumber,
+        satuan: r.satuan,
+        tahun: r.tahun || null,
+      });
+    } else if (existing.tahun == null && r.tahun) {
+      // Upgrade to year-bearing record
+      map.set(r.id_kode_indikator, {
+        ...existing,
+        nilai: r.variabel,
+        nilaiNumber,
+        satuan: r.satuan,
+        tahun: r.tahun,
+      });
+    }
+  }
+
+  return [...map.values()].sort((a, b) => b.nilaiNumber - a.nilaiNumber);
 }
 
 /** Summary stats */
@@ -101,6 +264,6 @@ export function getSapaSummary(records: SapaRecord[]) {
     totalOpd: opds.length,
     totalIndicators: indicators.length,
     topOpd: opds[0],
-    tahun: [...new Set(records.map(r => r.tahun))],
+    tahun: [...new Set(records.map((r) => r.tahun ?? 'terbaru'))],
   };
 }

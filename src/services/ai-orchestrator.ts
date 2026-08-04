@@ -6,9 +6,12 @@ import { retrieveContext } from './rag-retriever';
 import {
   fetchSapaData,
   filterByOpd,
-  filterByIndicator,
+  filterByAnyKeyword,
   getUniqueOpd,
   getUniqueIndicators,
+  aggregateByIndicator,
+  normalizeText,
+  tokenizeQuery,
   type SapaRecord,
 } from '@/lib/sapa-client';
 import { HybridResponse } from '@/types';
@@ -53,67 +56,74 @@ async function buildContext(query: string) {
 
   const allRecords = await getCachedSapaData();
 
-  let filteredData: SapaRecord[] = allRecords;
+  // Normalisasi tahun: tahun None/kosong → 'terbaru'
+  const normalizedRecords = allRecords.map((r) => ({
+    ...r,
+    tahun: r.tahun && r.tahun.trim() ? r.tahun : 'terbaru',
+  })) as SapaRecord[];
+
+  let filteredData: SapaRecord[] = normalizedRecords;
   if (opdFilter) {
-    filteredData = filterByOpd(allRecords, opdFilter);
+    filteredData = filterByOpd(normalizedRecords, opdFilter);
   }
 
-  // Extract keyword — threshold 2 huruf (misal: 'asn', 'gizi')
-  const keywords = query.toLowerCase().split(/\s+/);
-  const stopWords = new Set([
-    'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
-    'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
-    'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
-    'itu', 'bisa', 'tolong', 'jelaskan', 'tampilkan', 'perlihatkan',
-    'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten',
-  ]);
-  const indicatorKeywords = keywords.filter(
-    (w) => w.length >= 2 && !stopWords.has(w) && !/^\d+$/.test(w),
-  );
+  // Token query untuk filter indikator (OR match — lebih permissive)
+  const tokens = tokenizeQuery(query);
 
+  // Jika tidak ada OPD filter, coba match indikator dengan token (OR)
   let matchedRecords: SapaRecord[] = [];
-  if (indicatorKeywords.length > 0 && !opdFilter) {
-    matchedRecords = indicatorKeywords.flatMap((kw) => filterByIndicator(allRecords, kw));
-    matchedRecords = [...new Map(matchedRecords.map((r) => [r.id, r])).values()];
+  if (tokens.length > 0 && !opdFilter) {
+    matchedRecords = filterByAnyKeyword(normalizedRecords, tokens);
+    // Batasi hasil OR ke indikator yang match SEMUA token dulu (lebih relevan),
+    // fallback ke OR jika hasil kosong
+    if (matchedRecords.length === 0) {
+      matchedRecords = filterByAnyKeyword(normalizedRecords, [tokens[0]]);
+    }
     if (matchedRecords.length > 0) {
       filteredData = matchedRecords;
     }
   }
 
-  const allOpds = getUniqueOpd(allRecords);
-  const allIndicators = getUniqueIndicators(allRecords);
+  const allOpds = getUniqueOpd(normalizedRecords);
+  const allIndicators = getUniqueIndicators(normalizedRecords);
   const filteredOpds = getUniqueOpd(filteredData);
   const filteredIndicators = getUniqueIndicators(filteredData);
 
-  // Compact data for LLM — cap matched records to top 50 (smaller prompt = faster)
+  // AGGREGASI per indikator — SEMUA indikator unik (bukan cap 50 record mentah)
+  const aggregated = aggregateByIndicator(filteredData);
+  const aggregatedAll = aggregateByIndicator(normalizedRecords);
+
+  // Compact data for LLM — ringkasan agregat semua indikator relevan
   const dataForLLM = {
     ringkasan: {
-      total_data: allRecords.length,
+      total_data: normalizedRecords.length,
       total_opd: allOpds.length,
       total_indikator: allIndicators.length,
-      opd_list: allOpds.slice(0, 15).map(o => `${o.nama}(${o.jumlah})`).join(', '),
-      tahun: [...new Set(allRecords.map(r => r.tahun))].join(', '),
+      opd_list: allOpds.slice(0, 20).map(o => `${o.nama}(${o.jumlah})`).join(', '),
+      tahun: [...new Set(normalizedRecords.map(r => r.tahun))].join(', '),
     },
     filtered: {
       count: filteredData.length,
       opd: opdFilter || 'semua',
       opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-      indikator_relevan: filteredIndicators.slice(0, 30).map(i => i.nama).join('; '),
-      data_ditemukan: filteredData.slice(0, 50).map((r) => ({
-        opd: r.opds_nama_opd,
-        indikator: r.kode_indikator_nama_indikator,
-        nilai: r.variabel,
-        satuan: r.satuan,
-        tahun: r.tahun,
-        periode: r.jadwal_pemutakhiran,
+      indikator_relevan: filteredIndicators.slice(0, 40).map(i => i.nama).join('; '),
+      // Semua indikator unik ter-agregasi (nilai terakhir per indikator)
+      data_ditemukan: aggregated.slice(0, 150).map((a) => ({
+        opd: a.opd,
+        indikator: a.nama,
+        nilai: a.nilai,
+        satuan: a.satuan,
+        tahun: a.tahun ?? 'terbaru',
       })),
+      // Total agregat keseluruhan sebagai konteks tambahan
+      agregat_total: aggregatedAll.length,
     },
   };
 
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
   const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
 
-  return { intent, opdFilter, allRecords, filteredData, matchedRecords, dataForLLM, konteksRegulasi, systemPrompt };
+  return { intent, opdFilter, allRecords: normalizedRecords, filteredData, matchedRecords, dataForLLM, konteksRegulasi, systemPrompt };
 }
 
 // ─── Non-blocking DB save with latency metadata ───
@@ -281,11 +291,12 @@ STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layan
 
 ATURAN:
 1. HANYA gunakan data riil dari field "data_ditemukan". Jangan mengarang angka.
-2. Tampilkan data yang ditemukan dengan format yang jelas (nilai + satuan + periode).
-3. Jika data spesifik tidak ada di "data_ditemukan", tampilkan data terkait dari "indikator_relevan".
-4. Selalu sebutkan OPD dan sumber data.
-5. Gunakan Bahasa Indonesia formal, lugas, actionable.
-6. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
+2. Data "tahun":"terbaru" berarti indikator tanpa tahun spesifik — gunakan sebagai data terkini.
+3. Tampilkan data yang ditemukan dengan format yang jelas (nilai + satuan + periode).
+4. Jika data spesifik tidak ada di "data_ditemukan", tampilkan data terkait dari "indikator_relevan".
+5. Selalu sebutkan OPD dan sumber data.
+6. Gunakan Bahasa Indonesia formal, lugas, actionable.
+7. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
 
 CONTOH RESPONS:
 Query: "berapa jumlah ASN"
@@ -369,28 +380,12 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
 
 /**
  * Auto-generate a statistical chart from SAPA records when the model
- * didn't provide a visualization. Groups numeric values per indicator
- * and returns a bar chart config the frontend renderer understands.
+ * didn't provide a visualization. Uses aggregated indicator values.
  */
 function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi: Record<string, any> } {
-  // Ambil indikator unik + nilai numerik terakhir per indikator
-  const byIndicator = new Map<string, { nama: string; opd: string; nilai: number; satuan: string }>();
-
-  for (const r of records) {
-    const nama = r.kode_indikator_nama_indikator?.trim();
-    if (!nama) continue;
-    const nilai = Number(String(r.variabel).replace(/[^\d.-]/g, ''));
-    if (!Number.isFinite(nilai)) continue;
-
-    const existing = byIndicator.get(nama);
-    if (!existing || (existing.nilai === 0 && nilai > 0)) {
-      byIndicator.set(nama, { nama, opd: r.opds_nama_opd, nilai, satuan: r.satuan });
-    }
-  }
-
-  const entries = [...byIndicator.values()].sort((a, b) => b.nilai - a.nilai).slice(0, 10);
+  const aggregated = aggregateByIndicator(records);
+  const entries = aggregated.slice(0, 10);
   if (entries.length < 2) {
-    // Terlalu sedikit data → metric card saja
     return { tipe: 'chart', konfigurasi: { type: 'bar', xKey: 'indikator', data: [], bars: ['nilai'] } };
   }
 
@@ -401,7 +396,7 @@ function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi:
       xKey: 'indikator',
       data: entries.map((e) => ({
         indikator: e.nama.length > 35 ? e.nama.slice(0, 32) + '…' : e.nama,
-        nilai: e.nilai,
+        nilai: e.nilaiNumber,
         satuan: e.satuan,
       })),
       bars: ['nilai'],

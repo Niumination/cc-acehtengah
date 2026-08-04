@@ -91,7 +91,13 @@ const INTENT_PATTERNS: Record<string, RegExp[]> = {
 export function detectOpd(query: string): string | undefined {
   const q = query.toLowerCase();
   for (const [keyword, opd] of Object.entries(OPD_KEYWORDS)) {
-    if (q.includes(keyword)) return opd;
+    // Keyword pendek (2 huruf, misal 'rs') hanya match sebagai kata utuh (word boundary)
+    if (keyword.length <= 2) {
+      const re = new RegExp(`(^|[^a-z])${keyword}([^a-z]|$)`, 'i');
+      if (re.test(q)) return opd;
+    } else if (q.includes(keyword)) {
+      return opd;
+    }
   }
   return undefined;
 }
