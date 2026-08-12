@@ -88,19 +88,24 @@ function MetricRenderer({ config }: { config: any }) {
 
 // ─── Table Renderer ───
 function TableRenderer({ config }: { config: any }) {
-  const columns: string[] = config?.columns ?? [];
+  const columns: any[] = config?.columns ?? [];
   const rawRows: any[] = config?.rows ?? [];
 
   if (columns.length === 0 || rawRows.length === 0) return null;
+
+  // Handle dua format columns: array of strings ATAU array of objects {key, name}
+  const colMeta = columns.map((c: any) =>
+    typeof c === 'string' ? { key: c, name: c } : { key: c?.key ?? c?.name ?? String(c), name: c?.name ?? c?.key ?? String(c) }
+  );
 
   return (
     <div className="overflow-x-auto max-h-[500px]">
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-[#E9E6DA]">
           <tr className="border-b border-[#C6C3B4]">
-            {columns.map((col: string) => (
-              <th key={col} className="text-left py-2.5 px-3 font-semibold text-[#767D6F] whitespace-nowrap">
-                {col}
+            {colMeta.map((col: any) => (
+              <th key={col.key} className="text-left py-2.5 px-3 font-semibold text-[#767D6F] whitespace-nowrap">
+                {col.name}
               </th>
             ))}
           </tr>
@@ -108,9 +113,9 @@ function TableRenderer({ config }: { config: any }) {
         <tbody>
           {rawRows.map((row: any, i: number) => (
             <tr key={i} className="border-b border-[#C6C3B4] hover:bg-[#E9E6DA] transition-colors">
-              {columns.map((col: string, ci: number) => (
-                <td key={col} className="py-2 px-3 text-[#4B5249]">
-                  {Array.isArray(row) ? (row[ci] ?? '-') : (row[col] ?? '-')}
+              {colMeta.map((col: any, ci: number) => (
+                <td key={col.key} className="py-2 px-3 text-[#4B5249]">
+                  {Array.isArray(row) ? (row[ci] ?? '-') : (row[col.key] ?? row[col.name] ?? '-')}
                 </td>
               ))}
             </tr>
