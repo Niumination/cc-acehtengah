@@ -11,8 +11,15 @@ AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=«redacted:sk-…»
 AI_MODEL=deepseek-v4-flash-free
 
-# ─── Auth (Optional — auto-generated if not set) ───
-JWT_SECRET=random-secret-string-here
+# ─── Auth (WAJIB — tidak ada fallback, app fail-closed tanpa ini) ───
+# Generate: openssl rand -base64 48    (minimal 32 karakter)
+JWT_SECRET=«generate-sendiri-jangan-pakai-contoh»
+
+# ─── Bootstrap admin (HANYA saat setup awal, matikan setelahnya) ───
+SETUP_ENABLED=false
+# SETUP_TOKEN=«openssl rand -hex 32»
+# ADMIN_BOOTSTRAP_USERNAME=admin
+# ADMIN_BOOTSTRAP_PASSWORD=«minimal 12 karakter»
 
 # ─── Mode ───
 USE_MOCK_DATA=false
@@ -22,6 +29,9 @@ USE_MOCK_DATA=false
 # - DATABASE_URL HARUS pakai pooler (aws-0-ap-northeast-1.pooler.supabase.com:6543)
 # - JANGAN pakai direct connection (db.xxx.supabase.co:5432) — IPv6 only!
 # - prepared_statements=false WAJIB untuk Supavisor transaction mode
-# - Admin table: POST /api/setup/admin (first time only)
-# - Default admin: admin / admin123
+# - JWT_SECRET WAJIB. Tanpa itu semua endpoint auth menolak request.
+# - Tidak ada kredensial default. Bootstrap admin pertama:
+#     SETUP_ENABLED=true + SETUP_TOKEN (min 32 char) + ADMIN_BOOTSTRAP_PASSWORD (min 12 char)
+#     curl -X POST .../api/setup/admin -H "x-setup-token: $SETUP_TOKEN"
+#     lalu SET SETUP_ENABLED=false dan hapus SETUP_TOKEN
 # ============================================================

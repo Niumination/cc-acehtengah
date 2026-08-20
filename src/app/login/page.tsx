@@ -3,9 +3,23 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+/**
+ * Hanya izinkan path internal sebagai tujuan redirect.
+ * Tanpa ini, `/login?from=https://situs-jahat.example` akan melempar pengguna
+ * ke domain luar setelah login sukses (open redirect / phishing).
+ * Lihat: LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-02
+ */
+function safeRedirectTarget(raw: string | null): string {
+  const fallback = '/dashboard/laporan';
+  if (!raw) return fallback;
+  // Wajib diawali satu '/' dan tidak boleh '//' (protocol-relative) atau '/\'.
+  if (!/^\/(?![/\\])/.test(raw)) return fallback;
+  return raw;
+}
+
 function LoginForm() {
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/dashboard/laporan';
+  const from = safeRedirectTarget(searchParams.get('from'));
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -75,35 +89,43 @@ function LoginForm() {
           </p>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4 text-red-400 text-sm">
+            <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4 text-red-300 text-sm">
               ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-[#9CA3AF] text-sm mb-1.5">
+              <label htmlFor="username" className="block text-[#9CA3AF] text-sm mb-1.5">
                 Username
               </label>
               <input
+                id="username"
+                name="username"
                 type="text"
+                autoComplete="username"
+                required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#6B7280] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
+                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#8B94A1] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
                 placeholder="Masukkan username"
                 autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-[#9CA3AF] text-sm mb-1.5">
+              <label htmlFor="password" className="block text-[#9CA3AF] text-sm mb-1.5">
                 Password
               </label>
               <input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#6B7280] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
+                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#8B94A1] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
                 placeholder="Masukkan password"
               />
             </div>

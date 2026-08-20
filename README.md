@@ -35,8 +35,9 @@ npm install
 # Setup database
 npx prisma generate
 
-# Create admin account (first time)
-curl -X POST http://localhost:3000/api/setup/admin
+# Buat akun admin pertama (sekali saja, endpoint terkunci)
+#   butuh: SETUP_ENABLED=true, SETUP_TOKEN, ADMIN_BOOTSTRAP_PASSWORD di .env.local
+curl -X POST http://localhost:3000/api/setup/admin -H "x-setup-token: $SETUP_TOKEN"
 
 # Start dev server
 npm run dev
@@ -44,14 +45,12 @@ npm run dev
 # Open http://localhost:3000/dashboard
 ```
 
-## Default Admin Credentials
+## Admin Account
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
+Tidak ada kredensial default. Akun pertama dibuat lewat proses bootstrap yang
+terkunci — lihat [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md#4-auth--bootstrap-admin).
 
-⚠️ **Ganti password setelah login pertama!**
+Setelah masuk, ganti password di `/dashboard/akun`.
 
 ## Environment Variables
 
