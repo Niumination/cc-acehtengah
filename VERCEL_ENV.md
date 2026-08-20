@@ -21,6 +21,9 @@ SETUP_ENABLED=false
 # ADMIN_BOOTSTRAP_USERNAME=admin
 # ADMIN_BOOTSTRAP_PASSWORD=«minimal 12 karakter»
 
+# ─── URL publik (Open Graph, robots.txt, sitemap.xml) ───
+NEXT_PUBLIC_SITE_URL=https://cc-acehtengah.vercel.app
+
 # ─── Mode ───
 USE_MOCK_DATA=false
 

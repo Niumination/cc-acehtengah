@@ -44,6 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [ewsOpen, setEwsOpen] = useState(false);
   const [health, setHealth] = useState<HealthState>({ kind: 'loading' });
   const mobileNavRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Jam & tanggal hanya dihitung setelah mount → tidak ada nilai ter-bake
   // dari waktu build dan tidak ada mismatch zona waktu saat hidrasi.
@@ -95,14 +96,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      setMobileNavOpen(false);
+      // Efek samping (focus) TIDAK boleh berada di dalam state updater:
+      // React StrictMode memanggil updater dua kali.
+      if (mobileNavOpen) {
+        setMobileNavOpen(false);
+        menuButtonRef.current?.focus();
+      }
       setEwsOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [mobileNavOpen]);
 
-  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+  // Cegah halaman di belakang ikut ter-scroll saat drawer terbuka.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileNavOpen]);
+
+  const closeMobileNav = useCallback(() => {
+    setMobileNavOpen(false);
+    // Kembalikan fokus ke tombol pemicu (WCAG SC 2.4.3 Focus Order).
+    menuButtonRef.current?.focus();
+  }, []);
 
   const statusLabel =
     health.kind === 'loading'
@@ -142,8 +162,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={closeMobileNav}
             className="absolute inset-0 h-full w-full bg-black/50"
           />
-          <div ref={mobileNavRef} className="absolute left-0 top-0 h-full shadow-2xl">
-            <Sidebar onNavigate={closeMobileNav} />
+          <div
+            ref={mobileNavRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu navigasi"
+            className="absolute left-0 top-0 h-full shadow-2xl"
+          >
+            <Sidebar onNavigate={closeMobileNav} onClose={closeMobileNav} />
           </div>
         </div>
       )}
@@ -152,6 +178,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[#1B4332] bg-[#0F2A1E] px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Buka menu navigasi"
