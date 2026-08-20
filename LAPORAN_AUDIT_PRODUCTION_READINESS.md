@@ -840,7 +840,7 @@ Tambahkan `.github/dependabot.yml` (ekosistem `npm` + `github-actions`, mingguan
 | P2-20 | Brute force login | Percobaan ke-6 → `429` (5/username, 10/IP per 10 menit) |
 | P3-06 | `.env.local.production` | Dihapus (identik byte-per-byte dengan `.env.example`) |
 
-### ✅ Sprint 1 — selesai (commit `de831ab`)
+### ✅ Sprint 1 — selesai (commit `edac468`)
 
 | ID | Temuan | Bukti sesudah perbaikan |
 |---|---|---|
