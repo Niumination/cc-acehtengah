@@ -854,7 +854,7 @@ Tambahkan `.github/dependabot.yml` (ekosistem `npm` + `github-actions`, mingguan
 | P3-05 | Dependency tak terpakai | `next-auth`, `uuid`, `nanoid`, `date-fns` dihapus |
 | P3-15 | Tidak ada tes & CI | **20 tes** (`npm test`, tanpa dependency tambahan) + `.github/workflows/ci.yml` + Dependabot |
 
-### ✅ Sprint 2 — selesai (commit `7859817`)
+### ✅ Sprint 2 — selesai (commit `f8bf210`)
 
 | ID | Temuan | Bukti sesudah perbaikan |
 |---|---|---|
