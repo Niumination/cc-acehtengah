@@ -821,6 +821,45 @@ Tambahkan `.github/dependabot.yml` (ekosistem `npm` + `github-actions`, mingguan
 
 ---
 
+## 10b. Status pengerjaan
+
+> Bagian ini diperbarui setiap sprint selesai. Semua centang diverifikasi ulang
+> dengan uji runtime, bukan sekadar perubahan kode.
+
+### ✅ Sprint 0 — selesai (commit `86e6ea8`)
+
+| ID | Temuan | Bukti sesudah perbaikan |
+|---|---|---|
+| P0-01 | JWT secret hardcoded | Token yang ditandatangani secret lama → `401`. Tanpa `JWT_SECRET`, auth fail-closed; halaman publik tetap `200` |
+| P0-02 | Endpoint setup publik | `/api/setup*` → `404` tanpa `SETUP_ENABLED`+`x-setup-token`; token salah 1 huruf tetap `404` |
+| P0-03 | Kredensial default publik | `admin123` & hash bcrypt dihapus dari SQL + 4 dokumen; `/dashboard/akun` + `POST /api/auth/change-password` ditambahkan |
+| P0-04 | `/api/datasets/sync` tanpa auth | `401` tanpa sesi, `403` bila bukan SUPERADMIN, rate limit 3/10 menit |
+| P0-05 | `/api/query` tanpa batas | Body non-JSON → `400`; request ke-11 dalam 1 menit → `429` + `Retry-After`; `maxDuration = 60` |
+| P1-01 | Auth mati di `next dev` | `middleware.ts` → `src/proxy.ts`; `/dashboard/laporan` `200` → `307`, `/api/chat-logs` → `401` |
+| P1-02 | Open redirect login | URL absolut, `//`, `/\`, `javascript:` semuanya jatuh ke `/dashboard/laporan` |
+| P2-20 | Brute force login | Percobaan ke-6 → `429` (5/username, 10/IP per 10 menit) |
+| P3-06 | `.env.local.production` | Dihapus (identik byte-per-byte dengan `.env.example`) |
+
+### ✅ Sprint 1 — selesai (commit `de831ab`)
+
+| ID | Temuan | Bukti sesudah perbaikan |
+|---|---|---|
+| P1-03 | Data kecamatan salah | 15 entri → **14** resmi; `Banda Mulia`/`Burni Telong`/`Permata`/`Bies Penjara` dihapus; `Bintang` & `Jagong Jeget` ditambahkan; koordinat bersumber Wikidata (QID tercantum per baris); pemetaan OPD→kecamatan yang dikarang **dihapus total** dan diganti deklarasi cakupan eksplisit |
+| P1-04 | Mode mock merusak aplikasi | Satu lapisan `src/lib/data-source.ts`; `/api/stats`, `/api/analytics`, `/api/geodata` `500` → `200`; `/api/query` mock kini SSE (`status`→`narasi`×4→`result`), parser klien menghasilkan "render jawaban" (dulu *throw*); skema `/api/health` disatukan |
+| P1-05a | `indicatorFrequency.opds` selalu kosong | Join diperbaiki ke ID indikator: **20/20** indikator kini punya daftar OPD |
+| P1-05b | Metrik kelengkapan salah | Tidak lagi memakai array yang sudah dipotong 5; rentang wajar 0–100% dengan `filledRecords`/`totalRecords` |
+| P1-07 | Kegagalan DB disamarkan | `/api/ews` & `/api/datasets` `200 []` → `503` + `errorCode`; `EwsPanel` membedakan *loading / tidak diketahui / aman* |
+| P1-09 | Migrasi SQL gagal di DB baru | `CREATE TYPE` dipindah ke atas; seed kredensial dihapus |
+| P1-11 | 9 kerentanan high | `next` 16.2.10 → **16.3.1** + `npm audit fix`: **9 → 3**. Sisa 3 berasal dari satu rantai dev-only (`prisma` → `@prisma/config` → `deepmerge-ts`) yang butuh Prisma 6→7 (dijadwalkan) |
+| P3-05 | Dependency tak terpakai | `next-auth`, `uuid`, `nanoid`, `date-fns` dihapus |
+| P3-15 | Tidak ada tes & CI | **20 tes** (`npm test`, tanpa dependency tambahan) + `.github/workflows/ci.yml` + Dependabot |
+
+**Gate kualitas saat ini:** `tsc --noEmit` bersih · `npm test` 20/20 lulus ·
+`next build` sukses (24 route + Proxy) · ESLint 83 → **70** masalah
+(sisa `no-explicit-any` dari kode lama → Sprint 2).
+
+---
+
 ## 11. Rencana aksi berurutan
 
 ### Sprint 0 — Hentikan pendarahan (1–2 hari, wajib sebelum publikasi)

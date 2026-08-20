@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { processAIQueryStreaming } from '@/services/ai-orchestrator';
 import { getMockQueryResponse } from '@/lib/mock-data';
+import { isMockMode } from '@/lib/data-source';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -69,12 +70,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Mock mode — tetap response JSON biasa
-  if (process.env.USE_MOCK_DATA === 'true') {
-    return Response.json(getMockQueryResponse(parsed.data.query));
-  }
-
   const { query } = parsed.data;
+
+  // Mock mode — WAJIB memakai protokol yang sama dengan mode live (SSE).
+  // Sebelumnya mode ini mengembalikan JSON polos sementara klien mem-parse SSE,
+  // sehingga panel AI selalu gagal dengan "AI tidak mengembalikan respons".
+  // Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-04
+  if (isMockMode()) {
+    return sseResponse(mockStream(query));
+  }
 
   // SSE streaming response
   const encoder = new TextEncoder();
@@ -117,6 +121,11 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  return sseResponse(stream);
+}
+
+/** Header standar untuk Server-Sent Events. */
+function sseResponse(stream: ReadableStream): Response {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
@@ -125,6 +134,58 @@ export async function POST(req: NextRequest) {
       'X-Accel-Buffering': 'no',
     },
   });
+}
+
+/**
+ * Stream mock dengan urutan event identik jalur live:
+ *   status → narasi (bertahap) → result
+ * Narasi dipotong per kalimat agar efek streaming di UI ikut teruji saat demo.
+ */
+function mockStream(query: string): ReadableStream {
+  const encoder = new TextEncoder();
+  const result = getMockQueryResponse(query);
+  const narasi: string = typeof result?.narasi === 'string' ? result.narasi : '';
+
+  return new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        try {
+          controller.enqueue(encoder.encode(sse(event, data)));
+        } catch {
+          // Klien memutus koneksi.
+        }
+      };
+
+      try {
+        send('status', { status: 'Menganalisis pertanyaan... (mode data contoh)' });
+        await sleep(200);
+        send('status', { status: 'Menyusun jawaban... (mode data contoh)' });
+
+        const chunks = narasi.match(/[^.!?]+[.!?]?\s*/g) ?? (narasi ? [narasi] : []);
+        let progressive = '';
+        for (const chunk of chunks) {
+          progressive += chunk;
+          send('narasi', { text: progressive });
+          await sleep(120);
+        }
+
+        send('result', {
+          ...result,
+          dataSource: `${result?.dataSource ?? 'mock'} · DATA CONTOH`,
+        });
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // sudah tertutup
+        }
+      }
+    },
+  });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Small local helper to avoid importing from services in route (keeps bundle lean)

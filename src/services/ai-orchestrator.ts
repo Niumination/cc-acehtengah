@@ -4,7 +4,6 @@ import { detectIntent } from './intent-detector';
 import { callLLM, streamLLM, extractNarasiPartial } from './llm-client';
 import { retrieveContext } from './rag-retriever';
 import {
-  fetchSapaData,
   filterByOpd,
   filterByAnyKeyword,
   getUniqueOpd,
@@ -14,6 +13,7 @@ import {
   tokenizeQuery,
   type SapaRecord,
 } from '@/lib/sapa-client';
+import { getSapaRecords } from '@/lib/data-source';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
@@ -26,7 +26,7 @@ async function getCachedSapaData(): Promise<SapaRecord[]> {
   if (sapaCache && sapaCache.expiresAt > Date.now()) {
     return sapaCache.records;
   }
-  const records = await fetchSapaData();
+  const records = await getSapaRecords();
   sapaCache = { records, expiresAt: Date.now() + SAPA_CACHE_TTL };
   return records;
 }

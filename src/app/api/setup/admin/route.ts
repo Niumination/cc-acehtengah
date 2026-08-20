@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
-import { guardSetupRoute } from '@/lib/setup-guard';
+import { evaluateSetupAccess } from '@/lib/setup-guard';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -43,8 +43,10 @@ async function ensureAdminTable(): Promise<void> {
 }
 
 export async function POST(req: Request) {
-  const denied = guardSetupRoute(req);
-  if (denied) return denied;
+  // Gagal → 404 supaya keberadaan endpoint tidak terkonfirmasi ke pemindai.
+  if (!evaluateSetupAccess(req).allowed) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
   const bootstrapUsername = process.env.ADMIN_BOOTSTRAP_USERNAME ?? 'admin';
