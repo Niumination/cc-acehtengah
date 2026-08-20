@@ -5,7 +5,23 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 
-const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
+// Palet kategorikal — setiap warna UNIK.
+// Palet lama mengulang #2D6A4F, #A15C38, dan #1B4332 masing-masing dua kali,
+// sehingga dua seri berbeda bisa tampil berwarna sama (§7.2 #10).
+// Urutan disusun agar berdekatan tetap berbeda terang-gelap, membantu pembaca
+// dengan defisiensi penglihatan warna.
+const COLORS = [
+  '#1B4332', // hijau tua
+  '#A15C38', // terakota
+  '#2D6A4F', // hijau sedang
+  '#8A6E1D', // emas tua
+  '#4B5249', // abu zaitun
+  '#B3261E', // merah
+  '#52796F', // hijau kebiruan
+  '#6B4E71', // ungu tua
+  '#C9803F', // oranye
+  '#31708E', // biru
+];
 
 interface AnalyticsData {
   overview: { totalRecords: number; totalOpd: number; totalIndicators: number };
@@ -18,36 +34,52 @@ interface AnalyticsData {
   lastFetched: string;
 }
 
-const ChartTooltip = ({ active, payload, label }: any) => {
+
+// Tipe payload tooltip Recharts yang benar-benar dipakai di sini.
+interface TooltipPayloadItem {
+  name?: string;
+  value?: number | string;
+  color?: string;
+  fill?: string;
+  payload?: Record<string, unknown>;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string | number;
+}
+
+const ChartTooltip = ({ active, payload, label }: TooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
+    <div className="p-2.5 bg-[#FFFFFF] border border-[#9A9683] rounded-lg shadow-xl text-xs">
       <p className="font-bold text-[#1B4332] mb-1">{label}</p>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} style={{ color: p.color || p.fill }}>{p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</p>
       ))}
     </div>
   );
 };
 
-const PieTooltip = ({ active, payload }: any) => {
+const PieTooltip = ({ active, payload }: TooltipProps) => {
   if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
+  const d = (payload[0].payload ?? {}) as { name?: string; count?: number };
   return (
-    <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
+    <div className="p-2.5 bg-[#FFFFFF] border border-[#9A9683] rounded-lg shadow-xl text-xs">
       <p className="font-bold text-[#1B4332]">{d.name}</p>
-      <p className="text-[#4B5249]">Jumlah: {d.count.toLocaleString()}</p>
+      <p className="text-[#4B5249]">Jumlah: {(d.count ?? 0).toLocaleString('id-ID')}</p>
     </div>
   );
 };
 
 function StatCard({ icon, label, value, color }: { icon: string; label: string; value: number; color: string }) {
   return (
-    <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-5">
+    <div className="bg-[#FFFFFF] border border-[#9A9683] rounded-2xl p-5">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${color}`}>{icon}</div>
         <div>
-          <p className="text-[10px] text-[#767D6F] uppercase tracking-wider font-medium">{label}</p>
+          <p className="text-[11px] text-[#5C6358] uppercase tracking-wider font-medium">{label}</p>
           <p className="text-2xl font-bold text-[#1B4332]">{value.toLocaleString()}</p>
         </div>
       </div>
@@ -68,11 +100,15 @@ export default function AnalyticsPage() {
       const json = await res.json();
       if (json.error) throw new Error(json.error);
       setData(json);
-    } catch (e: any) { setError(e.message); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Gagal memuat data'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    const id = setTimeout(() => { void fetchData(); }, 0);
+    return () => clearTimeout(id);
+     
+  }, []);
 
   if (loading) {
     return (
@@ -116,7 +152,7 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#1B4332]">📊 Analitik Data SAPA</h1>
-          <p className="text-sm text-[#767D6F] mt-1">
+          <p className="text-sm text-[#5C6358] mt-1">
             {data.lastFetched && `Terakhir diperbarui: ${new Date(data.lastFetched).toLocaleString('id-ID')}`}
           </p>
         </div>
@@ -130,13 +166,13 @@ export default function AnalyticsPage() {
       </div>
 
       {/* OPD Performance — full width, tall */}
-      <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+      <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
         <h2 className="text-sm font-bold text-[#1B4332] mb-4">🏛️ OPD Performance — Jumlah Indikator</h2>
         <ResponsiveContainer width="100%" height={Math.max(500, opdData.length * 32)}>
           <BarChart data={opdData} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
-            <XAxis type="number" stroke="#767D6F" tick={{ fontSize: 11 }} />
-            <YAxis dataKey="nama" type="category" width={190} stroke="#767D6F" tick={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#9A9683" />
+            <XAxis type="number" stroke="#5C6358" tick={{ fontSize: 11 }} />
+            <YAxis dataKey="nama" type="category" width={190} stroke="#5C6358" tick={{ fontSize: 11 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
             <Bar dataKey="jumlahIndikator" name="Jumlah Indikator" fill="#1B4332" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -144,13 +180,13 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Data Completeness — full width, tall */}
-      <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+      <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
         <h2 className="text-sm font-bold text-[#1B4332] mb-4">✅ Data Completeness per OPD</h2>
         <ResponsiveContainer width="100%" height={Math.max(500, compData.length * 32)}>
           <BarChart data={compData} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
-            <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} stroke="#767D6F" tick={{ fontSize: 11 }} />
-            <YAxis dataKey="nama" type="category" width={190} stroke="#767D6F" tick={{ fontSize: 11 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#9A9683" />
+            <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} stroke="#5C6358" tick={{ fontSize: 11 }} />
+            <YAxis dataKey="nama" type="category" width={190} stroke="#5C6358" tick={{ fontSize: 11 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
             <Bar dataKey="completeness" name="Completeness %" fill="#2D6A4F" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -160,11 +196,11 @@ export default function AnalyticsPage() {
       {/* Pie Charts Row */}
       <div className="grid grid-cols-3 gap-4">
         {/* Kategori Indikator */}
-        <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+        <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
           <h2 className="text-sm font-bold text-[#1B4332] mb-3">🏷️ Kategori Indikator</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
-              <Pie data={data.kategoriIndikator} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={data.kategoriIndikator} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
                 {data.kategoriIndikator.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip content={<PieTooltip />} />
@@ -173,11 +209,11 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Satuan Distribution */}
-        <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+        <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
           <h2 className="text-sm font-bold text-[#1B4332] mb-3">📐 Satuan / Unit</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
-              <Pie data={satData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={satData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
                 {satData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip content={<PieTooltip />} />
@@ -186,11 +222,11 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Jadwal Pemutakhiran */}
-        <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+        <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
           <h2 className="text-sm font-bold text-[#1B4332] mb-3">🔄 Jadwal Pemutakhiran</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
-              <Pie data={data.jadwalDistribusi} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
+              <Pie data={data.jadwalDistribusi} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
                 {data.jadwalDistribusi.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip content={<PieTooltip />} />
@@ -200,13 +236,13 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Top 20 Indicator Frequency */}
-      <div className="bg-[#0F2A1E]/90 border border-[#C6C3B4] rounded-2xl p-5">
+      <div className="bg-[#0F2A1E]/90 border border-[#9A9683] rounded-2xl p-5">
         <h2 className="text-sm font-bold text-[#1B4332] mb-4">📊 Top 20 Indikator Terbanyak</h2>
         <ResponsiveContainer width="100%" height={Math.max(400, topInd.length * 30)}>
           <BarChart data={topInd} layout="vertical" margin={{ top: 5, right: 30, left: 300, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
-            <XAxis type="number" stroke="#767D6F" tick={{ fontSize: 11 }} />
-            <YAxis dataKey="nama" type="category" width={290} stroke="#767D6F" tick={{ fontSize: 10 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#9A9683" />
+            <XAxis type="number" stroke="#5C6358" tick={{ fontSize: 11 }} />
+            <YAxis dataKey="nama" type="category" width={290} stroke="#5C6358" tick={{ fontSize: 10 }} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
             <Bar dataKey="jumlah" name="Kemunculan" fill="#A15C38" radius={[0, 4, 4, 0]} />
           </BarChart>

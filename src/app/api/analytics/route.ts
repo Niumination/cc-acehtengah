@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getUniqueOpd, getUniqueIndicators, filterByOpd } from '@/lib/sapa-client';
 import { getSapaRecords } from '@/lib/data-source';
 
-let analyticsCache: any = null;
+let analyticsCache: unknown = null;
 let cacheExpiry = 0;
 
 export async function GET() {
@@ -135,7 +135,11 @@ export async function GET() {
     cacheExpiry = Date.now() + 10 * 60 * 1000;
 
     return NextResponse.json(result);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[analytics] Gagal:', err);
+    return NextResponse.json(
+      { error: 'Gagal mengambil data SAPA', errorCode: 'SAPA_UNAVAILABLE' },
+      { status: 503 },
+    );
   }
 }

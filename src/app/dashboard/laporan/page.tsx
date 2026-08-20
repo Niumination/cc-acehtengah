@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface LogEntry {
   id: string;
@@ -39,6 +40,7 @@ const INTENT_LABELS: Record<string, string> = {
 };
 
 export default function LaporanPage() {
+  const router = useRouter();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [stats, setStats] = useState<StatsEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -68,15 +70,18 @@ export default function LaporanPage() {
       setLogs(data.logs || []);
       setTotal(data.total || 0);
       setStats(data.stats || []);
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat data');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data');
     } finally {
       setLoading(false);
     }
   }, [intentFilter, searchFilter, dateFrom, dateTo]);
 
+  // Dijadwalkan lewat microtask agar setState tidak dipanggil sinkron di body
+  // effect (react-hooks/set-state-in-effect).
   useEffect(() => {
-    fetchLogs();
+    const id = setTimeout(() => { void fetchLogs(); }, 0);
+    return () => clearTimeout(id);
   }, [fetchLogs]);
 
   // Export ke CSV
@@ -104,9 +109,9 @@ export default function LaporanPage() {
   const getIntentColor = (intent: string | null) => {
     const colors: Record<string, string> = {
       tren: '#1B4332', perbandingan: '#2D6A4F', nilai_saat_ini: '#8A6E1D',
-      rekomendasi: '#A15C38', ews: '#B3261E', umum: '#767D6F', error: '#B3261E',
+      rekomendasi: '#A15C38', ews: '#B3261E', umum: '#5C6358', error: '#B3261E',
     };
-    return colors[intent || ''] || '#767D6F';
+    return colors[intent || ''] || '#5C6358';
   };
 
   return (
@@ -120,14 +125,15 @@ export default function LaporanPage() {
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E2420', margin: '0 0 6px' }}>
             Riwayat AI Query
           </h1>
-          <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5 }}>
+          <p style={{ color: '#5C6358', fontSize: '0.9rem', lineHeight: 1.5 }}>
             Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
           </p>
         </div>
         <button
           onClick={async () => {
             await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
+            router.replace('/login');
+            router.refresh();
           }}
           style={{ padding: '8px 16px', borderRadius: '8px', background: '#B3261E', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '4px' }}
         >
@@ -161,7 +167,7 @@ export default function LaporanPage() {
           value={searchFilter}
           onChange={(e) => setSearchFilter(e.target.value)}
           style={{
-            padding: '8px 12px', borderRadius: '8px', border: '1px solid #C6C3B4',
+            padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683',
             background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem', flex: 1, minWidth: '180px',
             outline: 'none',
           }}
@@ -169,7 +175,7 @@ export default function LaporanPage() {
         <select
           value={intentFilter}
           onChange={(e) => setIntentFilter(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #C6C3B4', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem', fontWeight: 600 }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem', fontWeight: 600 }}
         >
           <option value="all">Semua Kategori</option>
           {Object.entries(INTENT_LABELS).map(([k, v]) => (
@@ -177,10 +183,10 @@ export default function LaporanPage() {
           ))}
         </select>
         <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #C6C3B4', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
-        <span style={{ color: '#767D6F', fontSize: '0.8rem' }}>s/d</span>
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
+        <span style={{ color: '#5C6358', fontSize: '0.8rem' }}>s/d</span>
         <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #C6C3B4', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
         <button onClick={fetchLogs}
           style={{ padding: '8px 16px', borderRadius: '8px', background: '#1B4332', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
           🔍 Cari
@@ -193,7 +199,7 @@ export default function LaporanPage() {
 
       {/* Loading */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#767D6F' }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5C6358' }}>
           <div style={{ fontSize: '2rem', marginBottom: '8px' }}>⏳</div>
           Memuat riwayat query...
         </div>
@@ -208,7 +214,7 @@ export default function LaporanPage() {
 
       {/* Empty */}
       {!loading && !error && logs.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#767D6F' }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5C6358' }}>
           <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🤖</div>
           <h3 style={{ color: '#1E2420', margin: '0 0 6px' }}>Belum Ada Riwayat Query</h3>
           <p style={{ fontSize: '0.9rem' }}>
@@ -224,7 +230,7 @@ export default function LaporanPage() {
             const isExpanded = expandedId === entry.id;
             return (
               <div key={entry.id} style={{
-                borderRadius: '12px', border: '1px solid #C6C3B4',
+                borderRadius: '12px', border: '1px solid #9A9683',
                 background: '#FFFFFF', overflow: 'hidden',
                 transition: 'box-shadow 0.2s',
               }}>
@@ -240,18 +246,18 @@ export default function LaporanPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       {entry.intent && <span style={{
-                        fontSize: '0.68rem', fontWeight: 700, padding: '1px 8px', borderRadius: '4px',
+                        fontSize: '0.75rem', fontWeight: 700, padding: '1px 8px', borderRadius: '4px',
                         background: entry.intent === 'error' ? '#FBE3DE' : '#E9E6DA',
                         color: getIntentColor(entry.intent),
                         border: `1px solid ${getIntentColor(entry.intent)}40`,
                       }}>
                         {INTENT_LABELS[entry.intent] || entry.intent}
                       </span>}
-                      <span style={{ fontSize: '0.72rem', color: '#767D6F' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#5C6358' }}>
                         {new Date(entry.createdAt).toLocaleString('id-ID')}
                       </span>
                       {entry.metadata?.error && (
-                        <span style={{ fontSize: '0.68rem', color: '#B3261E', fontWeight: 600 }}>❌ Error</span>
+                        <span style={{ fontSize: '0.75rem', color: '#B3261E', fontWeight: 600 }}>❌ Error</span>
                       )}
                     </div>
                     <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1E2420', lineHeight: 1.4 }}>
@@ -260,11 +266,11 @@ export default function LaporanPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     {entry.aiResponse?.visualisasi?.tipe && entry.aiResponse.visualisasi.tipe !== 'none' && (
-                      <span style={{ fontSize: '0.72rem', color: '#767D6F', background: '#E9E6DA', padding: '2px 8px', borderRadius: '4px' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#5C6358', background: '#E9E6DA', padding: '2px 8px', borderRadius: '4px' }}>
                         {entry.aiResponse.visualisasi.tipe === 'table' ? '📊' : entry.aiResponse.visualisasi.tipe === 'chart' ? '📈' : entry.aiResponse.visualisasi.tipe === 'metric' ? '📏' : '🗺️'}
                       </span>
                     )}
-                    <span style={{ fontSize: '1.1rem', color: '#767D6F', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>›</span>
+                    <span style={{ fontSize: '1.1rem', color: '#5C6358', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>›</span>
                   </div>
                 </div>
 
@@ -273,14 +279,14 @@ export default function LaporanPage() {
                   <div style={{ padding: '0 18px 16px', borderTop: '1px solid #E9E6DA' }}>
                     {entry.aiResponse?.narasi && (
                       <div style={{ margin: '12px 0', padding: '12px', borderRadius: '8px', background: '#F5F3EC', fontSize: '0.84rem', lineHeight: 1.6, color: '#1E2420' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#8A6E1D', marginBottom: '6px' }}>JAWABAN AI</div>
+                        <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#8A6E1D', marginBottom: '6px' }}>JAWABAN AI</div>
                         {entry.aiResponse.narasi}
                       </div>
                     )}
 
                     {entry.aiResponse?.rekomendasi && entry.aiResponse.rekomendasi.length > 0 && (
                       <div style={{ marginBottom: '12px' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#A15C38', marginBottom: '4px' }}>💡 REKOMENDASI</div>
+                        <div style={{ fontWeight: 700, fontSize: '0.75rem', color: '#A15C38', marginBottom: '4px' }}>💡 REKOMENDASI</div>
                         {entry.aiResponse.rekomendasi.map((r, i) => (
                           <div key={i} style={{ fontSize: '0.82rem', color: '#1E2420', padding: '2px 0' }}>{i + 1}. {r}</div>
                         ))}
@@ -288,7 +294,7 @@ export default function LaporanPage() {
                     )}
 
                     {entry.metadata && (
-                      <div style={{ fontSize: '0.72rem', color: '#767D6F', display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#5C6358', display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
                         {entry.metadata.opdFilter && <span>🏢 Filter OPD: {entry.metadata.opdFilter}</span>}
                         {entry.metadata.totalData !== undefined && <span>📦 Total data: {entry.metadata.totalData}</span>}
                         {entry.metadata.filteredCount !== undefined && <span>🔍 Terfilter: {entry.metadata.filteredCount}</span>}
@@ -297,7 +303,7 @@ export default function LaporanPage() {
                       </div>
                     )}
 
-                    <div style={{ fontSize: '0.7rem', color: '#767D6F' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#5C6358' }}>
                       ID: {entry.id} | Sumber: {entry.aiResponse?.dataSource || '-'}
                     </div>
                   </div>

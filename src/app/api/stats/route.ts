@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
 import { getSapaRecords } from '@/lib/data-source';
 
-// In-memory cache for stats (10 minutes)
-let statsCache: any = null;
+// Cache in-memory (10 menit).
+// CATATAN: di serverless cache ini per-instance — lihat §P1-08 untuk rencana
+// pemindahan ke cache bersama.
+let statsCache: unknown = null;
 let statsCacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 

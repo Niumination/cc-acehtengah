@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts';
 
 interface Overview {
@@ -41,10 +41,18 @@ interface SapaStatsData {
   topIndicators: Indicator[];
   dataByYear: DataByYear[];
   kategoriDistribusi: KategoriDist[];
-  sampleRecords: any[];
+  sampleRecords: {
+    opd: string;
+    indikator: string | null;
+    nilai: string;
+    satuan: string;
+    tahun: string | null;
+    periode: string;
+  }[];
 }
 
-const CHART_COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4'];
+// Palet kategorikal unik — lihat catatan di AIResponseRenderer (§7.2 #10).
+const CHART_COLORS = ['#1B4332', '#A15C38', '#2D6A4F', '#8A6E1D', '#4B5249', '#B3261E', '#52796F', '#31708E'];
 
 /** Truncate long indicator names for chart readability */
 function truncateName(name: string, maxLen: number = 35): string {
@@ -54,7 +62,7 @@ function truncateName(name: string, maxLen: number = 35): string {
 
 function SkeletonCard() {
   return (
-    <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#C6C3B4]">
+    <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#9A9683]">
       <div className="skeleton h-4 w-24 mb-3" />
       <div className="skeleton h-8 w-16" />
     </div>
@@ -63,7 +71,7 @@ function SkeletonCard() {
 
 function SkeletonChart() {
   return (
-    <div className="bg-[#E9E6DA] rounded-2xl p-6 border border-[#C6C3B4]">
+    <div className="bg-[#E9E6DA] rounded-2xl p-6 border border-[#9A9683]">
       <div className="skeleton h-4 w-40 mb-4" />
       <div className="skeleton h-64 w-full" />
     </div>
@@ -138,7 +146,7 @@ export default function SapaStats() {
         </div>
         <div>
           <h2 className="text-sm font-bold text-[#1B4332]">Data SAPA Real-Time</h2>
-          <p className="text-[11px] text-[#767D6F]">
+          <p className="text-[11px] text-[#5C6358]">
             Sumber: api-splp.layanan.go.id · {data.overview.totalRecords} records
           </p>
         </div>
@@ -146,73 +154,73 @@ export default function SapaStats() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#C6C3B4] card-hover">
+        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#9A9683] card-hover">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-[#767D6F] uppercase tracking-wider font-medium">Total Records</p>
+            <p className="text-[11px] text-[#5C6358] uppercase tracking-wider font-medium">Total Records</p>
             <span className="text-lg">📦</span>
           </div>
           <p className="text-3xl font-black text-[#1B4332]">
             {data.overview.totalRecords.toLocaleString('id-ID')}
           </p>
-          <p className="text-[10px] text-[#1B4332] mt-1">Data indikator SAPA</p>
+          <p className="text-[11px] text-[#1B4332] mt-1">Data indikator SAPA</p>
         </div>
 
-        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#C6C3B4] card-hover">
+        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#9A9683] card-hover">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-[#767D6F] uppercase tracking-wider font-medium">Total OPD</p>
+            <p className="text-[11px] text-[#5C6358] uppercase tracking-wider font-medium">Total OPD</p>
             <span className="text-lg">🏛️</span>
           </div>
           <p className="text-3xl font-black text-[#2D6A4F]">
             {data.overview.totalOpd}
           </p>
-          <p className="text-[10px] text-[#767D6F] mt-1">Organisasi Perangkat Daerah</p>
+          <p className="text-[11px] text-[#5C6358] mt-1">Organisasi Perangkat Daerah</p>
         </div>
 
-        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#C6C3B4] card-hover">
+        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#9A9683] card-hover">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-[#767D6F] uppercase tracking-wider font-medium">Indikator</p>
+            <p className="text-[11px] text-[#5C6358] uppercase tracking-wider font-medium">Indikator</p>
             <span className="text-lg">📈</span>
           </div>
           <p className="text-3xl font-black text-[#1B4332]">
             {data.overview.totalIndicators}
           </p>
-          <p className="text-[10px] text-[#767D6F] mt-1">Jenis indikator unik</p>
+          <p className="text-[11px] text-[#5C6358] mt-1">Jenis indikator unik</p>
         </div>
 
-        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#C6C3B4] card-hover">
+        <div className="bg-[#E9E6DA] rounded-2xl p-5 border border-[#9A9683] card-hover">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-[#767D6F] uppercase tracking-wider font-medium">Update Terakhir</p>
+            <p className="text-[11px] text-[#5C6358] uppercase tracking-wider font-medium">Update Terakhir</p>
             <span className="text-lg">🔄</span>
           </div>
           <p className="text-sm font-bold text-[#1B4332]">
             {data.overview.latestUpdate || '-'}
           </p>
-          <p className="text-[10px] text-[#767D6F] mt-1">Terakhir diambil: {lastFetchedStr}</p>
+          <p className="text-[11px] text-[#5C6358] mt-1">Terakhir diambil: {lastFetchedStr}</p>
         </div>
       </div>
 
       {/* OPD + Indicators */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* OPD Table */}
-        <div className="lg:col-span-2 bg-[#E9E6DA] rounded-2xl border border-[#C6C3B4] overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#C6C3B4]">
+        <div className="lg:col-span-2 bg-[#E9E6DA] rounded-2xl border border-[#9A9683] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#9A9683]">
             <h3 className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
               🏛️ OPD — {sortedOpds.length} Terdaftar
             </h3>
-            <p className="text-[10px] text-[#767D6F] mt-0.5">Sorted by jumlah indikator</p>
+            <p className="text-[11px] text-[#5C6358] mt-0.5">Sorted by jumlah indikator</p>
           </div>
           <div className="max-h-[380px] overflow-y-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-[#E9E6DA] backdrop-blur-sm">
-                <tr className="border-b border-[#C6C3B4]">
-                  <th className="text-left py-2.5 px-4 text-[10px] text-[#767D6F] uppercase font-semibold">#</th>
-                  <th className="text-left py-2.5 px-4 text-[10px] text-[#767D6F] uppercase font-semibold">Nama OPD</th>
-                  <th className="text-right py-2.5 px-4 text-[10px] text-[#767D6F] uppercase font-semibold">Indikator</th>
+                <tr className="border-b border-[#9A9683]">
+                  <th className="text-left py-2.5 px-4 text-[11px] text-[#5C6358] uppercase font-semibold">#</th>
+                  <th className="text-left py-2.5 px-4 text-[11px] text-[#5C6358] uppercase font-semibold">Nama OPD</th>
+                  <th className="text-right py-2.5 px-4 text-[11px] text-[#5C6358] uppercase font-semibold">Indikator</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedOpds.map((opd, idx) => (
-                  <tr key={opd.id} className="border-b border-[#C6C3B4]/20 hover:bg-[#C6C3B4]/30 transition-colors">
+                  <tr key={opd.id} className="border-b border-[#9A9683]/20 hover:bg-[#9A9683]/30 transition-colors">
                     <td className="py-2.5 px-4 text-[#4B5249]">{idx + 1}</td>
                     <td className="py-2.5 px-4 text-[#4B5249] font-medium">{opd.nama}</td>
                     <td className="py-2.5 px-4 text-right">
@@ -228,26 +236,26 @@ export default function SapaStats() {
         </div>
 
         {/* Top 10 Indicators Chart */}
-        <div className="lg:col-span-3 bg-[#E9E6DA] rounded-2xl border border-[#C6C3B4] p-5">
+        <div className="lg:col-span-3 bg-[#E9E6DA] rounded-2xl border border-[#9A9683] p-5">
           <h3 className="text-xs font-bold text-[#1B4332] uppercase tracking-wider mb-4">
             📊 Top 10 Indikator Terbanyak
           </h3>
           <ResponsiveContainer width="100%" height={380}>
             <BarChart data={top10} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" horizontal={false} />
-              <XAxis type="number" stroke="#C6C3B4" tick={{ fontSize: 11, fill: '#1E2420' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#9A9683" horizontal={false} />
+              <XAxis type="number" stroke="#9A9683" tick={{ fontSize: 11, fill: '#1E2420' }} />
               <YAxis
                 type="category"
                 dataKey="shortName"
-                stroke="#C6C3B4"
+                stroke="#9A9683"
                 tick={{ fontSize: 9, fill: '#1E2420' }}
                 width={160}
               />
               <Tooltip
-                contentStyle={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '12px', fontSize: '12px' }}
+                contentStyle={{ background: '#FFFFFF', border: '1px solid #9A9683', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#1E2420' }}
-                labelStyle={{ color: '#C6C3B4' }}
-                formatter={(value: any, _name: any, props: any) => [`${value} record`, props.payload?.nama ?? '']}
+                labelStyle={{ color: '#9A9683' }}
+                formatter={(value, _name, item) => [`${value ?? 0} record`, (item?.payload as { nama?: string } | undefined)?.nama ?? '']}
               />
               <Bar dataKey="jumlah" name="Jumlah Record" radius={[0, 6, 6, 0]}>
                 {top10.map((_, i) => (
@@ -262,19 +270,19 @@ export default function SapaStats() {
       {/* Year Distribution + Kategori Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6" id="indikator">
         {/* Data by Year */}
-        <div className="lg:col-span-3 bg-[#E9E6DA] rounded-2xl border border-[#C6C3B4] p-5">
+        <div className="lg:col-span-3 bg-[#E9E6DA] rounded-2xl border border-[#9A9683] p-5">
           <h3 className="text-xs font-bold text-[#1B4332] uppercase tracking-wider mb-4">
             📅 Distribusi Data per Tahun
           </h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={years} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" vertical={false} />
-              <XAxis dataKey="year" stroke="#C6C3B4" tick={{ fontSize: 12, fill: '#1E2420' }} />
-              <YAxis stroke="#C6C3B4" tick={{ fontSize: 11, fill: '#1E2420' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#9A9683" vertical={false} />
+              <XAxis dataKey="year" stroke="#9A9683" tick={{ fontSize: 12, fill: '#1E2420' }} />
+              <YAxis stroke="#9A9683" tick={{ fontSize: 11, fill: '#1E2420' }} />
               <Tooltip
-                contentStyle={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '12px', fontSize: '12px' }}
+                contentStyle={{ background: '#FFFFFF', border: '1px solid #9A9683', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#1E2420' }}
-                labelStyle={{ color: '#C6C3B4' }}
+                labelStyle={{ color: '#9A9683' }}
               />
               <Bar dataKey="count" name="Jumlah Record" radius={[6, 6, 0, 0]}>
                 {years.map((entry, i) => (
@@ -287,7 +295,7 @@ export default function SapaStats() {
         </div>
 
         {/* Kategori Pie */}
-        <div className="lg:col-span-2 bg-[#E9E6DA] rounded-2xl border border-[#C6C3B4] p-5">
+        <div className="lg:col-span-2 bg-[#E9E6DA] rounded-2xl border border-[#9A9683] p-5">
           <h3 className="text-xs font-bold text-[#1B4332] uppercase tracking-wider mb-4">
             🏷️ Distribusi Kategori OPD
           </h3>
@@ -310,7 +318,7 @@ export default function SapaStats() {
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '12px', fontSize: '12px' }}
+                contentStyle={{ background: '#FFFFFF', border: '1px solid #9A9683', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#1E2420' }}
               />
             </PieChart>
