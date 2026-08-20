@@ -34,9 +34,11 @@ interface SidebarProps {
   onToggle?: () => void;
   /** Dipanggil setelah menu diklik — dipakai drawer mobile untuk menutup diri. */
   onNavigate?: () => void;
+  /** Bila diisi, tampilkan tombol tutup eksplisit (dipakai drawer mobile). */
+  onClose?: () => void;
 }
 
-export default function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProps) {
+export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -63,10 +65,21 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate }: Sid
             </button>
           )}
           {!collapsed && (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold tracking-tight text-white">Aceh Tengah</p>
               <p className="text-[11px] font-medium text-[#C6C3B4]">Command Center</p>
             </div>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup menu navigasi"
+              autoFocus
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2D6A4F] bg-[#1B4332] text-[#E3E0D2] hover:bg-[#2D6A4F] hover:text-white"
+            >
+              <span aria-hidden="true">✕</span>
+            </button>
           )}
         </div>
       </div>

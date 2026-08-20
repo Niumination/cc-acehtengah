@@ -890,6 +890,63 @@ tidak di-set. Diperbaiki menjadi `?? null`.
 
 ---
 
+### 🔍 Reviu pasca-Sprint 2 — koreksi kesalahan sendiri (commit `f70b214`)
+
+Reviu ulang terhadap perubahan Sprint 0–2 menemukan **satu kesalahan serius yang
+saya perkenalkan sendiri**, plus tiga perbaikan kecil. Semuanya sudah dibetulkan.
+
+#### 🔴 Kesalahan: CSP Sprint 2 akan mematikan aplikasi di produksi
+
+`script-src 'self'` yang saya tetapkan pada Sprint 2 **memblokir inline script
+hidrasi Next.js**. App Router menyisipkan payload RSC sebagai
+`<script id="_R_">self.__next_f.push(...)</script>` di setiap halaman; tanpa
+`'unsafe-inline'` atau nonce, browser menolaknya dan **aplikasi tidak terhidrasi
+sama sekali**. Uji header Sprint 2 hanya memeriksa *header terkirim*, bukan
+*apakah kebijakannya kompatibel dengan halaman* — itu celah pengujian saya.
+
+Solusi ideal (nonce per-request lewat `src/proxy.ts`) diuji dan **terbukti tidak
+bisa dipakai** pada proyek ini:
+
+| Mode | Nonce di HTML | Nonce di header | Hasil |
+|---|---|---|---|
+| `next dev` | ada di 29/29 tag script | ada, cocok | ✅ berfungsi |
+| `next start` | **tidak ada** (halaman ○ Static dipra-render saat build) | ada, baru tiap request | ❌ dengan `'strict-dynamic'`, `'self'` diabaikan → inline script tetap diblokir |
+
+Nonce mengharuskan seluruh halaman dirender dinamis — keputusan arsitektur
+tersendiri, bukan tambalan. Karena itu kebijakan final memakai
+`script-src 'self' 'unsafe-inline'`, dan **divalidasi terhadap inventaris nyata
+halaman produksi** (2 inline script, 13 script same-origin, 0 origin eksternal,
+1 atribut style inline, tile OSM, `data:` URI marker Leaflet) — sepuluh
+pemeriksaan lolos.
+
+Yang tetap ditegakkan dan bernilai nyata: pemblokiran origin script eksternal,
+`object-src 'none'`, `frame-ancestors 'none'`, `base-uri 'self'`,
+`form-action 'self'`, dan `'unsafe-eval'` mati di produksi. Risiko sisa dapat
+diterima karena **tidak ada `dangerouslySetInnerHTML` di seluruh basis kode**
+(terverifikasi), sehingga tidak ada jalur penyisipan HTML mentah dari data SAPA
+maupun keluaran LLM.
+
+**Dikunci dengan tes.** `tests/security-headers.test.ts` (10 tes) menegakkan
+kebijakan ini dari dua sisi: menolak pengetatan yang mematikan hidrasi *dan*
+menolak pelonggaran berbahaya. Uji mutasi membuktikan tes benar-benar menangkap:
+mengembalikan `script-src 'self'` membuat 2 tes gagal.
+
+#### Perbaikan kecil lain dari reviu
+
+| Temuan | Perbaikan |
+|---|---|
+| Efek samping `focus()` di dalam state updater React | Dipindah keluar — React StrictMode memanggil updater dua kali |
+| Drawer mobile tanpa tombol tutup, tanpa kunci scroll, tanpa pengembalian fokus | Ditambah tombol tutup (`autoFocus`), `role="dialog" aria-modal`, kunci scroll body, fokus kembali ke tombol pemicu saat ditutup/Esc |
+| `NEXT_PUBLIC_SITE_URL` dipakai `metadataBase`/robots/sitemap tapi tak terdokumentasi | Ditambahkan ke `.env.example` dan `VERCEL_ENV.md` |
+| Kebijakan header tidak dapat diuji (tertanam di `next.config.ts`) | Dipindah ke `src/lib/security-headers.ts` yang murni & teruji |
+
+**Regresi penuh setelah reviu:** 14 pemeriksaan Sprint 0–1 lolos (0 gagal),
+9 pemeriksaan a11y Sprint 2 lolos, 7/7 header keamanan terkirim, 10 halaman/aset
+merespons benar. `tsc` bersih · `eslint` 0 masalah · **30/30 tes lulus** ·
+`next build` sukses.
+
+---
+
 ## 11. Rencana aksi berurutan
 
 ### Sprint 0 — Hentikan pendarahan (1–2 hari, wajib sebelum publikasi)
