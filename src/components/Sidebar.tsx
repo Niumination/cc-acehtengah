@@ -1,144 +1,133 @@
 'use client';
 
+// ─── Sidebar navigasi ───
+//
+// Perbaikan Sprint 2 (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P2-04, §P2-08, §P2-09):
+//   • Judul sidebar dulu <h1>, padahal header juga <h1> → dua <h1> per halaman.
+//     Sekarang memakai <p> dan navigasi dibungkus <nav aria-label>.
+//   • Link "#ai" dan "#ews" MATI: elemen id="ai" hanya ada di AiChatPanel yang
+//     tidak pernah dirender, dan id="ews" tidak ada sama sekali. Dihapus.
+//   • Emoji ikon diberi aria-hidden agar tidak dibacakan pembaca layar.
+//   • Halaman aktif ditandai aria-current="page", bukan hanya warna.
+//   • Indikator status statis "Active" dihapus — status nyata ada di header.
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA' },
-  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & Analitik' },
-  { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif' },
-  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Riwayat Query AI' },
-  { href: '/dashboard/akun', label: 'Akun', icon: '👤', desc: 'Profil & Password' },
-];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+  desc: string;
+}
 
-const SECONDARY_ITEMS = [
-  { href: '#ai', label: 'AI Asisten', icon: '🤖', desc: 'Tanya Data' },
-  { href: '#ews', label: 'EWS', icon: '⚠️', desc: 'Early Warning' },
+const NAV_ITEMS: NavItem[] = [
+  { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Ringkasan SAPA' },
+  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & analitik' },
+  { href: '/dashboard/gis', label: 'Peta Wilayah', icon: '🗺️', desc: 'Peta kecamatan' },
+  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Riwayat kueri AI' },
+  { href: '/dashboard/akun', label: 'Akun', icon: '👤', desc: 'Profil & password' },
 ];
 
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Dipanggil setelah menu diklik — dipakai drawer mobile untuk menutup diri. */
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed = false, onToggle, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside
-      className={`flex flex-col h-full border-r border-[#C6C3B4] bg-[#FFFFFF] transition-all duration-300 ease-in-out ${
+    <div
+      className={`flex h-full flex-col border-r border-[#8A8676] bg-white transition-all duration-300 ease-in-out ${
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      {/* Header — Hamburger + Logo */}
-      <div className={`border-b border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'} bg-[#0F2A1E]`}>
+      <div className={`bg-[#0F2A1E] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
         <div className="flex items-center gap-2.5">
-          {/* Hamburger Button */}
-          <button
-            onClick={onToggle}
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 bg-[#1B4332] hover:bg-[#2D6A4F] text-[#C6C3B4] hover:text-white border border-[#2D6A4F]"
-            title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
-              <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
-              <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
-            </svg>
-          </button>
+          {onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
+              aria-expanded={!collapsed}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2D6A4F] bg-[#1B4332] text-[#E3E0D2] transition-all duration-200 hover:bg-[#2D6A4F] hover:text-white"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
+                <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
+                <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
+              </svg>
+            </button>
+          )}
           {!collapsed && (
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-              <p className="text-[10px] text-[#C6C3B4] font-medium">Command Center</p>
+              <p className="truncate text-sm font-bold tracking-tight text-white">Aceh Tengah</p>
+              <p className="text-[11px] font-medium text-[#C6C3B4]">Command Center</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className={`flex-1 py-4 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
+      <nav
+        aria-label="Navigasi utama"
+        className={`flex-1 space-y-1 py-4 ${collapsed ? 'px-2' : 'px-3'}`}
+      >
+        <p
+          className={`mb-2 text-[11px] font-bold uppercase tracking-widest text-[#5C6358] ${
+            collapsed ? 'px-0 text-center' : 'px-3'
+          }`}
+        >
           {collapsed ? '•' : 'Navigasi'}
         </p>
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all duration-200 ${
-                collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
-              } ${
-                isActive
-                  ? 'bg-[#DCE8DE] text-[#1B4332] border border-[#2D6A4F]/20'
-                  : 'text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] border border-transparent'
-              }`}
-            >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className={`text-xs font-semibold truncate ${isActive ? 'text-[#1B4332]' : 'text-[#4B5249]'}`}>
-                    {item.label}
-                  </p>
-                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
-                </div>
-              )}
-            </Link>
-          );
-        })}
 
-        <div className="pt-3 mt-3 border-t border-[#C6C3B4]">
-          <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
-            {collapsed ? '•' : 'Tools'}
-          </p>
-          {SECONDARY_ITEMS.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-xl text-sm text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] transition-all duration-200 border border-transparent ${
-                collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
-              }`}
-            >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[#4B5249] truncate">{item.label}</p>
-                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
-                </div>
-              )}
-            </a>
-          ))}
-        </div>
+        <ul className="space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
+
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={onNavigate}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={collapsed ? item.label : undefined}
+                  className={`flex items-center gap-3 rounded-xl text-sm transition-all duration-200 ${
+                    collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+                  } ${
+                    isActive
+                      ? 'border border-[#2D6A4F]/40 bg-[#DCE8DE] text-[#1B4332]'
+                      : 'border border-transparent text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332]'
+                  }`}
+                >
+                  <span aria-hidden="true" className="flex-shrink-0 text-base">
+                    {item.icon}
+                  </span>
+                  {!collapsed && (
+                    <span className="min-w-0">
+                      <span
+                        className={`block truncate text-xs font-semibold ${
+                          isActive ? 'text-[#1B4332]' : 'text-[#4B5249]'
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      <span className="block truncate text-[11px] text-[#5C6358]">{item.desc}</span>
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
 
-      {/* System Status */}
-      <div className={`border-t border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4 space-y-2'}`}>
-        {!collapsed && <p className="text-[9px] font-bold text-[#767D6F] uppercase tracking-widest">Sistem</p>}
-        <div className="space-y-1.5">
-          <StatusRow label="SAPA" status="●" color="text-[#2D6A4F]" collapsed={collapsed} />
-          <StatusRow label="AI" status="●" color="text-[#1B4332]" collapsed={collapsed} />
-        </div>
-        {!collapsed && <p className="text-[10px] text-[#767D6F] pt-2">Diskominfo Aceh Tengah</p>}
-      </div>
-    </aside>
-  );
-}
-
-function StatusRow({ label, status, color, collapsed }: { label: string; status: string; color: string; collapsed: boolean }) {
-  if (collapsed) {
-    return (
-      <div className="flex justify-center" title={`${label}: Active`}>
-        <span className={`w-2 h-2 rounded-full ${color.replace('text-', 'bg-')}`} />
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center justify-between text-[10px]">
-      <span className="text-[#767D6F]">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className={`w-1.5 h-1.5 rounded-full ${color.replace('text-', 'bg-')}`} />
-        <span className={`font-medium ${color}`}>Active</span>
+      <div className={`border-t border-[#9A9683] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
+        {!collapsed && <p className="text-[11px] text-[#5C6358]">Diskominfo Aceh Tengah</p>}
       </div>
     </div>
   );

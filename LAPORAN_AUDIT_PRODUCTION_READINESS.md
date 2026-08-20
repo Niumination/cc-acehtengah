@@ -854,9 +854,39 @@ Tambahkan `.github/dependabot.yml` (ekosistem `npm` + `github-actions`, mingguan
 | P3-05 | Dependency tak terpakai | `next-auth`, `uuid`, `nanoid`, `date-fns` dihapus |
 | P3-15 | Tidak ada tes & CI | **20 tes** (`npm test`, tanpa dependency tambahan) + `.github/workflows/ci.yml` + Dependabot |
 
+### ✅ Sprint 2 — selesai (commit `7859817`)
+
+| ID | Temuan | Bukti sesudah perbaikan |
+|---|---|---|
+| P2-14 | Tanpa security header | 7 header aktif (CSP, HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, COOP); `X-Powered-By` hilang; `/api/*` → `Cache-Control: no-store` |
+| §7.1 | Kontras gagal WCAG AA | `--outline` `#767D6F` → `#5C6358`: 3,40–4,26 → **4,97–6,45**; border `#C6C3B4` → `#8A8676` (1,77 → **3,65**, lolos SC 1.4.11); placeholder login 3,79 → **5,97**. Semua pasangan yang dulu gagal kini lulus |
+| §7.1 | Font terlalu kecil | `text-[9px]`/`text-[10px]` (27 tempat) → minimum **11px**; `fontSize` inline terkecil 0,68rem → **0,75rem** |
+| P2-01/02/03/08 | 0 atribut ARIA di seluruh kode | **22 atribut ARIA** pada halaman dashboard; semua tombol ikon punya `aria-label`+`aria-expanded`; emoji `aria-hidden`; form punya `htmlFor`+`id`+`autoComplete` |
+| P2-04 | Dua `<h1>` per halaman | Tepat **1** `<h1>`; sidebar memakai `<p>` + `<nav aria-label>` |
+| P2-05 | Tanpa skip link | `.skip-link` → `#konten-utama`, muncul saat fokus keyboard; `:focus-visible` global (SC 2.4.7); `prefers-reduced-motion` dihormati |
+| P2-07 | `<img>` mentah | `next/image` dengan `width`/`height` eksplisit → tidak ada CLS |
+| P2-09 | Link sidebar `#ai`/`#ews` mati | Dihapus; **0** tersisa. Menu "Akun" ditambahkan |
+| P2-10 | Badge status hardcoded | Membaca `/api/health` tiap 2 menit; string "SAPA Connected" hardcoded **0**; `role="status"` + `aria-live` |
+| P2-11 | Tanggal ter-bake saat build | HTML statik tidak lagi memuat nama hari (**0**); render setelah mount, placeholder `--:--:--` |
+| P2-12 | `parseInt` → NaN ke Prisma | Seluruh query string divalidasi Zod dengan `.catch()`: `limit='xyz'` → `50`, `offset='abc'` → `0`, tanggal invalid → diabaikan |
+| P2-13 | Tanpa robots/sitemap/OG | `/robots.txt` (blokir `/api/`, `/login`, halaman ber-auth) dan `/sitemap.xml` (3 URL publik) aktif; `metadataBase`, `openGraph`, `twitter`, `viewport` lengkap |
+| P2-15 | Tanpa halaman error | `error.tsx`, `global-error.tsx`, `not-found.tsx` (404 terverifikasi), `dashboard/loading.tsx` |
+| P2-16/17 | Tanpa logout & identitas | Halaman `/dashboard/akun` + tautan "Akun" di header; navigasi internal memakai `useRouter`, bukan `window.location` |
+| §7.2 #7 | Dashboard tak bisa dipakai di HP | Drawer mobile + overlay + tutup via `Esc` (dulu `hidden md:block` tanpa pengganti) |
+| §7.2 #10 | Palet chart mengulang warna | 3 warna duplikat dihilangkan; palet 10 warna unik di ketiga komponen chart |
+| P1-12 | 83 pelanggaran ESLint | **0 pelanggaran.** Seluruh `any` diganti tipe eksplisit; lint kini **blocking** di CI |
+| P3-01 | Dead code | 6 file dihapus (`AiChatPanel`, `QueryInput`, `HybridRenderer`, `MetricCard`, `TrendChart`, `splp-bridge`) + fungsi `processAIQuery` dan helper mati di `mock-data` |
+| P1-06 | Font tak konsisten | `globals.css` tidak lagi merujuk `Inter`/`JetBrains Mono` yang tak pernah dimuat; `next/font` diberi `display: swap` + `fallback` sistem |
+
+**Bonus — bug nyata yang tersingkap saat penguatan tipe:** `metadata.model`
+diisi `process.env.AI_MODEL` yang bisa `undefined`. Prisma menolak `undefined`
+sebagai nilai JSON, sehingga penyimpanan log AI bisa gagal saat `AI_MODEL`
+tidak di-set. Diperbaiki menjadi `?? null`.
+
 **Gate kualitas saat ini:** `tsc --noEmit` bersih · `npm test` 20/20 lulus ·
-`next build` sukses (24 route + Proxy) · ESLint 83 → **70** masalah
-(sisa `no-explicit-any` dari kode lama → Sprint 2).
+`eslint .` **0 masalah** (dari 83) · `next build` sukses (26 route + Proxy) ·
+`npm audit` 9 → **3** high (sisa: rantai dev-only `prisma` → `@prisma/config`
+→ `deepmerge-ts`, butuh Prisma 6→7).
 
 ---
 

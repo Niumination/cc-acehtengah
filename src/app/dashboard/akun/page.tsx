@@ -4,6 +4,7 @@
 // Dilindungi oleh src/proxy.ts (butuh sesi valid).
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Admin {
   username: string;
@@ -14,6 +15,7 @@ interface Admin {
 const MIN_PASSWORD_LENGTH = 12;
 
 export default function AkunPage() {
+  const router = useRouter();
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
@@ -49,7 +51,8 @@ export default function AkunPage() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+    router.replace('/login');
+    router.refresh();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,7 +88,8 @@ export default function AkunPage() {
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => {
-        window.location.href = '/login';
+        router.replace('/login');
+        router.refresh();
       }, 2500);
     } catch {
       setError('Gagal menghubungi server');
@@ -95,7 +99,7 @@ export default function AkunPage() {
   };
 
   const inputClass =
-    'w-full rounded-lg border border-[#9A9683] bg-white px-4 py-2.5 text-sm text-[#1E2420] ' +
+    'w-full rounded-lg border border-[#8A8676] bg-white px-4 py-2.5 text-sm text-[#1E2420] ' +
     'placeholder-[#5C6358] focus:border-[#1B4332] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30';
 
   return (

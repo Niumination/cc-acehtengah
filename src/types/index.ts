@@ -4,7 +4,7 @@ export interface HybridResponse {
   narasi: string;
   visualisasi: {
     tipe: 'chart' | 'table' | 'map' | 'metric' | 'none';
-    konfigurasi: Record<string, any>;
+    konfigurasi: Record<string, unknown>;
   };
   rekomendasi?: string[];
   dataSource: string;

@@ -38,21 +38,21 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
   };
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl overflow-hidden">
+    <div className="bg-[#FFFFFF] border border-[#9A9683] rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-[#C6C3B4] flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-[#9A9683] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-xs shadow-lg">
             🤖
           </div>
           <span className="text-xs font-bold text-[#1B4332]">AI Command Center</span>
-          <span className="text-[10px] text-[#767D6F]">·</span>
-          <span className="text-[10px] text-[#767D6F]">Tanya data SAPA Aceh Tengah</span>
+          <span className="text-[11px] text-[#5C6358]">·</span>
+          <span className="text-[11px] text-[#5C6358]">Tanya data SAPA Aceh Tengah</span>
         </div>
         {!isDefaultMode && (
           <button
             onClick={onReset}
-            className="text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
+            className="text-[11px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
           >
             <span>←</span>
             <span>Kembali ke Beranda</span>
@@ -61,14 +61,14 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
       </div>
 
       {/* Keyword Chips */}
-      <div className="px-5 py-3 border-b border-[#C6C3B4]">
+      <div className="px-5 py-3 border-b border-[#9A9683]">
         <div className="flex flex-wrap gap-2">
           {KEYWORD_CHIPS.map((chip) => (
             <button
               key={chip.label}
               onClick={() => handleChipClick(chip.query)}
               disabled={isLoading}
-              className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#9A9683] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {chip.label}
             </button>
@@ -83,7 +83,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
-          className="flex-1 px-4 py-2 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-sm text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
+          className="flex-1 px-4 py-2 rounded-xl bg-[#F5F3EC] border border-[#9A9683] text-sm text-[#1E2420] placeholder-[#5C6358] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
           disabled={isLoading}
         />
         <button

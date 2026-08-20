@@ -3,6 +3,7 @@
 // Saat ini optional — app bisa langsung fetch SAPA tanpa DB.
 
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { fetchSapaData } from '@/lib/sapa-client';
 
 function getCurrentPeriod(): string {
@@ -19,7 +20,7 @@ export async function syncDataset(datasetSlug: string) {
   await prisma.datasetRecord.create({
     data: {
       datasetId: dataset.id,
-      data: records as any,
+      data: records as unknown as Prisma.InputJsonValue,
       periode: getCurrentPeriod(),
     },
   });

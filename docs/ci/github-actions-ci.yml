@@ -28,13 +28,11 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      # Belum blocking: masih ada sisa pelanggaran `no-explicit-any` dari kode lama
-      # yang dijadwalkan pada Sprint 2 (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-12).
-      # Hapus `continue-on-error` setelah bersih.
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
+      # Sisa temuan berasal dari rantai dev-only prisma → @prisma/config →
+      # deepmerge-ts yang butuh Prisma 6→7. Jadikan blocking setelah upgrade itu.
       - name: Audit (high severity)
         run: npm audit --audit-level=high
         continue-on-error: true
