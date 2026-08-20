@@ -1,5 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+// ─── GET /api/datasets — Daftar dataset terdaftar ───
+//
+// Sama seperti /api/ews: kegagalan DB tidak lagi disamarkan sebagai daftar kosong.
+// Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-07
+
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -16,9 +24,17 @@ export async function GET() {
       orderBy: { nama: 'asc' },
     });
 
-    return NextResponse.json({ datasets });
+    return NextResponse.json({ datasets, status: 'ok' as const });
   } catch (err) {
-    console.error('Failed to fetch datasets:', err);
-    return NextResponse.json({ datasets: [] });
+    console.error('[datasets] Gagal mengambil dataset:', err);
+    return NextResponse.json(
+      {
+        datasets: null,
+        status: 'unavailable' as const,
+        error: 'Database tidak dapat dihubungi.',
+        errorCode: 'DB_UNAVAILABLE',
+      },
+      { status: 503 },
+    );
   }
 }

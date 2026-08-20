@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Belum blocking: masih ada sisa pelanggaran `no-explicit-any` dari kode lama
+      # yang dijadwalkan pada Sprint 2 (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-12).
+      # Hapus `continue-on-error` setelah bersih.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Audit (high severity)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+        env:
+          JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci-placeholder-secret-minimal-32-karakter-panjang' }}

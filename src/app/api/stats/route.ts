@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { fetchSapaData, getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
+import { getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
+import { getSapaRecords } from '@/lib/data-source';
 
 // In-memory cache for stats (10 minutes)
 let statsCache: any = null;
@@ -14,7 +15,7 @@ export async function GET() {
     }
 
     // Fetch live SAPA data
-    const records = await fetchSapaData();
+    const records = await getSapaRecords();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
 
