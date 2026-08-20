@@ -890,7 +890,7 @@ tidak di-set. Diperbaiki menjadi `?? null`.
 
 ---
 
-### 🔍 Reviu pasca-Sprint 2 — koreksi kesalahan sendiri (commit `f70b214`)
+### 🔍 Reviu pasca-Sprint 2 — koreksi kesalahan sendiri (commit `7f608bc`)
 
 Reviu ulang terhadap perubahan Sprint 0–2 menemukan **satu kesalahan serius yang
 saya perkenalkan sendiri**, plus tiga perbaikan kecil. Semuanya sudah dibetulkan.
