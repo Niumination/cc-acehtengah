@@ -89,13 +89,10 @@ CREATE TABLE IF NOT EXISTS "Admin" (
 CREATE UNIQUE INDEX IF NOT EXISTS "Admin_username_key" ON "Admin"("username");
 ```
 
-### Auto-setup (Alternative)
+### Auto-setup (alternatif — endpoint terkunci)
 
-```bash
-# Create ChatSession table + Admin table + seed admin
-curl -X POST https://cc-acehtengah.vercel.app/api/setup
-curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
-```
+Endpoint `/api/setup` dan `/api/setup/admin` **tidak lagi publik**.
+Lihat bagian 4 untuk prosedur bootstrap yang aman.
 
 ---
 
@@ -109,34 +106,62 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 
 ---
 
-## 🔐 4. Auth System
+## 🔐 4. Auth & Bootstrap Admin
 
-### How It Works
+### Variabel wajib
 
-1. Admin logs in at `/login` → JWT cookie set (7 days)
-2. Middleware protects `/dashboard/laporan` + `/api/chat-logs`
-3. All other pages remain **public** (no auth)
-4. Logout clears cookie
+| Env | Wajib | Keterangan |
+|-----|:-----:|------------|
+| `JWT_SECRET` | ✅ **YA** | Minimal 32 karakter. **Tidak ada fallback** — endpoint auth akan menolak semua request bila kosong. Generate: `openssl rand -base64 48` |
+| `SETUP_ENABLED` | hanya saat bootstrap | `true` untuk membuka `/api/setup*`, kembalikan ke `false` setelah selesai |
+| `SETUP_TOKEN` | hanya saat bootstrap | Minimal 32 karakter. Dikirim sebagai header `x-setup-token` |
+| `ADMIN_BOOTSTRAP_USERNAME` | opsional | Default `admin` |
+| `ADMIN_BOOTSTRAP_PASSWORD` | hanya saat bootstrap | Minimal 12 karakter |
 
-### Files
+> Versi lama dokumen ini menyebut `JWT_SECRET` "auto-generated if not set".
+> **Itu keliru** — dulu kode memakai secret yang di-hardcode di repositori, sehingga
+> siapa pun bisa memalsukan sesi admin. Sekarang secret wajib dan tidak punya default.
 
-| File | Purpose |
-|------|---------|
-| `src/lib/auth.ts` | JWT + bcrypt helpers |
-| `src/middleware.ts` | Route protection |
-| `src/app/api/auth/login/route.ts` | Login endpoint |
-| `src/app/api/auth/logout/route.ts` | Logout endpoint |
-| `src/app/api/auth/me/route.ts` | Session check |
-| `src/app/login/page.tsx` | Login page (Gayo theme) |
+### Cara kerja
 
-### Default Credentials
+1. Admin masuk di `/login` → cookie JWT httpOnly (7 hari)
+2. `src/proxy.ts` melindungi `/dashboard/laporan`, `/dashboard/akun`, `/api/chat-logs`, `/api/datasets/sync`
+3. Setiap route sensitif **memverifikasi ulang** sesi & peran sendiri (defense in depth)
+4. Login dibatasi 10 percobaan/IP dan 5 percobaan/username per 10 menit
+5. Ganti password di `/dashboard/akun`; logout membuang cookie
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
+### Bootstrap akun pertama (sekali saja)
 
-⚠️ **Ganti password setelah login pertama!**
+```bash
+# 1. Set di Vercel (atau .env.local):
+#    SETUP_ENABLED=true
+#    SETUP_TOKEN=$(openssl rand -hex 32)
+#    ADMIN_BOOTSTRAP_PASSWORD='PasswordKuatMinimal12'
+
+# 2. Jalankan (endpoint membalas 404 bila token/flag salah)
+curl -X POST https://cc-acehtengah.vercel.app/api/setup \
+  -H "x-setup-token: $SETUP_TOKEN"
+curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin \
+  -H "x-setup-token: $SETUP_TOKEN"
+
+# 3. WAJIB: matikan kembali & hapus token
+#    SETUP_ENABLED=false ; hapus SETUP_TOKEN & ADMIN_BOOTSTRAP_PASSWORD
+```
+
+**Tidak ada kredensial default.** Akun `admin/admin123` beserta hash bcrypt-nya
+sudah dihapus dari repositori.
+
+### File terkait
+
+| File | Fungsi |
+|------|--------|
+| `src/lib/auth.ts` | JWT + bcrypt, validasi `JWT_SECRET` (fail closed) |
+| `src/lib/rate-limit.ts` | Rate limiter in-memory (best effort, lihat catatan di file) |
+| `src/lib/setup-guard.ts` | Kunci endpoint `/api/setup*` |
+| `src/proxy.ts` | Proteksi route (Next.js 16 — menggantikan `middleware.ts`) |
+| `src/app/api/auth/login/route.ts` | Login + rate limit |
+| `src/app/api/auth/change-password/route.ts` | Ganti password |
+| `src/app/dashboard/akun/page.tsx` | Halaman profil / ganti password / logout |
 
 ---
 
@@ -148,9 +173,7 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 # Push to GitHub → auto-deploy
 git add . && git commit -m "update" && git push
 
-# First time setup
-curl -X POST https://cc-acehtengah.vercel.app/api/setup
-curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
+# Bootstrap pertama kali — lihat bagian 4 (butuh SETUP_ENABLED + x-setup-token)
 ```
 
 ### Environment Variables in Vercel
@@ -158,7 +181,8 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 1. Go to Vercel Dashboard → cc-acehtengah → Settings → Environment Variables
 2. Set `DATABASE_URL` (pooler format, see above)
 3. Set `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`
-4. Redeploy
+4. Set `JWT_SECRET` (**wajib**, min. 32 karakter)
+5. Redeploy
 
 ---
 
@@ -176,10 +200,10 @@ curl -X POST https://cc-acehtengah.vercel.app/api/query \
 # Chat logs (requires auth)
 curl https://cc-acehtengah.vercel.app/api/chat-logs
 
-# Login test
+# Login test (pakai kredensial Anda sendiri)
 curl -X POST https://cc-acehtengah.vercel.app/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+  -d '{"username":"admin","password":"PASSWORD_ANDA"}'
 ```
 
 ---
@@ -219,7 +243,7 @@ cc-acehtengah/
 │   │   └── login/                # Login page
 │   ├── components/               # UI components
 │   ├── lib/                      # Auth, Prisma, SAPA client
-│   ├── middleware.ts              # Route protection
+│   ├── proxy.ts                   # Route protection (Next.js 16)
 │   └── services/                 # AI pipeline
 ├── supabase/migrations/          # SQL migrations
 ├── AGENTS.md                     # Project docs

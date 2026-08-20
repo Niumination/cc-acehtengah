@@ -43,9 +43,9 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 
 ## Auth System
 
-- **Protected pages:** `/dashboard/laporan`, `/api/chat-logs`
+- **Protected:** `/dashboard/laporan`, `/dashboard/akun`, `/api/chat-logs`, `/api/datasets/sync`
 - **Public pages:** `/dashboard`, `/dashboard/analytics`, `/dashboard/gis`
-- **Default admin:** `admin` / `admin123` (ganti setelah login pertama!)
+- **Akun admin:** tidak ada default. Dibuat via bootstrap terkunci (`ADMIN_BOOTSTRAP_PASSWORD`), ganti password di `/dashboard/akun`
 - **Session:** JWT cookie (7 hari), httpOnly + secure
 
 ## Struktur
@@ -57,7 +57,8 @@ src/
 │   │   ├── auth/
 │   │   │   ├── login/route.ts    # POST /api/auth/login
 │   │   │   ├── logout/route.ts   # POST /api/auth/logout
-│   │   │   └── me/route.ts       # GET /api/auth/me
+│   │   │   ├── me/route.ts       # GET /api/auth/me
+│   │   │   └── change-password/route.ts  # POST — ganti password sendiri
 │   │   ├── chat-logs/route.ts    # GET /api/chat-logs (auth protected)
 │   │   ├── query/route.ts        # POST /api/query — AI Smart Query
 │   │   ├── stats/route.ts        # GET /api/stats — SAPA overview
@@ -67,13 +68,14 @@ src/
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
 │   │   └── setup/
-│   │       └── admin/route.ts    # POST /api/setup/admin — auto-create table
+│   │       └── admin/route.ts    # POST /api/setup/admin — TERKUNCI (x-setup-token)
 │   ├── dashboard/
 │   │   ├── layout.tsx            # Sidebar + header + EWS panel
 │   │   ├── page.tsx              # Main dashboard
 │   │   ├── analytics/page.tsx    # Analytics
 │   │   ├── gis/page.tsx          # Peta GIS
-│   │   └── laporan/page.tsx      # Laporan AI (auth protected)
+│   │   ├── laporan/page.tsx      # Laporan AI (auth protected)
+│   │   └── akun/page.tsx         # Profil, ganti password, logout (auth protected)
 │   └── login/
 │       ├── layout.tsx            # Minimal layout (no sidebar)
 │       └── page.tsx              # Login form
@@ -89,7 +91,7 @@ src/
 │   ├── prisma.ts                 # Prisma client singleton
 │   ├── sapa-client.ts            # SAPA API client (public)
 │   └── db-migration.ts           # Auto-migration utility
-├── middleware.ts                  # Protect /dashboard/laporan + /api/chat-logs
+├── proxy.ts                      # Proteksi route (Next.js 16; dulu middleware.ts)
 └── services/
     ├── ai-orchestrator.ts        # AI pipeline (SAPA → LLM → DB log)
     ├── intent-detector.ts        # NLP intent classification
@@ -128,4 +130,4 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
 | `AI_MODEL` | `deepseek-v4-flash-free` | |
-| `JWT_SECRET` | random string | Auto-generated if not set |
+| `JWT_SECRET` | random string (min. 32 char) | **WAJIB** — app fail-closed tanpa ini. `openssl rand -base64 48` |

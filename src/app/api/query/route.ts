@@ -1,14 +1,24 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { processAIQuery, processAIQueryStreaming } from '@/services/ai-orchestrator';
+import { processAIQueryStreaming } from '@/services/ai-orchestrator';
 import { getMockQueryResponse } from '@/lib/mock-data';
+import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Panggilan LLM streaming bisa berjalan lama; tanpa ini fungsi bisa terpotong
+// timeout default platform di tengah stream.
+export const maxDuration = 60;
+
+// Endpoint ini memanggil provider LLM berbayar dan terbuka untuk publik,
+// jadi wajib dibatasi. Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P0-05.
+const RATE_LIMIT_PER_MINUTE = 10;
+const RATE_LIMIT_PER_HOUR = 60;
+
 const QuerySchema = z.object({
-  query: z.string().min(3).max(2000),
-  sessionId: z.string().optional(),
+  query: z.string().trim().min(3).max(2000),
+  sessionId: z.string().max(100).optional(),
 });
 
 function sse(event: string, data: unknown): string {
@@ -16,7 +26,40 @@ function sse(event: string, data: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const ip = getClientIp(req);
+
+  const perMinute = checkRateLimit({
+    key: `query:m:${ip}`,
+    limit: RATE_LIMIT_PER_MINUTE,
+    windowMs: 60 * 1000,
+  });
+  if (!perMinute.ok) {
+    return Response.json(
+      { error: 'Terlalu banyak pertanyaan. Tunggu sebentar lalu coba lagi.' },
+      { status: 429, headers: rateLimitHeaders(perMinute) },
+    );
+  }
+
+  const perHour = checkRateLimit({
+    key: `query:h:${ip}`,
+    limit: RATE_LIMIT_PER_HOUR,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!perHour.ok) {
+    return Response.json(
+      { error: 'Kuota pertanyaan per jam tercapai. Silakan coba lagi nanti.' },
+      { status: 429, headers: rateLimitHeaders(perHour) },
+    );
+  }
+
+  // Body non-JSON sebelumnya melempar exception tak tertangkap → HTTP 500 body kosong.
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'Body harus JSON yang valid.' }, { status: 400 });
+  }
+
   const parsed = QuerySchema.safeParse(body);
 
   if (!parsed.success) {

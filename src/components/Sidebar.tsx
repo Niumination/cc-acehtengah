@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & Analitik' },
   { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif' },
   { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Riwayat Query AI' },
+  { href: '/dashboard/akun', label: 'Akun', icon: '👤', desc: 'Profil & Password' },
 ];
 
 const SECONDARY_ITEMS = [
