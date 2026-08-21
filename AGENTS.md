@@ -1,11 +1,18 @@
 # cc-acehtengah — Command Center Aceh Tengah
 
 > **Next.js 16 + Prisma 6 + LLM + RAG** — Integrasi SAPA → SPLP → Command Center AI
-> **Path:** `projects/cc-acehtengah/`
-> **Status:** 🟢 **Active — Fase 4: Auth + AI Logging + UI Polish**
+> **Path:** `services/cc-acehtengah/`
+> **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Jul 28, 2026 — AI logging, admin auth, sidebar fix, chart text fix
+> **Last update:** Aug 22, 2026 — theme light default + WCAG AA, security JWT/rate-limit (#3), analytics fix, AI spinner fix
 > **Backlog priority:** P2
+
+> **⚠️ EWS (Early Warning System) BELUM FUNGSIONAL — MASUK BACKLOG:**
+> Endpoint `/api/ews` & panel UI ada, tapi tidak ada kode yang membuat `EwsAlert`.
+> Rantai putus: `EwsAlert` → butuh `Indicator` → butuh `Dataset`, sedangkan `Dataset`
+> tak pernah terisi (data SAPA diambil langsung, tidak disimpan). Panel selalu
+> "normal". **Butuh R1 (data warehouse SAPA)** sebelum EWS bisa nyala.
+> Lihat `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 + roadmap R1–R2.
 
 ## Arsitektur
 
