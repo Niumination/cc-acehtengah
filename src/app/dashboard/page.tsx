@@ -107,6 +107,7 @@ export default function DashboardPage() {
         setAiResponse({
           narasi: liveNarasiRef.current,
           visualisasi: { tipe: 'none', konfigurasi: {} },
+          rekomendasi: [],
           dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
           timestamp: new Date().toISOString(),
         });

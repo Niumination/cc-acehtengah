@@ -6,7 +6,7 @@ export interface HybridResponse {
     tipe: 'chart' | 'table' | 'map' | 'metric' | 'none';
     konfigurasi: Record<string, any>;
   };
-  rekomendasi?: string[];
+  rekomendasi: string[];
   dataSource: string;
   timestamp: string;
 }
