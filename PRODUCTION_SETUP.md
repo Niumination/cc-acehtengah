@@ -44,7 +44,7 @@ DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:PASSWORD@aws-0-ap-northe
 ```env
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=sk-...
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 ```
 
 ---
@@ -103,7 +103,7 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 
 | Provider | Free? | Model | Base URL |
 |----------|:-----:|-------|----------|
-| **OpenCode Zen** | ✅ | `deepseek-v4-flash-free` | `https://opencode.ai/zen/v1` |
+| **OpenCode Zen** | ✅ | `nemotron-3-ultra-free` | `https://opencode.ai/zen/v1` |
 | OpenRouter | 💰 | `gpt-4o-mini` | `https://openrouter.ai/api/v1` |
 | Groq | ✅ | `llama-3.1-70b-versatile` | `https://api.groq.com/openai/v1` |
 
@@ -131,12 +131,12 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 
 ### Default Credentials
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
+Akun admin **tidak** ada default. Dibuat via bootstrap terkunci:
+- Set env `ADMIN_BOOTSTRAP_PASSWORD` (di Vercel / `.env`)
+- Login pertama pakai username bebas + password bootstrap
+- **Wajib ganti password** di `/dashboard/akun` setelah login pertama
 
-⚠️ **Ganti password setelah login pertama!**
+⚠️ Tanpa `ADMIN_BOOTSTRAP_PASSWORD`, tidak ada cara membuat akun admin.
 
 ---
 

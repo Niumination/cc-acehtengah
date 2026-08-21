@@ -44,14 +44,9 @@ npm run dev
 # Open http://localhost:3000/dashboard
 ```
 
-## Default Admin Credentials
+## Admin Account
 
-| Field | Value |
-|-------|-------|
-| Username | `admin` |
-| Password | `admin123` |
-
-⚠️ **Ganti password setelah login pertama!**
+Akun admin **tidak** ada default. Dibuat via bootstrap terkunci (`ADMIN_BOOTSTRAP_PASSWORD` di env), lalu ganti password di `/dashboard/akun` setelah login pertama.
 
 ## Environment Variables
 
