@@ -981,7 +981,7 @@ merespons benar. `tsc` bersih · `eslint` 0 masalah · **30/30 tes lulus** ·
 
 ---
 
-### ✅ R1 + R2 + P1-08 + Prisma + UX eksekutif (commit `6d52a9a`)
+### ✅ R1 + R2 + P1-08 + Prisma + UX eksekutif (commit `eadaa6a`)
 
 #### R1 — Gudang data SAPA ternormalisasi
 
