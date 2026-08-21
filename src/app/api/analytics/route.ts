@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getUniqueOpd, getUniqueIndicators, filterByOpd } from '@/lib/sapa-client';
-import { getSapaRecords } from '@/lib/data-source';
+import { getSapaRecords, isMockMode } from '@/lib/data-source';
+import { cached } from '@/lib/store';
 
-let analyticsCache: unknown = null;
-let cacheExpiry = 0;
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Cache bersama (§P1-08) — dulu variabel modul per-instance.
+const CACHE_TTL = 10 * 60 * 1000;
+const cacheKey = () => `analytics:v2:${isMockMode() ? 'mock' : 'live'}`;
 
 export async function GET() {
   try {
-    if (analyticsCache && Date.now() < cacheExpiry) {
-      return NextResponse.json(analyticsCache);
-    }
-
+    const result = await cached(cacheKey(), CACHE_TTL, async () => {
     const records = await getSapaRecords();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
@@ -131,8 +133,8 @@ export async function GET() {
       lastFetched: new Date().toISOString(),
     };
 
-    analyticsCache = result;
-    cacheExpiry = Date.now() + 10 * 60 * 1000;
+      return result;
+    });
 
     return NextResponse.json(result);
   } catch (err) {

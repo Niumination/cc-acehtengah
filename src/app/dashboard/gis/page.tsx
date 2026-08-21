@@ -70,7 +70,7 @@ function LeafletMap({ data }: { data: GeoData }) {
     return (
       <div
         role="status"
-        className="flex h-[600px] items-center justify-center rounded-2xl border border-[#9A9683] bg-[#E9E6DA] text-sm text-[#5C6358]"
+        className="flex h-[600px] items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] text-sm text-[var(--text-muted)]"
       >
         Memuat pustaka peta…
       </div>
@@ -82,8 +82,8 @@ function LeafletMap({ data }: { data: GeoData }) {
       center={data.bounds.center}
       zoom={data.bounds.zoom}
       scrollWheelZoom={false}
-      className="h-[600px] rounded-2xl border border-[#9A9683]"
-      style={{ background: '#E9E6DA' }}
+      className="h-[600px] rounded-2xl border border-[var(--border)]"
+      style={{ background: 'var(--surface-muted)' }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -96,8 +96,8 @@ function LeafletMap({ data }: { data: GeoData }) {
           center={[kec.lat, kec.lng]}
           radius={9}
           pathOptions={{
-            color: '#1B4332',
-            fillColor: '#2D6A4F',
+            color: 'var(--brand)',
+            fillColor: 'var(--brand-soft)',
             fillOpacity: 0.75,
             weight: 2,
           }}
@@ -107,11 +107,11 @@ function LeafletMap({ data }: { data: GeoData }) {
           </Tooltip>
           <Popup>
             <div className="min-w-[220px] text-sm">
-              <h3 className="mb-1 text-base font-bold text-[#1B4332]">Kecamatan {kec.nama}</h3>
-              <p className="text-xs text-[#4B5249]">
+              <h3 className="mb-1 text-base font-bold text-[var(--brand)]">Kecamatan {kec.nama}</h3>
+              <p className="text-xs text-[var(--text-body)]">
                 Koordinat: {kec.lat.toFixed(5)}, {kec.lng.toFixed(5)}
               </p>
-              <p className="mt-2 rounded bg-[#F1E4C2] px-2 py-1.5 text-xs text-[#4B5249]">
+              <p className="mt-2 rounded bg-[var(--warning-tint)] px-2 py-1.5 text-xs text-[var(--text-body)]">
                 Data SAPA tersedia pada tingkat kabupaten/OPD. Rincian indikator untuk kecamatan ini
                 belum tersedia dari sumber data.
               </p>
@@ -119,7 +119,7 @@ function LeafletMap({ data }: { data: GeoData }) {
                 href={`https://www.wikidata.org/wiki/${kec.wikidataId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-block text-xs text-[#1B4332] underline"
+                className="mt-2 inline-block text-xs text-[var(--brand)] underline"
               >
                 Sumber koordinat ({kec.wikidataId})
               </a>
@@ -166,13 +166,13 @@ export default function GisPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#1B4332]">Peta Wilayah Aceh Tengah</h1>
-          <p className="mt-1 text-sm text-[#5C6358]">
+          <h1 className="text-2xl font-bold text-[var(--brand)]">Peta Wilayah Aceh Tengah</h1>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">
             Letak 14 kecamatan sebagai konteks wilayah
           </p>
         </div>
         {data && (
-          <p className="text-xs text-[#5C6358]">
+          <p className="text-xs text-[var(--text-muted)]">
             Diperbarui: {new Date(data.lastFetched).toLocaleString('id-ID')}
           </p>
         )}
@@ -182,16 +182,16 @@ export default function GisPage() {
       {data && (
         <div
           role="note"
-          className="rounded-xl border border-[#8A6E1D]/30 bg-[#F1E4C2] px-4 py-3 text-sm text-[#4B5249]"
+          className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-tint)] px-4 py-3 text-sm text-[var(--text-body)]"
         >
-          <strong className="text-[#8A6E1D]">Cakupan data:</strong> {data.dataScope.catatan}
+          <strong className="text-[var(--warning)]">Cakupan data:</strong> {data.dataScope.catatan}
         </div>
       )}
 
       {error && (
         <div
           role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#B3261E]/30 bg-[#FBE3DE] px-4 py-3 text-sm text-[#B3261E]"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger-tint)] px-4 py-3 text-sm text-[var(--danger)]"
         >
           <span>{error}</span>
           <button
@@ -201,7 +201,7 @@ export default function GisPage() {
               setError(null);
               setReloadKey((k) => k + 1);
             }}
-            className="rounded-lg border border-[#B3261E]/40 px-3 py-1.5 text-xs font-medium hover:bg-[#B3261E]/10"
+            className="rounded-lg border border-[var(--danger)]/40 px-3 py-1.5 text-xs font-medium hover:bg-[var(--danger)]/10"
           >
             Coba lagi
           </button>
@@ -219,7 +219,7 @@ export default function GisPage() {
       {loading ? (
         <div
           role="status"
-          className="flex h-[600px] items-center justify-center rounded-2xl border border-[#9A9683] bg-[#E9E6DA] text-sm text-[#5C6358]"
+          className="flex h-[600px] items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] text-sm text-[var(--text-muted)]"
         >
           Memuat peta…
         </div>
@@ -229,9 +229,9 @@ export default function GisPage() {
 
       {/* Daftar kecamatan */}
       {data && (
-        <section className="overflow-hidden rounded-2xl border border-[#9A9683] bg-white">
-          <div className="border-b border-[#9A9683] px-5 py-4">
-            <h2 className="text-sm font-bold text-[#1B4332]">
+        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
+          <div className="border-b border-[var(--border)] px-5 py-4">
+            <h2 className="text-sm font-bold text-[var(--brand)]">
               Daftar Kecamatan ({data.kecamatan.length})
             </h2>
           </div>
@@ -241,7 +241,7 @@ export default function GisPage() {
                 Daftar 14 kecamatan di Kabupaten Aceh Tengah beserta koordinat titik pusatnya
               </caption>
               <thead>
-                <tr className="border-b border-[#9A9683] text-left text-xs uppercase tracking-wider text-[#5C6358]">
+                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wider text-[var(--text-muted)]">
                   <th scope="col" className="px-4 py-3 font-semibold">#</th>
                   <th scope="col" className="px-4 py-3 font-semibold">Kecamatan</th>
                   <th scope="col" className="px-4 py-3 text-right font-semibold">Lintang</th>
@@ -251,15 +251,15 @@ export default function GisPage() {
               </thead>
               <tbody>
                 {data.kecamatan.map((kec, idx) => (
-                  <tr key={kec.nama} className="border-b border-[#E1DDCD] hover:bg-[#F5F3EC]">
-                    <td className="px-4 py-2.5 text-[#5C6358]">{idx + 1}</td>
-                    <th scope="row" className="px-4 py-2.5 text-left font-medium text-[#1E2420]">
+                  <tr key={kec.nama} className="border-b border-[var(--surface-muted-2)] hover:bg-[var(--surface)]">
+                    <td className="px-4 py-2.5 text-[var(--text-muted)]">{idx + 1}</td>
+                    <th scope="row" className="px-4 py-2.5 text-left font-medium text-[var(--text)]">
                       {kec.nama}
                     </th>
-                    <td className="px-4 py-2.5 text-right font-mono text-[#4B5249]">
+                    <td className="px-4 py-2.5 text-right font-mono text-[var(--text-body)]">
                       {kec.lat.toFixed(5)}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-[#4B5249]">
+                    <td className="px-4 py-2.5 text-right font-mono text-[var(--text-body)]">
                       {kec.lng.toFixed(5)}
                     </td>
                     <td className="px-4 py-2.5">
@@ -267,7 +267,7 @@ export default function GisPage() {
                         href={`https://www.wikidata.org/wiki/${kec.wikidataId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#1B4332] underline"
+                        className="text-[var(--brand)] underline"
                       >
                         {kec.wikidataId}
                       </a>
@@ -282,8 +282,8 @@ export default function GisPage() {
 
       {/* Atribusi sumber */}
       {data && (
-        <footer className="text-xs text-[#5C6358]">
-          <p className="font-semibold text-[#4B5249]">Sumber data wilayah:</p>
+        <footer className="text-xs text-[var(--text-muted)]">
+          <p className="font-semibold text-[var(--text-body)]">Sumber data wilayah:</p>
           <ul className="mt-1 space-y-0.5">
             {[...data.sumber.nama, ...data.sumber.koordinat, ...data.sumber.peta].map((s) => (
               <li key={s.url}>
@@ -309,12 +309,12 @@ function SummaryCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[#9A9683] bg-white p-5">
-      <p className="text-xs font-medium uppercase tracking-wider text-[#5C6358]">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-[#1B4332]">
-        {value === null ? <span className="text-[#5C6358]">—</span> : value.toLocaleString('id-ID')}
+    <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
+      <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-[var(--brand)]">
+        {value === null ? <span className="text-[var(--text-muted)]">—</span> : value.toLocaleString('id-ID')}
       </p>
-      <p className="mt-0.5 text-xs text-[#5C6358]">{value === null ? 'Tidak tersedia' : sub}</p>
+      <p className="mt-0.5 text-xs text-[var(--text-muted)]">{value === null ? 'Tidak tersedia' : sub}</p>
     </div>
   );
 }

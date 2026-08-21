@@ -13,40 +13,38 @@ import {
   tokenizeQuery,
   type SapaRecord,
 } from '@/lib/sapa-client';
-import { getSapaRecords } from '@/lib/data-source';
+import { getSapaRecords, isMockMode } from '@/lib/data-source';
+import { cached, cacheGet, cacheSet } from '@/lib/store';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 
-// ─── SAPA Data Cache (10 menit) ───
-let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
+// ─── Cache BERSAMA (§P1-08) ───
+// Dulu dua Map di tingkat modul. Di serverless setiap instance punya salinan
+// sendiri sehingga hit-rate rendah dan hasil tidak konsisten antar pengguna.
+// Kunci kueri juga dinormalkan — dulu "berapa OPD" dan "berapa  OPD" dianggap
+// dua kueri berbeda sehingga selalu meleset.
 const SAPA_CACHE_TTL = 10 * 60 * 1000;
+const LLM_CACHE_TTL = 5 * 60 * 1000;
 
 async function getCachedSapaData(): Promise<SapaRecord[]> {
-  if (sapaCache && sapaCache.expiresAt > Date.now()) {
-    return sapaCache.records;
-  }
-  const records = await getSapaRecords();
-  sapaCache = { records, expiresAt: Date.now() + SAPA_CACHE_TTL };
-  return records;
+  return cached<SapaRecord[]>(
+    `sapa:records:${isMockMode() ? 'mock' : 'live'}`,
+    SAPA_CACHE_TTL,
+    getSapaRecords,
+  );
 }
 
-// ─── LLM Response Cache (5 menit) ───
-const queryCache = new Map<string, { response: HybridResponse; expiresAt: number }>();
-
-function getCached(query: string): HybridResponse | null {
-  const cached = queryCache.get(query);
-  if (cached && cached.expiresAt > Date.now()) return cached.response;
-  queryCache.delete(query);
-  return null;
+function queryCacheKey(query: string): string {
+  return `llm:${isMockMode() ? 'mock' : 'live'}:${normalizeText(query)}`;
 }
 
-function setCache(query: string, response: HybridResponse) {
-  queryCache.set(query, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
-  if (queryCache.size > 50) {
-    const oldest = queryCache.keys().next().value;
-    if (oldest) queryCache.delete(oldest);
-  }
+async function getCachedResponse(query: string): Promise<HybridResponse | null> {
+  return cacheGet<HybridResponse>(queryCacheKey(query));
+}
+
+async function setCachedResponse(query: string, response: HybridResponse): Promise<void> {
+  await cacheSet(queryCacheKey(query), response, LLM_CACHE_TTL);
 }
 
 // ─── Core pipeline: intent + fetch + filter + build context ───
@@ -170,8 +168,8 @@ export async function processAIQueryStreaming(
   onStatus: (status: string) => void,
   onChunk: (delta: string) => void,
 ): Promise<HybridResponse> {
-  const cached = getCached(query);
-  if (cached) return cached;
+  const hit = await getCachedResponse(query);
+  if (hit) return hit;
 
   const startedAt = Date.now();
   const steps: Record<string, number> = {};
@@ -208,7 +206,7 @@ export async function processAIQueryStreaming(
     };
     void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
-    setCache(query, result);
+    await setCachedResponse(query, result);
     return result;
   } catch (err) {
     console.error('[AI] Streaming fallback triggered:', err);

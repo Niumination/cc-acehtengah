@@ -19,18 +19,18 @@ export default function GlobalError({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#F5F3EC',
-          color: '#1E2420',
+          background: 'var(--surface)',
+          color: 'var(--text)',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
         <div style={{ maxWidth: 420, padding: 32, textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.125rem', margin: 0 }}>Aplikasi gagal dimuat</h1>
-          <p style={{ fontSize: '0.875rem', color: '#4B5249' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-body)' }}>
             Silakan muat ulang halaman. Jika masalah berlanjut, hubungi Diskominfo Aceh Tengah.
           </p>
           {error.digest && (
-            <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#4B5249' }}>
+            <p style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-body)' }}>
               Ref: {error.digest}
             </p>
           )}
@@ -42,7 +42,7 @@ export default function GlobalError({
               padding: '8px 16px',
               borderRadius: 8,
               border: 'none',
-              background: '#1B4332',
+              background: 'var(--brand)',
               color: '#fff',
               fontSize: '0.875rem',
               cursor: 'pointer',

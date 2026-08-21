@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F2A1E",
+  themeColor: "var(--brand-deep)",
   width: "device-width",
   initialScale: 1,
 };
@@ -58,9 +58,23 @@ export default function RootLayout({
   return (
     <html
       lang="id"
+      data-theme="light"
+      suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-[#F5F3EC] text-[#1E2420]">{children}</body>
+      <head>
+        {/*
+          Terapkan tema SEBELUM cat pertama agar tidak ada kedipan putih di
+          ruang kendali yang gelap. Skrip ini sengaja inline dan sinkron;
+          CSP mengizinkannya (lihat src/lib/security-headers.ts).
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('cc-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.dataset.theme=t;}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="flex min-h-full flex-col bg-[var(--surface)] text-[var(--text)]">{children}</body>
     </html>
   );
 }

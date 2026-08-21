@@ -9,7 +9,8 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "test": "node --test --import ./scripts/ts-alias-loader.mjs --experimental-strip-types --disable-warning=ExperimentalWarning \"tests/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:db": "node --test --import ./scripts/ts-alias-loader.mjs --experimental-strip-types --disable-warning=ExperimentalWarning \"tests/integration/*.test.ts\""
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
@@ -25,6 +26,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.5",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
@@ -45,5 +47,8 @@
     "prisma@6.19.3": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.1"
   }
 }

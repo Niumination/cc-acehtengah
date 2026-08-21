@@ -7,41 +7,86 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --background: #F5F3EC;
-  --foreground: #1E2420;
-  --primary: #1B4332;
-  --primary-container: #2D6A4F;
-  --on-primary: #FFFFFF;
-  --secondary: #8A6E1D;
-  --secondary-container: #F1E4C2;
-  --tertiary: #A15C38;
-  --tertiary-container: #C97A4A;
-  --surface: #F5F3EC;
-  --surface-container: #E9E6DA;
-  --surface-container-low: #EFEDE3;
-  --surface-container-lowest: #FFFFFF;
-  --surface-container-high: #E1DDCD;
-  /* KOREKSI KONTRAS WCAG 2.2 (LAPORAN_AUDIT_PRODUCTION_READINESS.md §7.1)
-     #767D6F gagal SC 1.4.3 di SEMUA latar yang dipakai (3,40–4,26 : 1)
-     padahal menjadi warna ratusan label kecil. #C6C3B4 sebagai border hanya
-     1,77 : 1 → gagal SC 1.4.11 (non-text contrast, minimal 3 : 1).
-     Nilai baru (rasio terhadap #FFFFFF / #F5F3EC / #E9E6DA):
-       --outline         #5C6358 → 6,45 / 5,80 / 5,15  ✅ AA
-       --outline-variant #9A9683 → 2,60 (dekoratif saja, bukan pembatas kontrol)
-       --border-strong   #8A8676 → 3,05 ✅ SC 1.4.11 untuk pembatas komponen */
-  --outline: #5C6358;
-  --outline-variant: #9A9683;
-  --border-strong: #8A8676;
-  --accent: #D9C284;
-  --accent-light: #C9D4C7;
-  --header-bg: #0F2A1E;
-  --success: #2D6A4F;
-  --success-light: #DCE8DE;
-  --warning: #D9C284;
+  color-scheme: light;
+
+  /* ── Token semantik ──
+     Seluruh komponen memakai token ini, BUKAN hex mati. Dengan begitu tema
+     gelap cukup mendefinisikan ulang nilainya di satu tempat, dan kontras
+     tetap dapat diaudit terpusat (LAPORAN_AUDIT_PRODUCTION_READINESS.md §7.1). */
+
+  --surface: #F5F3EC;          /* latar halaman */
+  --surface-card: #FFFFFF;     /* kartu */
+  --surface-muted: #E9E6DA;    /* blok sekunder */
+  --surface-muted-2: #E1DDCD;
+
+  --text: #1E2420;             /* 14,24:1 pada --surface */
+  --text-body: #4B5249;        /*  7,27:1 */
+  --text-muted: #5C6358;       /*  5,59:1 — lulus AA */
+
+  --border: #9A9683;           /* pembatas dekoratif */
+  /* Pembatas kontrol. #8A8676 (Sprint 2) hanya diuji terhadap putih dan
+     ternyata cuma 2,92:1 pada --surface-muted → gagal SC 1.4.11.
+     #7E7A6A memberi 4,30 / 3,88 / 3,44 pada ketiga permukaan terang. */
+  --border-strong: #7E7A6A;
+
+  --brand: #1B4332;
+  --brand-soft: #2D6A4F;
+  --brand-deep: #0F2A1E;       /* header */
+  --brand-tint: #DCE8DE;
+  --on-brand: #FFFFFF;
+  --on-brand-muted: #E3E0D2;
+
   --danger: #B3261E;
-  --danger-light: #FBE3DE;
-  --error: #B3261E;
-  --error-container: #FBE3DE;
+  --danger-tint: #FBE3DE;
+  --warning: #8A6E1D;
+  --warning-tint: #F1E4C2;
+  --accent: #A15C38;
+  --accent-tint: #F3DCC9;
+
+  /* Alias lama */
+  --background: var(--surface);
+  --foreground: var(--text);
+  --primary: var(--brand);
+  --on-primary: var(--on-brand);
+  --outline: var(--text-muted);
+  --outline-variant: var(--border);
+  --success: var(--brand-soft);
+  --error: var(--danger);
+}
+
+/* ── Tema gelap ──
+   Dipakai di ruang kendali/videotron yang minim cahaya. Nilai dipilih agar
+   rasio kontras tetap >= 4,5:1 untuk teks (diverifikasi tests/theme.test.ts). */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface: #10150F;
+  --surface-card: #1A211A;
+  --surface-muted: #232B22;
+  --surface-muted-2: #2C352B;
+
+  --text: #F2F0E6;
+  --text-body: #D7D3C4;
+  --text-muted: #ABA694;
+
+  --border: #3D473C;
+  /* #5A6558 hanya 2,69:1 pada --surface-card → gagal SC 1.4.11.
+     #6E7A6C memberi 3,65 / 4,10 / 3,24 pada ketiga permukaan gelap. */
+  --border-strong: #6E7A6C;
+
+  --brand: #7FD1A4;
+  --brand-soft: #52B788;
+  --brand-deep: #0B1810;
+  --brand-tint: #1E3327;
+  --on-brand: #08120C;
+  --on-brand-muted: #C9D4C7;
+
+  --danger: #F2A9A2;
+  --danger-tint: #3A1D1A;
+  --warning: #E7CD8A;
+  --warning-tint: #33290F;
+  --accent: #E0A379;
+  --accent-tint: #3A2419;
 }
 
 @theme inline {
@@ -180,4 +225,67 @@ body {
 .recharts-tooltip-item {
   color: #1E2420 !important;
   font-size: 12px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Gaya cetak — dipakai fitur "Simpan sebagai PDF" (§7.2 #5)
+   Memakai dialog cetak peramban, tanpa dependency tambahan.
+   ═══════════════════════════════════════════════════════════ */
+@media print {
+  /* Paksa tema terang agar tinta tidak boros dan teks tetap terbaca. */
+  :root,
+  [data-theme='dark'] {
+    --surface: #FFFFFF;
+    --surface-card: #FFFFFF;
+    --surface-muted: #F4F4F1;
+    --surface-muted-2: #ECECE8;
+    --text: #000000;
+    --text-body: #1A1A1A;
+    --text-muted: #3D3D3D;
+    --border: #999999;
+    --border-strong: #666666;
+    --brand: #14301F;
+    --brand-deep: #14301F;
+    --on-brand: #FFFFFF;
+  }
+
+  /* Sembunyikan elemen yang tidak bermakna di atas kertas. */
+  .no-print,
+  aside,
+  nav,
+  header button,
+  .skip-link {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* Jangan potong kartu dan grafik di tengah halaman. */
+  section,
+  table,
+  figure,
+  .card-hover {
+    break-inside: avoid;
+  }
+
+  /* Tampilkan alamat tautan agar dokumen cetak tetap dapat ditelusuri. */
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #3D3D3D;
+  }
+
+  @page {
+    margin: 14mm;
+  }
 }
