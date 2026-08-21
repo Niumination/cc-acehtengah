@@ -37,15 +37,23 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan AI (Auth)** | ✅ | `/dashboard/laporan` |
-| Early Warning System | ✅ | `/api/ews` |
+| Early Warning System | 🚧 **belum fungsional** | `/api/ews` |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
 
+> **Catatan status EWS (terverifikasi):** endpoint dan panel UI sudah ada, tetapi
+> **belum ada satu pun kode yang membuat `EwsAlert`**. Rantai datanya putus:
+> `EwsAlert` → butuh `Indicator` → butuh `Dataset`, sedangkan `Dataset` tidak
+> pernah terisi karena seluruh data diambil langsung dari SAPA tanpa disimpan.
+> Akibatnya panel EWS akan selalu menampilkan "Semua indikator dalam batas
+> normal". Menyalakannya butuh R1 (data warehouse SAPA) lebih dulu — lihat
+> `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 dan roadmap R1–R2.
+
 ## Auth System
 
-- **Protected pages:** `/dashboard/laporan`, `/api/chat-logs`
+- **Protected:** `/dashboard/laporan`, `/dashboard/akun`, `/api/chat-logs`, `/api/datasets/sync`
 - **Public pages:** `/dashboard`, `/dashboard/analytics`, `/dashboard/gis`
-- **Default admin:** `admin` / `admin123` (ganti setelah login pertama!)
+- **Akun admin:** tidak ada default. Dibuat via bootstrap terkunci (`ADMIN_BOOTSTRAP_PASSWORD`), ganti password di `/dashboard/akun`
 - **Session:** JWT cookie (7 hari), httpOnly + secure
 
 ## Struktur
@@ -57,7 +65,8 @@ src/
 │   │   ├── auth/
 │   │   │   ├── login/route.ts    # POST /api/auth/login
 │   │   │   ├── logout/route.ts   # POST /api/auth/logout
-│   │   │   └── me/route.ts       # GET /api/auth/me
+│   │   │   ├── me/route.ts       # GET /api/auth/me
+│   │   │   └── change-password/route.ts  # POST — ganti password sendiri
 │   │   ├── chat-logs/route.ts    # GET /api/chat-logs (auth protected)
 │   │   ├── query/route.ts        # POST /api/query — AI Smart Query
 │   │   ├── stats/route.ts        # GET /api/stats — SAPA overview
@@ -67,13 +76,14 @@ src/
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
 │   │   └── setup/
-│   │       └── admin/route.ts    # POST /api/setup/admin — auto-create table
+│   │       └── admin/route.ts    # POST /api/setup/admin — TERKUNCI (x-setup-token)
 │   ├── dashboard/
 │   │   ├── layout.tsx            # Sidebar + header + EWS panel
 │   │   ├── page.tsx              # Main dashboard
 │   │   ├── analytics/page.tsx    # Analytics
 │   │   ├── gis/page.tsx          # Peta GIS
-│   │   └── laporan/page.tsx      # Laporan AI (auth protected)
+│   │   ├── laporan/page.tsx      # Laporan AI (auth protected)
+│   │   └── akun/page.tsx         # Profil, ganti password, logout (auth protected)
 │   └── login/
 │       ├── layout.tsx            # Minimal layout (no sidebar)
 │       └── page.tsx              # Login form
@@ -89,7 +99,7 @@ src/
 │   ├── prisma.ts                 # Prisma client singleton
 │   ├── sapa-client.ts            # SAPA API client (public)
 │   └── db-migration.ts           # Auto-migration utility
-├── middleware.ts                  # Protect /dashboard/laporan + /api/chat-logs
+├── proxy.ts                      # Proteksi route (Next.js 16; dulu middleware.ts)
 └── services/
     ├── ai-orchestrator.ts        # AI pipeline (SAPA → LLM → DB log)
     ├── intent-detector.ts        # NLP intent classification
@@ -127,5 +137,5 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `deepseek-v4-flash-free` | |
-| `JWT_SECRET` | random string | Auto-generated if not set |
+| `AI_MODEL` | `nemotron-3-ultra-free` | |
+| `JWT_SECRET` | random string (min. 32 char) | **WAJIB** — app fail-closed tanpa ini. `openssl rand -base64 48` |

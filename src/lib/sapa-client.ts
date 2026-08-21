@@ -158,16 +158,16 @@ export function getUniqueOpd(records: SapaRecord[]): { nama: string; id: number;
   return [...map.values()].sort((a, b) => b.jumlah - a.jumlah);
 }
 
-/** Unique indicators */
-export function getUniqueIndicators(records: SapaRecord[]): { kode: string | null; nama: string | null; jumlah: number }[] {
-  const map = new Map<string, { kode: string | null; nama: string | null; jumlah: number }>();
+/** Unique indicators — `id` = id_kode_indikator (kunci join yang benar untuk record SAPA). */
+export function getUniqueIndicators(records: SapaRecord[]): { id: number; kode: string | null; nama: string | null; jumlah: number }[] {
+  const map = new Map<string, { id: number; kode: string | null; nama: string | null; jumlah: number }>();
   for (const r of records) {
     const key = r.id_kode_indikator.toString();
     const existing = map.get(key);
     if (existing) {
       existing.jumlah++;
     } else {
-      map.set(key, { kode: r.kode_indikator_kode_indikator, nama: r.kode_indikator_nama_indikator, jumlah: 1 });
+      map.set(key, { id: r.id_kode_indikator, kode: r.kode_indikator_kode_indikator, nama: r.kode_indikator_nama_indikator, jumlah: 1 });
     }
   }
   return [...map.values()].sort((a, b) => b.jumlah - a.jumlah);
