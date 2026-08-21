@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="text-4xl mb-3">⚠️</div>
         <p className="text-[var(--danger)] text-sm mb-4">{error}</p>
-        <button onClick={fetchData} className="px-4 py-2 bg-[var(--brand)] text-white text-sm rounded-lg hover:bg-[var(--brand-soft)]">Coba Lagi</button>
+        <button onClick={fetchData} className="px-4 py-2 bg-[var(--brand)] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[var(--brand-soft)]">Coba Lagi</button>
       </div>
     );
   }

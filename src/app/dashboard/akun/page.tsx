@@ -99,7 +99,7 @@ export default function AkunPage() {
   };
 
   const inputClass =
-    'w-full rounded-lg border border-[var(--border-strong)] bg-white px-4 py-2.5 text-sm text-[var(--text)] ' +
+    'w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-card)] px-4 py-2.5 text-sm text-[var(--text)] ' +
     'placeholder-[var(--text-muted)] focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30';
 
   return (
@@ -110,7 +110,7 @@ export default function AkunPage() {
       </header>
 
       {/* Profil */}
-      <section className="rounded-2xl border border-[var(--border)] bg-white p-6">
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
         <h2 className="mb-4 text-sm font-bold text-[var(--brand)]">Informasi Akun</h2>
         {loadingProfile ? (
           <p className="text-sm text-[var(--text-muted)]">Memuat…</p>
@@ -143,7 +143,7 @@ export default function AkunPage() {
       </section>
 
       {/* Ganti password */}
-      <section className="rounded-2xl border border-[var(--border)] bg-white p-6">
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] p-6">
         <h2 className="text-sm font-bold text-[var(--brand)]">Ganti Password</h2>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           Minimal {MIN_PASSWORD_LENGTH} karakter. Setelah diganti, Anda perlu masuk kembali.
@@ -223,7 +223,7 @@ export default function AkunPage() {
           <button
             type="submit"
             disabled={submitting || !currentPassword || !newPassword || !confirmPassword}
-            className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-soft)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-[var(--on-brand)] transition-colors hover:bg-[var(--brand-soft)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'Menyimpan…' : 'Simpan Password Baru'}
           </button>
