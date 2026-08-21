@@ -33,6 +33,9 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+import { cached } from '@/lib/store';
+import { isMockMode } from '@/lib/data-source';
+
 const CACHE_TTL = 10 * 60 * 1000;
 
 interface GeoPayload {
@@ -53,7 +56,8 @@ interface GeoPayload {
   lastFetched: string;
 }
 
-let cache: { payload: GeoPayload; expiresAt: number } | null = null;
+// Cache bersama (§P1-08) — dulu variabel modul per-instance.
+const cacheKey = () => `geodata:v2:${isMockMode() ? 'mock' : 'live'}`;
 
 const SCOPE_NOTE =
   'SAPA menyediakan data pada tingkat kabupaten/OPD. Rincian per kecamatan belum ' +
@@ -61,11 +65,8 @@ const SCOPE_NOTE =
   'konteks — bukan sebaran nilai indikator.';
 
 export async function GET() {
-  if (cache && cache.expiresAt > Date.now()) {
-    return NextResponse.json(cache.payload);
-  }
-
   try {
+    const payload = await cached<GeoPayload>(cacheKey(), CACHE_TTL, async () => {
     const records = await getSapaRecords();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
@@ -91,7 +92,9 @@ export async function GET() {
       lastFetched: new Date().toISOString(),
     };
 
-    cache = { payload, expiresAt: Date.now() + CACHE_TTL };
+    return payload;
+    });
+
     return NextResponse.json(payload);
   } catch (err) {
     console.error('[geodata] Gagal mengambil data SAPA:', err);

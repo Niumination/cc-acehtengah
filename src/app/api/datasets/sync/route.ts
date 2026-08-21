@@ -1,33 +1,17 @@
-// ─── POST /api/datasets/sync — Sinkronisasi SAPA → DB (HANYA SUPERADMIN) ───
+// ─── POST /api/datasets/sync — Pemicu sinkronisasi manual (SUPERADMIN) ───
 //
-// Sebelumnya endpoint ini terbuka untuk publik: siapa pun bisa memicu fetch SAPA
-// penuh + penulisan DB berulang kali (vektor DoS & pembengkakan biaya).
-// Lihat: LAPORAN_AUDIT_PRODUCTION_READINESS.md §P0-04
-//
-// Dua lapis proteksi:
-//   1. src/proxy.ts — menolak request tanpa sesi valid (401)
-//   2. route ini    — memverifikasi ulang token & mewajibkan peran SUPERADMIN
-//      (defense in depth: tidak bergantung pada satu file konvensi Next.js)
+// Jalur otomatis ada di /api/cron/sync-sapa. Endpoint ini untuk pemicu manual
+// oleh admin dari dashboard.
+// Dua lapis proteksi: src/proxy.ts + verifikasi ulang peran di sini.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { syncDataset, syncAllDatasets } from '@/services/data-sync';
-import { handleApiError, successResponse } from '@/lib/error-handler';
 import { verifyToken, COOKIE_NAME } from '@/lib/auth';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
+import { syncSapaToWarehouse } from '@/services/sapa-sync';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 60;
-
-const SyncRequestSchema = z
-  .object({
-    slug: z.string().min(1).max(100).optional(),
-    all: z.boolean().optional(),
-  })
-  .refine((v) => v.all === true || typeof v.slug === 'string', {
-    message: 'Tentukan salah satu: "slug" atau "all": true',
-  });
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
@@ -43,8 +27,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Sinkronisasi itu mahal — batasi walau pemanggilnya admin.
-  const limit = checkRateLimit({
+  const limit = await checkRateLimit({
     key: `sync:${admin.id}:${getClientIp(req)}`,
     limit: 3,
     windowMs: 10 * 60 * 1000,
@@ -57,32 +40,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    let body: unknown;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Body harus JSON yang valid.' },
-        { status: 400 },
-      );
-    }
-
-    const parsed = SyncRequestSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: 'Permintaan tidak valid', detail: parsed.error.flatten() },
-        { status: 400 },
-      );
-    }
-
-    if (parsed.data.all) {
-      const results = await syncAllDatasets();
-      return NextResponse.json(successResponse(results));
-    }
-
-    await syncDataset(parsed.data.slug!);
-    return NextResponse.json(successResponse({ slug: parsed.data.slug, synced: true }));
+    const ringkasan = await syncSapaToWarehouse();
+    return NextResponse.json({ success: true, ...ringkasan });
   } catch (err) {
-    return handleApiError(err);
+    console.error('[datasets/sync] Gagal:', err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Sinkronisasi gagal.',
+        detail: err instanceof Error ? err.message : String(err),
+      },
+      { status: 503 },
+    );
   }
 }

@@ -19,14 +19,14 @@ export default function Error({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-[#B3261E]/30 bg-white p-8 text-center">
-        <h1 className="text-lg font-bold text-[#1E2420]">Terjadi kesalahan</h1>
-        <p className="mt-2 text-sm text-[#4B5249]">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--danger)]/30 bg-white p-8 text-center">
+        <h1 className="text-lg font-bold text-[var(--text)]">Terjadi kesalahan</h1>
+        <p className="mt-2 text-sm text-[var(--text-body)]">
           Halaman ini gagal dimuat. Tim teknis sudah dapat menelusuri masalahnya lewat kode
           referensi di bawah.
         </p>
         {error.digest && (
-          <p className="mt-3 rounded-lg bg-[#E9E6DA] px-3 py-2 font-mono text-xs text-[#4B5249]">
+          <p className="mt-3 rounded-lg bg-[var(--surface-muted)] px-3 py-2 font-mono text-xs text-[var(--text-body)]">
             Ref: {error.digest}
           </p>
         )}
@@ -34,13 +34,13 @@ export default function Error({
           <button
             type="button"
             onClick={reset}
-            className="rounded-lg bg-[#1B4332] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2D6A4F]"
+            className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-soft)]"
           >
             Coba lagi
           </button>
           <a
             href="/dashboard"
-            className="rounded-lg border border-[#8A8676] px-4 py-2 text-sm font-medium text-[#1B4332] hover:bg-[#E9E6DA]"
+            className="rounded-lg border border-[var(--border-strong)] px-4 py-2 text-sm font-medium text-[var(--brand)] hover:bg-[var(--surface-muted)]"
           >
             Kembali ke beranda
           </a>
