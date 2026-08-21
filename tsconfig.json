@@ -6,8 +6,6 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    // Tes unit mengimpor sumber TS langsung (node --test + type stripping).
-    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

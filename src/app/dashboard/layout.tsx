@@ -1,299 +1,121 @@
 'use client';
 
-// ─── Layout dashboard ───
-//
-// Perbaikan Sprint 2 (LAPORAN_AUDIT_PRODUCTION_READINESS.md §7.2, §P2-04, §P2-10, §P2-11):
-//   • Navigasi mobile: sidebar dulu `hidden md:block` tanpa pengganti apa pun,
-//     sehingga dashboard tidak bisa dinavigasi sama sekali di layar < 768px.
-//     Sekarang ada drawer + overlay + penutupan via tombol Esc.
-//   • Satu <h1> per halaman (dulu ada dua: sidebar dan header).
-//   • Badge "Online" dan "SAPA Connected" dulu hardcoded. Sekarang membaca
-//     /api/health dan menampilkan status sebenarnya, termasuk saat degraded.
-//   • Tanggal dulu dirender saat SSR pada halaman statik → nilai ter-bake saat
-//     build dan bisa salah hari (server UTC vs pengguna WIB). Kini menunggu mount.
-//   • Tombol ikon punya nama aksesibel (aria-label) dan aria-expanded.
-
 import Sidebar from '@/components/Sidebar';
 import EwsPanel from '@/components/EwsPanel';
-import Image from 'next/image';
-import Link from 'next/link';
-import ThemeToggle from '@/components/ThemeToggle';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-
-type HealthState =
-  | { kind: 'loading' }
-  | { kind: 'error' }
-  | { kind: 'ok'; status: 'healthy' | 'degraded'; mode: 'mock' | 'live'; sapa: string };
-
-const CLOCK_FORMAT: Intl.DateTimeFormatOptions = {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-};
-
-const DATE_FORMAT: Intl.DateTimeFormatOptions = {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-};
+import React, { useState, useEffect } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [now, setNow] = useState<Date | null>(null);
+  const [currentTime, setCurrentTime] = useState('');
+  const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [ewsOpen, setEwsOpen] = useState(false);
-  const [health, setHealth] = useState<HealthState>({ kind: 'loading' });
-  const mobileNavRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Jam & tanggal hanya dihitung setelah mount → tidak ada nilai ter-bake
-  // dari waktu build dan tidak ada mismatch zona waktu saat hidrasi.
   useEffect(() => {
-    // setState dijalankan lewat timer (callback), bukan sinkron di body effect,
-    // agar tidak memicu cascading render (react-hooks/set-state-in-effect).
-    const tick = () => setNow(new Date());
-    const first = setTimeout(tick, 0);
-    const timer = setInterval(tick, 1000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
-    };
+    setMounted(true);
+    setCurrentTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = () => {
-      fetch('/api/health')
-        .then(async (res) => res.json())
-        .then((body) => {
-          if (cancelled) return;
-          if (!body?.services) {
-            setHealth({ kind: 'error' });
-            return;
-          }
-          setHealth({
-            kind: 'ok',
-            status: body.status === 'degraded' ? 'degraded' : 'healthy',
-            mode: body.mode === 'mock' ? 'mock' : 'live',
-            sapa: body.services.sapa,
-          });
-        })
-        .catch(() => {
-          if (!cancelled) setHealth({ kind: 'error' });
-        });
-    };
-
-    load();
-    const interval = setInterval(load, 120_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Esc menutup drawer & panel EWS.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // Efek samping (focus) TIDAK boleh berada di dalam state updater:
-      // React StrictMode memanggil updater dua kali.
-      if (mobileNavOpen) {
-        setMobileNavOpen(false);
-        menuButtonRef.current?.focus();
-      }
-      setEwsOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [mobileNavOpen]);
-
-  // Cegah halaman di belakang ikut ter-scroll saat drawer terbuka.
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [mobileNavOpen]);
-
-  const closeMobileNav = useCallback(() => {
-    setMobileNavOpen(false);
-    // Kembalikan fokus ke tombol pemicu (WCAG SC 2.4.3 Focus Order).
-    menuButtonRef.current?.focus();
-  }, []);
-
-  const statusLabel =
-    health.kind === 'loading'
-      ? 'Memeriksa…'
-      : health.kind === 'error'
-        ? 'Status tidak diketahui'
-        : health.mode === 'mock'
-          ? 'Mode data contoh'
-          : health.status === 'healthy'
-            ? 'Sistem normal'
-            : 'Sebagian layanan terganggu';
-
-  const statusTone =
-    health.kind === 'ok' && health.status === 'healthy' && health.mode === 'live'
-      ? 'bg-[var(--brand-tint)] border-[var(--brand-soft)]/50 text-[var(--brand)]'
-      : health.kind === 'ok' && health.mode === 'mock'
-        ? 'bg-[var(--warning-tint)] border-[var(--warning)]/40 text-[var(--warning)]'
-        : 'bg-[var(--danger-tint)] border-[var(--danger)]/40 text-[var(--danger)]';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)] text-[var(--text)]">
-      <a href="#konten-utama" className="skip-link">
-        Lompat ke konten utama
-      </a>
-
-      {/* Sidebar desktop */}
-      <div className="hidden h-full flex-shrink-0 md:block">
+    <div className="flex h-screen overflow-hidden bg-[#F5F3EC] text-[#1E2420]">
+      {/* Sidebar */}
+      <div className="hidden md:block h-full flex-shrink-0">
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       </div>
 
-      {/* Drawer mobile */}
-      {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            type="button"
-            aria-label="Tutup menu navigasi"
-            onClick={closeMobileNav}
-            className="absolute inset-0 h-full w-full bg-black/50"
-          />
-          <div
-            ref={mobileNavRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menu navigasi"
-            className="absolute left-0 top-0 h-full shadow-2xl"
-          >
-            <Sidebar onNavigate={closeMobileNav} onClose={closeMobileNav} />
-          </div>
-        </div>
-      )}
-
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-[61px] flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--brand)] bg-[var(--brand-deep)] px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              ref={menuButtonRef}
-              type="button"
-              onClick={() => setMobileNavOpen(true)}
-              aria-label="Buka menu navigasi"
-              aria-expanded={mobileNavOpen}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-[var(--on-brand)] md:hidden"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
-                <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
-                <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
-              </svg>
-            </button>
-
-            <Image
-              src="/logo-aceh-tengah.png"
-              alt="Lambang Kabupaten Aceh Tengah"
-              width={36}
-              height={36}
-              priority
-              className="h-9 w-9 flex-shrink-0 rounded-lg object-contain"
-            />
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold tracking-wide text-white">
-                Command Center Aceh Tengah
-              </h1>
-              <p className="text-[11px] uppercase tracking-widest text-[var(--text-muted)]">Diskominfo</p>
-            </div>
-          </div>
-
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
+        {/* Header — dark forest, matches cc.acehtengahkab.go.id */}
+        <header className="bg-[#0F2A1E] border-b border-[#1B4332] px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            {/* Waktu — hanya setelah mount */}
-            <div className="hidden text-right sm:block">
-              <p className="font-mono text-xs text-[var(--on-brand-muted)]">
-                {now ? now.toLocaleTimeString('id-ID', CLOCK_FORMAT) : '--:--:--'}
+            {/* Official Logo */}
+            <img
+              src="/logo-aceh-tengah.png"
+              alt="Lambang Aceh Tengah"
+              className="w-9 h-9 rounded-lg object-contain flex-shrink-0"
+            />
+            <div>
+              <h1 className="text-sm font-bold tracking-wide text-white">
+                Command Center
+              </h1>
+              <p className="text-[10px] uppercase tracking-widest text-[#C6C3B4]">
+                Aceh Tengah · Diskominfo
               </p>
-              <p className="text-[11px] text-[var(--border)]">
-                {now ? now.toLocaleDateString('id-ID', DATE_FORMAT) : '—'}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-sm">
+            {/* Live Clock */}
+            <div className="text-right">
+              <p className="font-mono text-xs text-[#C6C3B4]">
+                {mounted ? currentTime : '--:--:--'}
+              </p>
+              <p className="text-[10px] text-[#767D6F]">
+                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
 
-            {/* Status sistem — dari /api/health, bukan hardcoded */}
-            <p
-              className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-medium ${statusTone}`}
-              role="status"
-              aria-live="polite"
-            >
-              <span aria-hidden="true" className="relative flex h-2 w-2">
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+            {/* Connection Status */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D6A4F]/30 border border-[#2D6A4F]/50">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#52B788] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#52B788]" />
               </span>
-              <span>{statusLabel}</span>
-            </p>
+              <span className="text-[11px] font-medium text-[#52B788]">Online</span>
+            </div>
 
-            <ThemeToggle />
-
-            <Link
-              href="/dashboard/akun"
-              className="rounded-full border border-[var(--brand-soft)] px-3 py-1.5 text-[11px] font-medium text-[var(--on-brand-muted)] hover:bg-[var(--brand)]"
-            >
-              Akun
-            </Link>
+            {/* SAPA Badge */}
+            <div className="px-3 py-1.5 rounded-full bg-[#D9C284]/15 border border-[#D9C284]/30">
+              <span className="text-[11px] font-medium text-[#D9C284]">
+                📡 SAPA Connected
+              </span>
+            </div>
           </div>
         </header>
 
-        <main id="konten-utama" tabIndex={-1} className="flex-1 overflow-y-auto bg-[var(--surface)] p-4 sm:p-6">
+        {/* Content — light background */}
+        <main className="flex-1 overflow-y-auto p-6 bg-[#F5F3EC]">
           {children}
         </main>
 
-        {/* Tombol buka panel EWS */}
-        {!ewsOpen && (
-          <button
-            type="button"
-            onClick={() => setEwsOpen(true)}
-            aria-label="Tampilkan panel peringatan dini"
-            aria-expanded={false}
-            className="absolute right-0 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[var(--border-strong)] bg-[var(--surface-card)] text-[var(--text-body)] shadow-lg hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="9 3 4 6 9 9" />
-            </svg>
-          </button>
-        )}
+        {/* EWS Toggle Button */}
+        <button
+          onClick={() => setEwsOpen((o) => !o)}
+          className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 w-6 h-14 rounded-l-lg flex items-center justify-center transition-all duration-200 shadow-lg ${
+            ewsOpen
+              ? 'hidden'
+              : 'bg-[#FFFFFF] hover:bg-[#E9E6DA] text-[#767D6F] hover:text-[#1B4332] border border-r-0 border-[#C6C3B4]'
+          }`}
+          title="Tampilkan panel EWS"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 3 4 6 9 9" />
+          </svg>
+        </button>
       </div>
 
-      {/* Panel EWS */}
-      <aside
-        aria-label="Peringatan dini"
+      {/* EWS Panel — slide in/out */}
+      <div
         className={`h-full flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${
           ewsOpen ? 'w-72' : 'w-0'
         }`}
       >
-        <div className="h-full w-72 overflow-y-auto border-l border-[var(--border-strong)] bg-[var(--surface-card)] p-4">
-          <div className="mb-3 flex items-start gap-2">
+        <div className="w-72 h-full border-l border-[#C6C3B4] p-4 overflow-y-auto bg-[#FFFFFF]">
+          <div className="flex items-center justify-between mb-3">
             <EwsPanel />
             <button
-              type="button"
               onClick={() => setEwsOpen(false)}
-              aria-label="Tutup panel peringatan dini"
-              className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-[var(--surface-muted)] text-[var(--text-body)] transition-colors hover:bg-[var(--border)] hover:text-[var(--brand)]"
+              className="ml-2 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors bg-[#E9E6DA] hover:bg-[#C6C3B4] text-[#767D6F] hover:text-[#1B4332]"
+              title="Tutup panel EWS"
             >
-              <span aria-hidden="true">✕</span>
+              ✕
             </button>
           </div>
         </div>
-      </aside>
+      </div>
     </div>
   );
 }

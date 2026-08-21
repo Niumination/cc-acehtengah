@@ -7,170 +7,64 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  color-scheme: light;
-
-  /* ── Token semantik ──
-     Seluruh komponen memakai token ini, BUKAN hex mati. Dengan begitu tema
-     gelap cukup mendefinisikan ulang nilainya di satu tempat, dan kontras
-     tetap dapat diaudit terpusat (LAPORAN_AUDIT_PRODUCTION_READINESS.md §7.1). */
-
-  --surface: #F5F3EC;          /* latar halaman */
-  --surface-card: #FFFFFF;     /* kartu */
-  --surface-muted: #E9E6DA;    /* blok sekunder */
-  --surface-muted-2: #E1DDCD;
-
-  --text: #1E2420;             /* 14,24:1 pada --surface */
-  --text-body: #4B5249;        /*  7,27:1 */
-  --text-muted: #5C6358;       /*  5,59:1 — lulus AA */
-
-  --border: #9A9683;           /* pembatas dekoratif */
-  /* Pembatas kontrol. #8A8676 (Sprint 2) hanya diuji terhadap putih dan
-     ternyata cuma 2,92:1 pada --surface-muted → gagal SC 1.4.11.
-     #7E7A6A memberi 4,30 / 3,88 / 3,44 pada ketiga permukaan terang. */
-  --border-strong: #7E7A6A;
-
-  --brand: #1B4332;
-  --brand-soft: #2D6A4F;
-  --brand-deep: #0F2A1E;       /* header */
-  --brand-tint: #DCE8DE;
-  --on-brand: #FFFFFF;
-  --on-brand-muted: #E3E0D2;
-
+  --background: #F5F3EC;
+  --foreground: #1E2420;
+  --primary: #1B4332;
+  --primary-container: #2D6A4F;
+  --on-primary: #FFFFFF;
+  --secondary: #8A6E1D;
+  --secondary-container: #F1E4C2;
+  --tertiary: #A15C38;
+  --tertiary-container: #C97A4A;
+  --surface: #F5F3EC;
+  --surface-container: #E9E6DA;
+  --surface-container-low: #EFEDE3;
+  --surface-container-lowest: #FFFFFF;
+  --surface-container-high: #E1DDCD;
+  --outline: #767D6F;
+  --outline-variant: #C6C3B4;
+  --accent: #D9C284;
+  --accent-light: #C9D4C7;
+  --header-bg: #0F2A1E;
+  --success: #2D6A4F;
+  --success-light: #DCE8DE;
+  --warning: #D9C284;
   --danger: #B3261E;
-  --danger-tint: #FBE3DE;
-  --warning: #8A6E1D;
-  --warning-tint: #F1E4C2;
-  --accent: #A15C38;
-  --accent-tint: #F3DCC9;
-
-  /* Alias lama */
-  --background: var(--surface);
-  --foreground: var(--text);
-  --primary: var(--brand);
-  --on-primary: var(--on-brand);
-  --outline: var(--text-muted);
-  --outline-variant: var(--border);
-  --success: var(--brand-soft);
-  --error: var(--danger);
-}
-
-/* ── Tema gelap ──
-   Dipakai di ruang kendali/videotron yang minim cahaya. Nilai dipilih agar
-   rasio kontras tetap >= 4,5:1 untuk teks (diverifikasi tests/theme.test.ts). */
-[data-theme='dark'] {
-  color-scheme: dark;
-
-  --surface: #10150F;
-  --surface-card: #1A211A;
-  --surface-muted: #232B22;
-  --surface-muted-2: #2C352B;
-
-  --text: #F2F0E6;
-  --text-body: #D7D3C4;
-  --text-muted: #ABA694;
-
-  --border: #3D473C;
-  /* #5A6558 hanya 2,69:1 pada --surface-card → gagal SC 1.4.11.
-     #6E7A6C memberi 3,65 / 4,10 / 3,24 pada ketiga permukaan gelap. */
-  --border-strong: #6E7A6C;
-
-  --brand: #7FD1A4;
-  --brand-soft: #52B788;
-  --brand-deep: #0B1810;
-  --brand-tint: #1E3327;
-  --on-brand: #08120C;
-  --on-brand-muted: #C9D4C7;
-
-  --danger: #F2A9A2;
-  --danger-tint: #3A1D1A;
-  --warning: #E7CD8A;
-  --warning-tint: #33290F;
-  --accent: #E0A379;
-  --accent-tint: #3A2419;
-
-  /* Alias eksplisit di dark (jangan andalkan forwarding :root) */
-  --background: var(--surface);
-  --foreground: var(--text);
-  --primary: var(--brand);
-  --on-primary: var(--on-brand);
-  --outline: var(--text-muted);
-  --outline-variant: var(--border);
-  --success: var(--brand-soft);
-  --error: var(--danger);
+  --danger-light: #FBE3DE;
+  --error: #B3261E;
+  --error-container: #FBE3DE;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Hanya rujuk font yang benar-benar dimuat. 'Inter'/'JetBrains Mono'
-     sebelumnya ditulis di sini tapi tidak pernah di-load di mana pun,
-     sehingga Geist yang sudah diunduh justru terabaikan (§P1-06). */
-  --font-sans: var(--font-geist-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, 'Courier New', monospace;
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', var(--font-geist-mono), monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Fokus keyboard harus selalu terlihat (WCAG SC 2.4.7 Focus Visible).
-   Sebelumnya banyak kontrol memakai focus:outline-none tanpa pengganti. */
-:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-  border-radius: 0.25rem;
-}
-
-/* Skip link — muncul hanya saat difokuskan lewat keyboard (SC 2.4.1). */
-.skip-link {
-  position: absolute;
-  left: 0.5rem;
-  top: -3rem;
-  z-index: 100;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: top 0.15s ease-in-out;
-}
-
-.skip-link:focus {
-  top: 0.5rem;
-}
-
-/* Hormati preferensi pengguna yang sensitif terhadap animasi (SC 2.3.3). */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* Custom Scrollbar — themed */
+/* Custom Scrollbar — warm themed */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface-muted);
+  background: #E9E6DA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: #C6C3B4;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: #767D6F;
 }
 
 /* Animations */
@@ -197,18 +91,9 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin {
-  animation: spin 0.8s linear infinite;
-}
-
 /* Loading skeleton */
 .skeleton {
-  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface-muted-2) 50%, var(--surface-muted) 75%);
+  background: linear-gradient(90deg, #E9E6DA 25%, #E1DDCD 50%, #E9E6DA 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 0.5rem;
@@ -221,90 +106,27 @@ body {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 25px -5px rgba(15, 42, 30, 0.12);
 }
 
-/* Recharts tooltip styling — themed */
+/* Recharts tooltip styling — light themed */
 .recharts-tooltip-wrapper {
   outline: none !important;
 }
 
 .recharts-default-tooltip {
-  background: var(--surface-card) !important;
-  border: 1px solid var(--border-strong) !important;
+  background: #FFFFFF !important;
+  border: 1px solid #C6C3B4 !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 42, 30, 0.15) !important;
 }
 
 .recharts-tooltip-label {
-  color: var(--text-body) !important;
-  font-size: 12px !important;
+  color: #767D6F !important;
+  font-size: 11px !important;
 }
 
 .recharts-tooltip-item {
-  color: var(--text) !important;
+  color: #1E2420 !important;
   font-size: 12px !important;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Gaya cetak — dipakai fitur "Simpan sebagai PDF" (§7.2 #5)
-   Memakai dialog cetak peramban, tanpa dependency tambahan.
-   ═══════════════════════════════════════════════════════════ */
-@media print {
-  /* Paksa tema terang agar tinta tidak boros dan teks tetap terbaca. */
-  :root,
-  [data-theme='dark'] {
-    --surface: #FFFFFF;
-    --surface-card: #FFFFFF;
-    --surface-muted: #F4F4F1;
-    --surface-muted-2: #ECECE8;
-    --text: #000000;
-    --text-body: #1A1A1A;
-    --text-muted: #3D3D3D;
-    --border: #999999;
-    --border-strong: #666666;
-    --brand: #14301F;
-    --brand-deep: #14301F;
-    --on-brand: #FFFFFF;
-  }
-
-  /* Sembunyikan elemen yang tidak bermakna di atas kertas. */
-  .no-print,
-  aside,
-  nav,
-  header button,
-  .skip-link {
-    display: none !important;
-  }
-
-  html,
-  body {
-    background: #fff !important;
-    height: auto !important;
-    overflow: visible !important;
-  }
-
-  main {
-    overflow: visible !important;
-    padding: 0 !important;
-  }
-
-  /* Jangan potong kartu dan grafik di tengah halaman. */
-  section,
-  table,
-  figure,
-  .card-hover {
-    break-inside: avoid;
-  }
-
-  /* Tampilkan alamat tautan agar dokumen cetak tetap dapat ditelusuri. */
-  a[href^='http']::after {
-    content: ' (' attr(href) ')';
-    font-size: 0.75em;
-    color: #3D3D3D;
-  }
-
-  @page {
-    margin: 14mm;
-  }
 }

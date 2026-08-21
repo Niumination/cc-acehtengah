@@ -1,25 +1,14 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { processAIQueryStreaming } from '@/services/ai-orchestrator';
+import { processAIQuery, processAIQueryStreaming } from '@/services/ai-orchestrator';
 import { getMockQueryResponse } from '@/lib/mock-data';
-import { isMockMode } from '@/lib/data-source';
-import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Panggilan LLM streaming bisa berjalan lama; tanpa ini fungsi bisa terpotong
-// timeout default platform di tengah stream.
-export const maxDuration = 60;
-
-// Endpoint ini memanggil provider LLM berbayar dan terbuka untuk publik,
-// jadi wajib dibatasi. Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P0-05.
-const RATE_LIMIT_PER_MINUTE = 10;
-const RATE_LIMIT_PER_HOUR = 60;
-
 const QuerySchema = z.object({
-  query: z.string().trim().min(3).max(2000),
-  sessionId: z.string().max(100).optional(),
+  query: z.string().min(3).max(2000),
+  sessionId: z.string().optional(),
 });
 
 function sse(event: string, data: unknown): string {
@@ -27,40 +16,7 @@ function sse(event: string, data: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = getClientIp(req);
-
-  const perMinute = await checkRateLimit({
-    key: `query:m:${ip}`,
-    limit: RATE_LIMIT_PER_MINUTE,
-    windowMs: 60 * 1000,
-  });
-  if (!perMinute.ok) {
-    return Response.json(
-      { error: 'Terlalu banyak pertanyaan. Tunggu sebentar lalu coba lagi.' },
-      { status: 429, headers: rateLimitHeaders(perMinute) },
-    );
-  }
-
-  const perHour = await checkRateLimit({
-    key: `query:h:${ip}`,
-    limit: RATE_LIMIT_PER_HOUR,
-    windowMs: 60 * 60 * 1000,
-  });
-  if (!perHour.ok) {
-    return Response.json(
-      { error: 'Kuota pertanyaan per jam tercapai. Silakan coba lagi nanti.' },
-      { status: 429, headers: rateLimitHeaders(perHour) },
-    );
-  }
-
-  // Body non-JSON sebelumnya melempar exception tak tertangkap → HTTP 500 body kosong.
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: 'Body harus JSON yang valid.' }, { status: 400 });
-  }
-
+  const body = await req.json();
   const parsed = QuerySchema.safeParse(body);
 
   if (!parsed.success) {
@@ -70,15 +26,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { query } = parsed.data;
-
-  // Mock mode — WAJIB memakai protokol yang sama dengan mode live (SSE).
-  // Sebelumnya mode ini mengembalikan JSON polos sementara klien mem-parse SSE,
-  // sehingga panel AI selalu gagal dengan "AI tidak mengembalikan respons".
-  // Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-04
-  if (isMockMode()) {
-    return sseResponse(mockStream(query));
+  // Mock mode — tetap response JSON biasa
+  if (process.env.USE_MOCK_DATA === 'true') {
+    return Response.json(getMockQueryResponse(parsed.data.query));
   }
+
+  const { query } = parsed.data;
 
   // SSE streaming response
   const encoder = new TextEncoder();
@@ -121,11 +74,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return sseResponse(stream);
-}
-
-/** Header standar untuk Server-Sent Events. */
-function sseResponse(stream: ReadableStream): Response {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
@@ -134,58 +82,6 @@ function sseResponse(stream: ReadableStream): Response {
       'X-Accel-Buffering': 'no',
     },
   });
-}
-
-/**
- * Stream mock dengan urutan event identik jalur live:
- *   status → narasi (bertahap) → result
- * Narasi dipotong per kalimat agar efek streaming di UI ikut teruji saat demo.
- */
-function mockStream(query: string): ReadableStream {
-  const encoder = new TextEncoder();
-  const result = getMockQueryResponse(query);
-  const narasi: string = typeof result?.narasi === 'string' ? result.narasi : '';
-
-  return new ReadableStream({
-    async start(controller) {
-      const send = (event: string, data: unknown) => {
-        try {
-          controller.enqueue(encoder.encode(sse(event, data)));
-        } catch {
-          // Klien memutus koneksi.
-        }
-      };
-
-      try {
-        send('status', { status: 'Menganalisis pertanyaan... (mode data contoh)' });
-        await sleep(200);
-        send('status', { status: 'Menyusun jawaban... (mode data contoh)' });
-
-        const chunks = narasi.match(/[^.!?]+[.!?]?\s*/g) ?? (narasi ? [narasi] : []);
-        let progressive = '';
-        for (const chunk of chunks) {
-          progressive += chunk;
-          send('narasi', { text: progressive });
-          await sleep(120);
-        }
-
-        send('result', {
-          ...result,
-          dataSource: `${result?.dataSource ?? 'mock'} · DATA CONTOH`,
-        });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          // sudah tertutup
-        }
-      }
-    },
-  });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Small local helper to avoid importing from services in route (keeps bundle lean)

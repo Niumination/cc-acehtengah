@@ -10,10 +10,8 @@ export interface RegulationContext {
 }
 
 export async function retrieveContext(
-  // Parameter dipertahankan sebagai kontrak API untuk implementasi RAG nanti
-  // (roadmap R6). Diawali garis bawah agar linter tidak menandainya.
-  _query: string,
-  _kategori?: string,
+  query: string,
+  kategori?: string,
 ): Promise<RegulationContext[]> {
   const qdrantUrl = process.env.QDRANT_URL;
   if (!qdrantUrl) return []; // Qdrant belum dikonfigurasi — skip silently

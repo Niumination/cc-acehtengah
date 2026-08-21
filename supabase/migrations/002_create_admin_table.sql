@@ -1,29 +1,7 @@
--- ─── Migration: Create Admin table ───
--- Jalankan di Supabase SQL Editor.
---
--- PENTING (urutan): tipe enum "AdminRole" HARUS dibuat SEBELUM tabel yang
--- memakainya. Versi sebelumnya menaruh CREATE TYPE di bagian akhir sehingga
--- migrasi selalu gagal di database baru dengan error:
---   type "AdminRole" does not exist
--- Lihat: LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-09
---
--- CATATAN KEAMANAN: migrasi ini TIDAK lagi men-seed akun admin.
--- Seed kredensial default (admin/admin123) beserta hash bcrypt-nya sudah
--- dihapus karena ter-commit publik di repositori. Lihat §P0-03.
--- Untuk membuat akun pertama, gunakan salah satu:
---   a) POST /api/setup/admin  (butuh SETUP_ENABLED=true, header x-setup-token,
---      dan ADMIN_BOOTSTRAP_PASSWORD), lalu matikan lagi SETUP_ENABLED; atau
---   b) INSERT manual dengan hash bcrypt yang Anda generate sendiri:
---      node -e "console.log(require('bcryptjs').hashSync(process.argv[1],12))" 'PasswordAnda'
+-- ─── Migration: Create Admin table + seed admin user ───
+-- Jalankan di Supabase SQL Editor
 
--- 1. Tipe enum
-DO $$ BEGIN
-  CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'SUPERADMIN');
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;
-
--- 2. Tabel Admin
+-- 1. Buat Admin table
 CREATE TABLE IF NOT EXISTS "Admin" (
     "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
     "username" TEXT NOT NULL,
@@ -34,5 +12,26 @@ CREATE TABLE IF NOT EXISTS "Admin" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Unique constraint pada username
+-- 2. Unique constraint
 CREATE UNIQUE INDEX IF NOT EXISTS "Admin_username_key" ON "Admin"("username");
+
+-- 3. Enum AdminRole (skip jika sudah ada)
+DO $$ BEGIN
+  CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'SUPERADMIN');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- 4. Seed admin user
+-- Password: admin123 (bcrypt hash)
+-- ⚠️ GANTI PASSWORD SETELAH PERTAMA KALI LOGIN!
+INSERT INTO "Admin" ("id", "username", "password", "nama", "role", "isActive")
+VALUES (
+    gen_random_uuid()::text,
+    'admin',
+    '$2b$12$x1GHKcXNPV5N4Ooj/eMiIOEnsTbrzvCY43Z0Ca9AArkfK6FyDxra.',
+    'Administrator',
+    'ADMIN',
+    true
+)
+ON CONFLICT ("username") DO NOTHING;

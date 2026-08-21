@@ -1,130 +1,90 @@
-// ─── GET /api/geodata — Lapisan wilayah + agregat SAPA tingkat kabupaten ───
-//
-// PERUBAHAN PENTING (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-03)
-//
-// Versi sebelumnya memetakan OPD ke kecamatan secara manual (mis. Bebesen →
-// ['Dinas Kesehatan','Dinas Sosial','RSU Datu Beru']) lalu menghitung
-// totalRecords/totalIndicators/dataDensity "per kecamatan" dari pemetaan itu.
-// Pemetaan tersebut TIDAK berasal dari data mana pun — OPD adalah organisasi
-// tingkat kabupaten, dan kode aplikasi sendiri sudah mencatat bahwa
-// "SAPA tidak punya data kecamatan-level secara langsung"
-// (src/services/intent-detector.ts).
-//
-// Angka per kecamatan itu karena itu dihapus seluruhnya. Untuk dashboard resmi
-// pemerintah, menampilkan angka yang dikarang jauh lebih berbahaya daripada
-// menampilkan "belum tersedia".
-//
-// Endpoint ini sekarang mengembalikan:
-//   • kecamatan   → lapisan referensi wilayah (nama + koordinat bersumber)
-//   • kabupaten   → agregat SAPA yang benar-benar ada, di level kabupaten
-//   • dataScope   → deklarasi eksplisit granularitas data
-//   • sumber      → atribusi yang wajib ditampilkan di UI
-
 import { NextResponse } from 'next/server';
-import { getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
-import { getSapaRecords } from '@/lib/data-source';
-import {
-  KECAMATAN_ACEH_TENGAH,
-  PUSAT_KABUPATEN,
-  SUMBER_WILAYAH,
-  JUMLAH_KECAMATAN,
-} from '@/lib/aceh-tengah';
+import { fetchSapaData, filterByOpd, getUniqueIndicators } from '@/lib/sapa-client';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+// Kecamatan di Kabupaten Aceh Tengah + koordinat + OPD mapping
+const KECAMATAN_DATA = [
+  { nama: 'Banda Mulia', lat: 4.4500, lng: 96.8500, opds: ['Dinas Pertanian', 'Dinas Pendidikan'] },
+  { nama: 'Bebesen', lat: 4.6333, lng: 96.7167, opds: ['Dinas Kesehatan', 'Dinas Sosial', 'RSU Datu Beru'] },
+  { nama: 'Burni Telong', lat: 4.5000, lng: 96.8167, opds: ['Dinas Pertanian', 'Dinas Perkebunan'] },
+  { nama: 'Celala', lat: 4.5667, lng: 96.6500, opds: ['Dinas Pertanian', 'Dinas PUPR'] },
+  { nama: 'Kebayakan', lat: 4.7167, lng: 96.7333, opds: ['Dinas Pendidikan', 'Dinas Pariwisata'] },
+  { nama: 'Ketol', lat: 4.6833, lng: 96.6167, opds: ['Dinas Pertanian', 'Dinas Kehutanan'] },
+  { nama: 'Kute Panang', lat: 4.5833, lng: 96.7833, opds: ['Dinas Pertanian', 'Dinas Perikanan'] },
+  { nama: 'Laut Tawar', lat: 4.6500, lng: 96.7500, opds: ['Dinas Pariwisata', 'Dinas Perhubungan', 'Dinas Lingkungan Hidup'] },
+  { nama: 'Linge', lat: 4.5333, lng: 96.7000, opds: ['Dinas Pariwisata', 'Dinas Kebudayaan'] },
+  { nama: 'Pegasing', lat: 4.6167, lng: 96.8000, opds: ['Dinas Pertanian', 'Dinas Koperasi'] },
+  { nama: 'Permata', lat: 4.5000, lng: 96.7500, opds: ['Dinas Pertanian', 'Dinas Perkebunan'] },
+  { nama: 'Rusip Antara', lat: 4.4833, lng: 96.7833, opds: ['Dinas Pertanian', 'Dinas PUPR'] },
+  { nama: 'Silih Nara', lat: 4.5500, lng: 96.7333, opds: ['Dinas Pertanian', 'Dinas Sosial'] },
+  { nama: 'Bies Penjara', lat: 4.6667, lng: 96.7667, opds: ['Dinas Kesehatan', 'Dinas PPPA'] },
+  { nama: 'Atu Lintang', lat: 4.5167, lng: 96.8167, opds: ['Dinas Pertanian', 'Dinas PUPR'] },
+];
 
-import { cached } from '@/lib/store';
-import { isMockMode } from '@/lib/data-source';
-
-const CACHE_TTL = 10 * 60 * 1000;
-
-interface GeoPayload {
-  kecamatan: { nama: string; lat: number; lng: number; wikidataId: string }[];
-  bounds: { center: [number, number]; zoom: number };
-  kabupaten: {
-    totalRecords: number;
-    totalOpd: number;
-    totalIndicators: number;
-    opdTeratas: { nama: string; jumlah: number } | null;
-  };
-  dataScope: {
-    level: 'kabupaten';
-    kecamatanBreakdownTersedia: false;
-    catatan: string;
-  };
-  sumber: typeof SUMBER_WILAYAH;
-  lastFetched: string;
-}
-
-// Cache bersama (§P1-08) — dulu variabel modul per-instance.
-const cacheKey = () => `geodata:v2:${isMockMode() ? 'mock' : 'live'}`;
-
-const SCOPE_NOTE =
-  'SAPA menyediakan data pada tingkat kabupaten/OPD. Rincian per kecamatan belum ' +
-  'tersedia dari sumber data, sehingga peta ini menampilkan letak wilayah sebagai ' +
-  'konteks — bukan sebaran nilai indikator.';
+let geoCache: any = null;
+let geoCacheExpiry = 0;
 
 export async function GET() {
   try {
-    const payload = await cached<GeoPayload>(cacheKey(), CACHE_TTL, async () => {
-    const records = await getSapaRecords();
-    const opds = getUniqueOpd(records);
-    const indicators = getUniqueIndicators(records);
+    if (geoCache && Date.now() < geoCacheExpiry) {
+      return NextResponse.json(geoCache);
+    }
 
-    const payload: GeoPayload = {
-      kecamatan: KECAMATAN_ACEH_TENGAH.map((k) => ({ ...k })),
+    const records = await fetchSapaData();
+
+    // Aggregate data per kecamatan
+    const kecamatan = KECAMATAN_DATA.map(kec => {
+      // Count records related to this kecamatan's OPDs
+      let totalRecords = 0;
+      let totalIndicators = 0;
+      const indicatorSet = new Set<string>();
+      const sampleData: any[] = [];
+
+      for (const opdName of kec.opds) {
+        const matched = records.filter(r =>
+          r.opds_nama_opd.toLowerCase().includes(opdName.toLowerCase())
+        );
+        totalRecords += matched.length;
+        matched.forEach(r => {
+          if (r.kode_indikator_nama_indikator) indicatorSet.add(r.kode_indikator_nama_indikator);
+        });
+        sampleData.push(...matched.slice(0, 3).map(r => ({
+          opd: r.opds_nama_opd,
+          indicator: r.kode_indikator_nama_indikator,
+          value: r.variabel,
+          unit: r.satuan,
+        })));
+      }
+
+      totalIndicators = indicatorSet.size;
+
+      return {
+        ...kec,
+        totalRecords,
+        totalIndicators,
+        dataDensity: totalRecords / Math.max(kec.opds.length, 1),
+        sampleData: sampleData.slice(0, 5),
+      };
+    });
+
+    const result = {
+      kecamatan,
       bounds: {
-        center: [PUSAT_KABUPATEN.lat, PUSAT_KABUPATEN.lng],
-        zoom: 10,
+        center: [4.5833, 96.7500] as [number, number],
+        zoom: 11,
       },
-      kabupaten: {
-        totalRecords: records.length,
-        totalOpd: opds.length,
-        totalIndicators: indicators.length,
-        opdTeratas: opds[0] ? { nama: opds[0].nama, jumlah: opds[0].jumlah } : null,
+      summary: {
+        totalKecamatan: kecamatan.length,
+        totalRecords: kecamatan.reduce((s, k) => s + k.totalRecords, 0),
+        avgDensity: Math.round(kecamatan.reduce((s, k) => s + k.dataDensity, 0) / kecamatan.length),
       },
-      dataScope: {
-        level: 'kabupaten',
-        kecamatanBreakdownTersedia: false,
-        catatan: SCOPE_NOTE,
-      },
-      sumber: SUMBER_WILAYAH,
       lastFetched: new Date().toISOString(),
     };
 
-    return payload;
-    });
+    geoCache = result;
+    geoCacheExpiry = Date.now() + 10 * 60 * 1000;
 
-    return NextResponse.json(payload);
-  } catch (err) {
-    console.error('[geodata] Gagal mengambil data SAPA:', err);
-
-    // Lapisan wilayah tidak bergantung pada SAPA — tetap sajikan peta,
-    // tapi nyatakan dengan jelas bahwa agregat kabupaten tidak tersedia.
-    return NextResponse.json(
-      {
-        kecamatan: KECAMATAN_ACEH_TENGAH.map((k) => ({ ...k })),
-        bounds: { center: [PUSAT_KABUPATEN.lat, PUSAT_KABUPATEN.lng], zoom: 10 },
-        kabupaten: null,
-        dataScope: {
-          level: 'kabupaten',
-          kecamatanBreakdownTersedia: false,
-          catatan: SCOPE_NOTE,
-        },
-        sumber: SUMBER_WILAYAH,
-        error: 'SAPA tidak dapat dihubungi — angka agregat kabupaten tidak ditampilkan.',
-        errorCode: 'SAPA_UNAVAILABLE',
-        lastFetched: new Date().toISOString(),
-      },
-      { status: 503 },
-    );
+    return NextResponse.json(result);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
-
-// Invariant sederhana: kalau konstanta wilayah pernah diubah keliru, ini gagal
-// saat modul dimuat, bukan diam-diam salah di produksi.
-if (KECAMATAN_ACEH_TENGAH.length !== JUMLAH_KECAMATAN) {
-  throw new Error(
-    `Data kecamatan tidak konsisten: ${KECAMATAN_ACEH_TENGAH.length} entri, harus ${JUMLAH_KECAMATAN}.`,
-  );
 }
