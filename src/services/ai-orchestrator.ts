@@ -184,6 +184,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 5: Parse & cache
     const result = parseHybridResponse(llmResponse, ctx.filteredData);
+    // Pastikan rekomendasi selalu ada (Gemini sering mengabaikan field ini)
+    if (result.rekomendasi.length === 0) {
+      result.rekomendasi = await ensureRekomendasi(result.narasi, ctx.filteredData);
+    }
     // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
     if (result.visualisasi.tipe === 'none') {
       result.visualisasi = generateAutoChart(ctx.filteredData);
@@ -209,6 +213,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const errorResult: HybridResponse = {
       narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
       visualisasi: { tipe: 'none', konfigurasi: {} },
+      rekomendasi: [],
       dataSource: 'error',
       timestamp: new Date().toISOString(),
     };
@@ -253,6 +258,10 @@ export async function processAIQueryStreaming(
 
     // Step 3: Parse & cache
     const result = parseHybridResponse(llmResponse, ctx.filteredData);
+    // Pastikan rekomendasi selalu ada (Gemini sering mengabaikan field ini)
+    if (result.rekomendasi.length === 0) {
+      result.rekomendasi = await ensureRekomendasi(result.narasi, ctx.filteredData);
+    }
     // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
     if (result.visualisasi.tipe === 'none') {
       result.visualisasi = generateAutoChart(ctx.filteredData);
@@ -278,6 +287,7 @@ export async function processAIQueryStreaming(
     const errorResult: HybridResponse = {
       narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
       visualisasi: { tipe: 'none', konfigurasi: {} },
+      rekomendasi: [],
       dataSource: 'error',
       timestamp: new Date().toISOString(),
     };
@@ -480,6 +490,38 @@ function generateAutoChart(records: SapaRecord[]): { tipe: 'chart' | 'table' | '
 }
 
 /**
+ * Fallback: kalau model tidak mengisi rekomendasi (Gemini sering skip field ini),
+ * panggil LLM sekali lagi secara ringkas HANYA untuk menghasilkan 2-3 rekomendasi
+ * berdasarkan narasi + data. Murah (max_tokens kecil). Kalau tetap gagal, pakai
+ * heuristic dari data SAPA.
+ */
+async function ensureRekomendasi(narasi: string, records: SapaRecord[]): Promise<string[]> {
+  try {
+    const prompt = `Anda asisten kebijakan Pemkab Aceh Tengah. Berdasarkan narasi berikut, buatkan 2-3 poin rekomendasi tindakan NYATA & SPESIFIK untuk Kepala Daerah. Respons HANYA array JSON string, tanpa teks lain.\n\nNARASI:\n${narasi.slice(0, 1500)}`;
+    const out = await callLLM(prompt, { query: 'rekomendasi', data: { ringkasan: { count: records.length } }, konteks: [] });
+    const cleaned = stripReasoningPrefix(out).trim();
+    const m = cleaned.match(/\[[\s\S]*\]/);
+    if (m) {
+      const arr = JSON.parse(m[0]);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.filter((x: any) => typeof x === 'string' && x.trim()).map((x: string) => x.trim()).slice(0, 3);
+      }
+    }
+  } catch (e) {
+    console.error('[AI] ensureRekomendasi gagal:', e);
+  }
+  const top = aggregateByIndicator(records).slice(0, 3);
+  if (top.length > 0) {
+    return [
+      `Tinjau kembali indikator "${top[0].nama}" (${top[0].nilaiNumber} ${top[0].satuan ?? ''}) sebagai prioritas penyusunan kebijakan.`,
+      'Lakukan verifikasi silang data dengan OPD terkait untuk memastikan akurasi sebelum pengambilan keputusan.',
+      'Susun tindak lanjut berbasis data untuk peningkatan layanan publik di Kabupaten Aceh Tengah.',
+    ];
+  }
+  return ['Lengkapi data SAPA untuk mendukung analisis yang lebih mendalam.', 'Koordinasikan antar-OPD guna penyelarasan indikator pembangunan.'];
+}
+
+/**
  * Normalize visualization config to the format the frontend renderer expects:
  * - "metric"  → { metrics: [{label, value, unit}] } (accepts {nilai,satuan,label,detail} from some models)
  * - "table"   → { columns, rows } (accepts {kolom, baris})
@@ -531,7 +573,7 @@ function normalizeVisualization(vis: any): { tipe: 'chart' | 'table' | 'map' | '
         type: cfg.type ?? cfg.jenis ?? 'bar',
         xKey: cfg.xKey ?? cfg.sumbuX ?? 'name',
         data: cfg.data ?? [],
-        lines: cfg.lines ?? cfg.garis ?? cfg.bars ?? [],
+        lines: Array.isArray(cfg.lines) ? cfg.lines : (Array.isArray(cfg.garis) ? cfg.garis : (Array.isArray(cfg.bars) ? cfg.bars : [])),
       },
     };
   }
