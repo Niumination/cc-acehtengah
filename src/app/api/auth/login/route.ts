@@ -27,7 +27,7 @@ const INVALID_CREDENTIALS = 'Username atau password salah';
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
 
-  const ipLimit = checkRateLimit({
+  const ipLimit = await checkRateLimit({
     key: `login:ip:${ip}`,
     limit: MAX_ATTEMPTS_PER_IP,
     windowMs: WINDOW_MS,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const { username, password } = parsed.data;
 
-  const userLimit = checkRateLimit({
+  const userLimit = await checkRateLimit({
     key: `login:user:${username.toLowerCase()}`,
     limit: MAX_ATTEMPTS_PER_USER,
     windowMs: WINDOW_MS,
@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Login sukses → bersihkan hitungan percobaan.
-    resetRateLimit(`login:user:${username.toLowerCase()}`);
-    resetRateLimit(`login:ip:${ip}`);
+    await resetRateLimit(`login:user:${username.toLowerCase()}`);
+    await resetRateLimit(`login:ip:${ip}`);
 
     const response = NextResponse.json({
       success: true,

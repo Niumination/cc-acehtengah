@@ -1,6 +1,7 @@
 // ─── Audit Log — Catat semua query + error ───
 
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 export interface AuditEntry {
   userId?: string;
@@ -19,7 +20,7 @@ export async function logAudit(entry: AuditEntry) {
           userId: entry.userId,
           query: entry.detail ?? '',
           intent: entry.resource,
-          metadata: entry.metadata as any ?? {},
+          metadata: (entry.metadata ?? {}) as Prisma.InputJsonValue,
         },
       });
     }

@@ -37,9 +37,17 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan AI (Auth)** | ✅ | `/dashboard/laporan` |
-| Early Warning System | ✅ | `/api/ews` |
+| Early Warning System | 🚧 **belum fungsional** | `/api/ews` |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
+
+> **Catatan status EWS (terverifikasi):** endpoint dan panel UI sudah ada, tetapi
+> **belum ada satu pun kode yang membuat `EwsAlert`**. Rantai datanya putus:
+> `EwsAlert` → butuh `Indicator` → butuh `Dataset`, sedangkan `Dataset` tidak
+> pernah terisi karena seluruh data diambil langsung dari SAPA tanpa disimpan.
+> Akibatnya panel EWS akan selalu menampilkan "Semua indikator dalam batas
+> normal". Menyalakannya butuh R1 (data warehouse SAPA) lebih dulu — lihat
+> `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 dan roadmap R1–R2.
 
 ## Auth System
 
@@ -129,5 +137,5 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `deepseek-v4-flash-free` | |
+| `AI_MODEL` | `nemotron-3-ultra-free` | |
 | `JWT_SECRET` | random string (min. 32 char) | **WAJIB** — app fail-closed tanpa ini. `openssl rand -base64 48` |

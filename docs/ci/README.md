@@ -23,12 +23,13 @@ git add .github/workflows/ci.yml && git commit -m "ci: aktifkan workflow" && git
 | Typecheck | `npm run typecheck` | ✅ |
 | Unit test | `npm test` | ✅ |
 | Build | `npm run build` | ✅ |
-| Lint | `npm run lint` | ❌ sementara |
+| Lint | `npm run lint` | ✅ |
 | Audit | `npm audit --audit-level=high` | ❌ sementara |
 
-Lint dan audit masih `continue-on-error` karena tersisa pelanggaran
-`no-explicit-any` dari kode lama (Sprint 2) dan satu rantai kerentanan
-dev-only pada Prisma 6. Hapus `continue-on-error` setelah keduanya bersih.
+Lint sudah blocking sejak Sprint 2 (0 pelanggaran). Audit masih
+`continue-on-error` karena tersisa satu rantai kerentanan dev-only
+(`prisma` → `@prisma/config` → `deepmerge-ts`) yang butuh Prisma 6→7.
+Hapus `continue-on-error` setelah upgrade tersebut.
 
 ## Secret yang dibutuhkan
 

@@ -4,8 +4,9 @@
 
 interface LLMInput {
   query: string;
-  data?: any;
-  konteks?: any[];
+  /** Payload data terkompilasi untuk prompt — bentuknya ditentukan orchestrator. */
+  data?: unknown;
+  konteks?: unknown[];
 }
 
 function getConfig() {

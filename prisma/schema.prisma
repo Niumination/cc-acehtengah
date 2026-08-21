@@ -7,75 +7,160 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Metadata SKPK/OPD ───
-model Skpd {
-  id        String   @id @default(cuid())
-  kode      String   @unique
-  nama      String
-  kategori  KategoriSkpd
-  alamat    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  datasets  Dataset[]
+// ═══════════════════════════════════════════════════════════════════
+//  R1 — Gudang data SAPA (ternormalisasi)
+//
+//  LATAR BELAKANG (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-10)
+//
+//  Skema lama memiliki Skpd / Dataset / DatasetRecord / Indicator yang
+//  TIDAK PERNAH TERISI: seluruh data diambil langsung dari SAPA setiap
+//  request tanpa disimpan. Akibat berantainya:
+//    • dashboard mati total setiap kali SAPA tidak dapat dihubungi
+//    • tidak ada data historis → tren antar-tahun mustahil dihitung
+//    • EwsAlert butuh Indicator yang butuh Dataset → EWS tidak akan
+//      pernah bisa memunculkan alert
+//    • DatasetRecord.data menyimpan SELURUH larik SAPA sebagai satu blob
+//      JSON → tidak dapat di-query maupun di-index
+//
+//  Model lama dihapus dan diganti tiga tabel ternormalisasi di bawah.
+// ═══════════════════════════════════════════════════════════════════
+
+/// Organisasi Perangkat Daerah penyedia data. `id` = `id_opds` dari SAPA.
+model SapaOpd {
+  id           Int               @id
+  nama         String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  observations SapaObservation[]
+
+  @@index([nama])
 }
 
-enum KategoriSkpd {
-  DINAS
-  BADAN
-  KANTOR
-  SEKRETARIAT
-  KECAMATAN
-  PUSKESMAS
-  LAINNYA
+/// Indikator. `id` = `id_kode_indikator` dari SAPA — kunci join yang benar
+/// (bukan `kode_indikator_kode_indikator`, lihat §P1-05a).
+model SapaIndicator {
+  id           Int                  @id
+  kode         String?
+  nama         String
+  satuan       String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  observations SapaObservation[]
+  thresholds   IndicatorThreshold[]
+  alerts       EwsAlert[]
+
+  @@index([nama])
 }
 
-model Dataset {
-  id              String          @id @default(cuid())
-  skpdId          String
-  skpd            Skpd            @relation(fields: [skpdId], references: [id])
-  nama            String
-  slug            String          @unique
-  deskripsi       String?
-  schema          Json
-  endpointSplp    String?
-  refreshInterval Int?
-  isActive        Boolean         @default(true)
-  lastSync        DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  records         DatasetRecord[]
-  indicators      Indicator[]
+/// Satu nilai indikator dari satu OPD pada satu periode.
+/// Inilah pengganti DatasetRecord yang dulu berupa blob JSON.
+model SapaObservation {
+  id           String        @id @default(cuid())
+  indicatorId  Int
+  indicator    SapaIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  opdId        Int
+  opd          SapaOpd       @relation(fields: [opdId], references: [id], onDelete: Cascade)
+  /// null berarti SAPA tidak mencantumkan tahun ("terbaru").
+  tahun        String?
+  /// Nilai mentah apa adanya dari SAPA — selalu disimpan agar dapat diaudit.
+  nilaiTeks    String
+  /// Hasil parsing numerik; null bila nilai tidak dapat diangkakan.
+  nilaiNumerik Float?
+  satuan       String?
+  jadwal       String?
+  fetchedAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  /// Satu nilai per (indikator, OPD, tahun) — sinkronisasi bersifat upsert.
+  @@unique([indicatorId, opdId, tahun])
+  @@index([indicatorId, tahun])
+  @@index([opdId])
 }
 
-model DatasetRecord {
-  id        String   @id @default(cuid())
-  datasetId String
-  dataset   Dataset  @relation(fields: [datasetId], references: [id])
-  data      Json
-  periode   String
-  checksum  String?
-  fetchedAt DateTime @default(now())
+/// Catatan setiap kali sinkronisasi dijalankan — untuk audit & pemantauan.
+model SapaSyncRun {
+  id             String     @id @default(cuid())
+  startedAt      DateTime   @default(now())
+  finishedAt     DateTime?
+  status         SyncStatus @default(RUNNING)
+  recordCount    Int        @default(0)
+  opdCount       Int        @default(0)
+  indicatorCount Int        @default(0)
+  alertsCreated  Int        @default(0)
+  durationMs     Int?
+  error          String?
+
+  @@index([startedAt])
 }
 
-model Indicator {
-  id          String      @id @default(cuid())
-  datasetId   String
-  dataset     Dataset     @relation(fields: [datasetId], references: [id])
-  nama        String
-  satuan      String
-  threshold   Float?
-  direction   Direction   @default(STABLE)
-  isKunci     Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  R2 — Early Warning System yang benar-benar berfungsi
+//
+//  Sebelumnya EwsAlert tidak pernah dibuat oleh kode mana pun. Kini
+//  ambang batas didefinisikan eksplisit per indikator, lalu evaluator
+//  membandingkannya dengan observasi terbaru setiap kali sinkronisasi
+//  selesai.
+// ═══════════════════════════════════════════════════════════════════
+
+/// Ambang batas yang memicu peringatan untuk satu indikator.
+model IndicatorThreshold {
+  id          String            @id @default(cuid())
+  indicatorId Int
+  indicator   SapaIndicator     @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  operator    ThresholdOperator
+  nilai       Float
+  severity    Severity          @default(WARNING)
+  /// Pesan kustom; bila kosong, evaluator menyusun pesan otomatis.
+  pesan       String?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   alerts      EwsAlert[]
+
+  @@unique([indicatorId, operator, nilai])
+  @@index([isActive])
 }
 
-enum Direction {
-  UP_BAD
-  UP_GOOD
-  STABLE
+enum ThresholdOperator {
+  GT
+  GTE
+  LT
+  LTE
 }
+
+model EwsAlert {
+  id          String             @id @default(cuid())
+  thresholdId String
+  threshold   IndicatorThreshold @relation(fields: [thresholdId], references: [id], onDelete: Cascade)
+  indicatorId Int
+  indicator   SapaIndicator      @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  nilaiAktual Float
+  batas       Float
+  pesan       String
+  severity    Severity           @default(WARNING)
+  tahun       String?
+  resolvedAt  DateTime?
+  createdAt   DateTime           @default(now())
+
+  @@index([resolvedAt, severity])
+  @@index([indicatorId])
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Log kueri AI & autentikasi admin
+// ═══════════════════════════════════════════════════════════════════
 
 model ChatSession {
   id         String   @id @default(cuid())
@@ -85,38 +170,22 @@ model ChatSession {
   aiResponse Json?
   metadata   Json?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([intent])
 }
 
-// ─── Admin Auth ───
 model Admin {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String   // bcrypt hash
+  id        String    @id @default(cuid())
+  username  String    @unique
+  password  String // hash bcrypt
   nama      String
   role      AdminRole @default(ADMIN)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
 }
 
 enum AdminRole {
   ADMIN
   SUPERADMIN
-}
-
-model EwsAlert {
-  id          String   @id @default(cuid())
-  indicatorId String
-  indicator   Indicator @relation(fields: [indicatorId], references: [id])
-  nilaiAktual Float
-  threshold   Float
-  pesan       String
-  severity    Severity @default(WARNING)
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-}
-
-enum Severity {
-  INFO
-  WARNING
-  CRITICAL
 }

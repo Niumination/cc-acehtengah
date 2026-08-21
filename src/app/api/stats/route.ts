@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
-import { getSapaRecords } from '@/lib/data-source';
+import { getSapaRecords, isMockMode } from '@/lib/data-source';
+import { cached } from '@/lib/store';
 
-// In-memory cache for stats (10 minutes)
-let statsCache: any = null;
-let statsCacheTime = 0;
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+// Cache BERSAMA (§P1-08). Dulu variabel modul: di serverless setiap instance
+// punya salinan sendiri sehingga dua pengguna bisa melihat angka berbeda.
 const CACHE_TTL = 10 * 60 * 1000;
+const cacheKey = () => `stats:v2:${isMockMode() ? 'mock' : 'live'}`;
 
 export async function GET() {
   try {
-    // Return cached if fresh
-    if (statsCache && Date.now() - statsCacheTime < CACHE_TTL) {
-      return NextResponse.json(statsCache);
-    }
-
+    const stats = await cached(cacheKey(), CACHE_TTL, async () => {
     // Fetch live SAPA data
     const records = await getSapaRecords();
     const opds = getUniqueOpd(records);
@@ -72,7 +72,7 @@ export async function GET() {
       kategoriDistribusi.set(kategori, (kategoriDistribusi.get(kategori) || 0) + 1);
     }
 
-    const stats = {
+      const stats = {
       overview: {
         totalRecords: records.length,
         totalOpd: opds.length,
@@ -98,9 +98,8 @@ export async function GET() {
       })),
     };
 
-    // Cache
-    statsCache = stats;
-    statsCacheTime = Date.now();
+      return stats;
+    });
 
     return NextResponse.json(stats);
   } catch (err) {

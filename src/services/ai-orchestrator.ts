@@ -1,7 +1,7 @@
 // ─── AI Orchestrator — SAPA + Cloud AI (Optimized + Streaming) ───
 
 import { detectIntent } from './intent-detector';
-import { callLLM, streamLLM, extractNarasiPartial } from './llm-client';
+import { streamLLM } from './llm-client';
 import { retrieveContext } from './rag-retriever';
 import {
   filterByOpd,
@@ -13,46 +13,44 @@ import {
   tokenizeQuery,
   type SapaRecord,
 } from '@/lib/sapa-client';
-import { getSapaRecords } from '@/lib/data-source';
+import { getSapaRecords, isMockMode } from '@/lib/data-source';
+import { cached, cacheGet, cacheSet } from '@/lib/store';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
-import { ensureChatSessionTable } from '@/lib/db-migration';
+import type { Prisma } from '@prisma/client';
 
-// ─── SAPA Data Cache (10 menit) ───
-let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
+// ─── Cache BERSAMA (§P1-08) ───
+// Dulu dua Map di tingkat modul. Di serverless setiap instance punya salinan
+// sendiri sehingga hit-rate rendah dan hasil tidak konsisten antar pengguna.
+// Kunci kueri juga dinormalkan — dulu "berapa OPD" dan "berapa  OPD" dianggap
+// dua kueri berbeda sehingga selalu meleset.
 const SAPA_CACHE_TTL = 10 * 60 * 1000;
+const LLM_CACHE_TTL = 5 * 60 * 1000;
 
 async function getCachedSapaData(): Promise<SapaRecord[]> {
-  if (sapaCache && sapaCache.expiresAt > Date.now()) {
-    return sapaCache.records;
-  }
-  const records = await getSapaRecords();
-  sapaCache = { records, expiresAt: Date.now() + SAPA_CACHE_TTL };
-  return records;
+  return cached<SapaRecord[]>(
+    `sapa:records:${isMockMode() ? 'mock' : 'live'}`,
+    SAPA_CACHE_TTL,
+    getSapaRecords,
+  );
 }
 
-// ─── LLM Response Cache (5 menit) ───
-const queryCache = new Map<string, { response: HybridResponse; expiresAt: number }>();
-
-function getCached(query: string): HybridResponse | null {
-  const cached = queryCache.get(query);
-  if (cached && cached.expiresAt > Date.now()) return cached.response;
-  queryCache.delete(query);
-  return null;
+function queryCacheKey(query: string): string {
+  return `llm:${isMockMode() ? 'mock' : 'live'}:${normalizeText(query)}`;
 }
 
-function setCache(query: string, response: HybridResponse) {
-  queryCache.set(query, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
-  if (queryCache.size > 50) {
-    const oldest = queryCache.keys().next().value;
-    if (oldest) queryCache.delete(oldest);
-  }
+async function getCachedResponse(query: string): Promise<HybridResponse | null> {
+  return cacheGet<HybridResponse>(queryCacheKey(query));
+}
+
+async function setCachedResponse(query: string, response: HybridResponse): Promise<void> {
+  await cacheSet(queryCacheKey(query), response, LLM_CACHE_TTL);
 }
 
 // ─── Core pipeline: intent + fetch + filter + build context ───
 async function buildContext(query: string) {
   const intent = await detectIntent(query);
-  const opdFilter = (intent as any).opdFilter as string | undefined;
+  const opdFilter = intent.opdFilter;
 
   const allRecords = await getCachedSapaData();
 
@@ -144,83 +142,20 @@ async function saveChatSession(params: {
   query: string;
   intent: string;
   result: HybridResponse;
-  metadata: Record<string, any>;
+  metadata: Prisma.InputJsonObject;
 }) {
   try {
     await prisma.chatSession.create({
       data: {
         query: params.query,
         intent: params.intent,
-        aiResponse: params.result as any,
+        aiResponse: params.result as unknown as Prisma.InputJsonValue,
         metadata: params.metadata,
       },
     });
   } catch (dbErr) {
     // Jangan sampai error DB menggagalkan response ke user
     console.error('[AI] DB save failed (non-blocking):', dbErr);
-  }
-}
-
-export async function processAIQuery(query: string): Promise<HybridResponse> {
-  const cached = getCached(query);
-  if (cached) return cached;
-
-  const startedAt = Date.now();
-  const steps: Record<string, number> = {};
-
-  try {
-    // Step 1-3: intent + fetch + filter (context build)
-    const ctx = await buildContext(query);
-    steps.context = Date.now() - startedAt;
-
-    // Step 4: Panggil LLM (non-streaming fallback path)
-    const llmStarted = Date.now();
-    const llmResponse = await callLLM(ctx.systemPrompt, {
-      query,
-      data: ctx.dataForLLM,
-      konteks: ctx.konteksRegulasi,
-    });
-    steps.llm = Date.now() - llmStarted;
-
-    // Step 5: Parse & cache
-    const result = parseHybridResponse(llmResponse, ctx.filteredData);
-    // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
-    if (result.visualisasi.tipe === 'none') {
-      result.visualisasi = generateAutoChart(ctx.filteredData);
-    }
-
-    // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
-    const metadata = {
-      opdFilter: ctx.opdFilter || null,
-      totalData: ctx.allRecords.length,
-      filteredCount: ctx.filteredData.length,
-      matchedCount: ctx.matchedRecords.length,
-      latencyMs: Date.now() - startedAt,
-      stepsMs: steps,
-      model: process.env.AI_MODEL,
-      streamed: false,
-    };
-    void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
-
-    setCache(query, result);
-    return result;
-  } catch (err) {
-    console.error('[AI] Fallback triggered:', err);
-    const errorResult: HybridResponse = {
-      narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
-      visualisasi: { tipe: 'none', konfigurasi: {} },
-      dataSource: 'error',
-      timestamp: new Date().toISOString(),
-    };
-
-    void saveChatSession({
-      query,
-      intent: 'error',
-      result: errorResult,
-      metadata: { error: err instanceof Error ? err.message : 'Unknown', latencyMs: Date.now() - startedAt },
-    });
-
-    return errorResult;
   }
 }
 
@@ -233,8 +168,8 @@ export async function processAIQueryStreaming(
   onStatus: (status: string) => void,
   onChunk: (delta: string) => void,
 ): Promise<HybridResponse> {
-  const cached = getCached(query);
-  if (cached) return cached;
+  const hit = await getCachedResponse(query);
+  if (hit) return hit;
 
   const startedAt = Date.now();
   const steps: Record<string, number> = {};
@@ -252,7 +187,7 @@ export async function processAIQueryStreaming(
     steps.llm = Date.now() - llmStarted;
 
     // Step 3: Parse & cache
-    const result = parseHybridResponse(llmResponse, ctx.filteredData);
+    const result = parseHybridResponse(llmResponse);
     // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
     if (result.visualisasi.tipe === 'none') {
       result.visualisasi = generateAutoChart(ctx.filteredData);
@@ -266,12 +201,12 @@ export async function processAIQueryStreaming(
       matchedCount: ctx.matchedRecords.length,
       latencyMs: Date.now() - startedAt,
       stepsMs: steps,
-      model: process.env.AI_MODEL,
+      model: process.env.AI_MODEL ?? null,
       streamed: true,
     };
     void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
-    setCache(query, result);
+    await setCachedResponse(query, result);
     return result;
   } catch (err) {
     console.error('[AI] Streaming fallback triggered:', err);
@@ -292,9 +227,6 @@ export async function processAIQueryStreaming(
     return errorResult;
   }
 }
-
-/** Extract progressive narasi from accumulated LLM stream (for live rendering). */
-export { extractNarasiPartial };
 
 function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
   return `Anda adalah AI Command Center Pemerintah Kabupaten Aceh Tengah.
@@ -333,7 +265,7 @@ FORMAT JSON:
  * Robust JSON extraction — handles markdown code fences (```json ... ```),
  * surrounding prose, and truncated-but-complete objects.
  */
-function extractJsonObject(raw: string): any | null {
+function extractJsonObject(raw: string): Record<string, unknown> | null {
   // Strip markdown code fences
   let cleaned = raw.replace(/```(?:json)?/gi, '').trim();
 
@@ -371,7 +303,7 @@ function extractJsonObject(raw: string): any | null {
   return null;
 }
 
-function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {
+function parseHybridResponse(raw: string): HybridResponse {
   try {
     const parsed = extractJsonObject(raw) ?? JSON.parse(raw);
     return {
@@ -395,7 +327,7 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
  * Auto-generate a statistical chart from SAPA records when the model
  * didn't provide a visualization. Uses aggregated indicator values.
  */
-function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi: Record<string, any> } {
+function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi: Record<string, unknown> } {
   const aggregated = aggregateByIndicator(records);
   const entries = aggregated.slice(0, 10);
   if (entries.length < 2) {
@@ -424,11 +356,30 @@ function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi:
  * - "chart"   → { type, xKey, data, lines } (accepts {jenis, sumbuX, data, garis})
  * - "none"    → {}
  */
-function normalizeVisualization(vis: any): { tipe: 'chart' | 'table' | 'map' | 'metric' | 'none'; konfigurasi: Record<string, any> } {
-  const rawTipe = vis?.tipe ?? 'none';
-  const tipe: 'chart' | 'table' | 'map' | 'metric' | 'none' =
-    ['chart', 'table', 'map', 'metric', 'none'].includes(rawTipe) ? rawTipe : 'none';
+interface RawVisualization {
+  tipe?: string;
+  konfigurasi?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+function normalizeVisualization(vis: RawVisualization | null | undefined): {
+  tipe: 'chart' | 'table' | 'map' | 'metric' | 'none';
+  konfigurasi: Record<string, unknown>;
+} {
+  // Payload berasal dari LLM: bentuknya tidak dijamin, jadi divalidasi ketat
+  // di sini alih-alih di-cast ke `any` (§P1-12).
+  const VALID_TIPE = ['chart', 'table', 'map', 'metric', 'none'] as const;
+  type Tipe = (typeof VALID_TIPE)[number];
+
+  const rawTipe = vis?.tipe;
+  const tipe: Tipe = VALID_TIPE.includes(rawTipe as Tipe) ? (rawTipe as Tipe) : 'none';
   const cfg = vis?.konfigurasi ?? {};
+
+  /** Ambil nilai skalar dari payload LLM secara aman. */
+  const asText = (v: unknown, fallback = ''): string =>
+    typeof v === 'string' || typeof v === 'number' ? String(v) : fallback;
+  const asValue = (v: unknown): string | number =>
+    typeof v === 'string' || typeof v === 'number' ? v : '';
 
   if (tipe === 'metric') {
     // Format A (deepseek): { metrics: [{label, value, unit}] }
@@ -436,16 +387,21 @@ function normalizeVisualization(vis: any): { tipe: 'chart' | 'table' | 'map' | '
       return { tipe, konfigurasi: { metrics: cfg.metrics } };
     }
     // Format B (ling): { nilai, satuan, label, detail: [{label, nilai, satuan}] }
-    const metrics: any[] = [];
+    const metrics: { label: string; value: string | number; unit?: string }[] = [];
     if (cfg.nilai != null) {
-      metrics.push({ label: cfg.label ?? 'Nilai', value: cfg.nilai, unit: cfg.satuan ?? '' });
+      metrics.push({
+        label: asText(cfg.label, 'Nilai'),
+        value: asValue(cfg.nilai),
+        unit: asText(cfg.satuan),
+      });
     }
     if (Array.isArray(cfg.detail)) {
-      for (const d of cfg.detail) {
+      for (const item of cfg.detail) {
+        const d = (item ?? {}) as Record<string, unknown>;
         metrics.push({
-          label: d.label ?? 'Nilai',
-          value: d.nilai ?? d.value,
-          unit: d.satuan ?? d.unit ?? '',
+          label: asText(d.label, 'Nilai'),
+          value: asValue(d.nilai ?? d.value),
+          unit: asText(d.satuan ?? d.unit),
         });
       }
     }

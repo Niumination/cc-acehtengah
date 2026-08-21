@@ -29,7 +29,7 @@ function sse(event: string, data: unknown): string {
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
 
-  const perMinute = checkRateLimit({
+  const perMinute = await checkRateLimit({
     key: `query:m:${ip}`,
     limit: RATE_LIMIT_PER_MINUTE,
     windowMs: 60 * 1000,
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const perHour = checkRateLimit({
+  const perHour = await checkRateLimit({
     key: `query:h:${ip}`,
     limit: RATE_LIMIT_PER_HOUR,
     windowMs: 60 * 60 * 1000,
