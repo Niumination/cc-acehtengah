@@ -89,7 +89,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="px-5 py-2 bg-[var(--brand)] text-white rounded-xl text-sm font-medium hover:bg-[var(--brand-soft)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[var(--brand)]/20 flex items-center gap-2"
+          className="px-5 py-2 bg-[var(--brand)] text-[var(--on-brand)] rounded-xl text-sm font-medium hover:bg-[var(--brand-soft)] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[var(--brand)]/20 flex items-center gap-2"
         >
           {isLoading ? (
             <>

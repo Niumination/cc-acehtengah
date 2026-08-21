@@ -165,7 +165,7 @@ export default function DashboardPage() {
           <p className="text-sm text-[var(--danger)] mb-4">{error}</p>
           <button
             onClick={handleReset}
-            className="px-4 py-2 bg-[var(--brand)] text-white text-sm rounded-lg hover:bg-[var(--brand-soft)]"
+            className="px-4 py-2 bg-[var(--brand)] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[var(--brand-soft)]"
           >
             Kembali ke Beranda
           </button>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
 
       {mode === 'ai-response' && isLoading && (
         <div className="bg-[var(--surface-muted)] border border-[var(--border)] rounded-2xl p-12 text-center">
-          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-[var(--brand)]/20 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-4" style={{ animation: 'spin 0.8s linear infinite' }} />
           <p className="text-sm text-[var(--text-muted)]">{statusText ?? 'AI sedang menganalisis data SAPA...'}</p>
           {liveNarasi ? (
             <div className="mt-4 max-w-2xl mx-auto text-left">

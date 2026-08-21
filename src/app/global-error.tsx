@@ -43,7 +43,7 @@ export default function GlobalError({
               borderRadius: 8,
               border: 'none',
               background: 'var(--brand)',
-              color: '#fff',
+              color: 'var(--on-brand)',
               fontSize: '0.875rem',
               cursor: 'pointer',
             }}
