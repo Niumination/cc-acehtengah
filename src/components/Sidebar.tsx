@@ -25,17 +25,17 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`flex flex-col h-full border-r border-[#C6C3B4] bg-[#FFFFFF] transition-all duration-300 ease-in-out ${
+      className={`flex flex-col h-full border-r border-[var(--border-strong)] bg-[var(--surface-card)] transition-all duration-300 ease-in-out ${
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
       {/* Header — Hamburger + Logo */}
-      <div className={`border-b border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'} bg-[#0F2A1E]`}>
+      <div className={`bg-[var(--brand-deep)] flex h-[61px] items-center ${collapsed ? 'px-2' : 'px-4'}`}>
         <div className="flex items-center gap-2.5">
           {/* Hamburger Button */}
           <button
             onClick={onToggle}
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 bg-[#1B4332] hover:bg-[#2D6A4F] text-[#C6C3B4] hover:text-white border border-[#2D6A4F]"
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 bg-[var(--brand)] hover:bg-[var(--brand-soft)] text-[var(--on-brand-muted)] hover:text-[var(--on-brand)] border border-[var(--brand-soft)]"
             title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,7 +47,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-              <p className="text-[10px] text-[#C6C3B4] font-medium">Command Center</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-medium">Command Center</p>
             </div>
           )}
         </div>

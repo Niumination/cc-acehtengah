@@ -216,7 +216,7 @@ export default function GisPage() {
           <div className="text-center">
             <div className="text-4xl mb-3">⚠️</div>
             <p className="text-sm text-[#B3261E] mb-3">{error}</p>
-            <button onClick={fetchData} className="px-4 py-2 bg-[#1B4332] text-white text-sm rounded-lg hover:bg-[#2D6A4F]">
+            <button onClick={fetchData} className="px-4 py-2 bg-[#1B4332] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[#2D6A4F]">
               Coba Lagi
             </button>
           </div>
@@ -290,7 +290,7 @@ export default function GisPage() {
 
 function SummaryCard({ icon, label, value, sub }: { icon: string; label: string; value: number; sub: string }) {
   return (
-    <div className="bg-[#FFFFFF] rounded-2xl border border-[#C6C3B4] p-5">
+    <div className="bg-[var(--surface-card)] rounded-2xl border border-[#C6C3B4] p-5">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#E9E6DA] flex items-center justify-center text-lg">{icon}</div>
         <div>

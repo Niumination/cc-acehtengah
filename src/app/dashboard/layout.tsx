@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
         {/* Header — dark forest, matches cc.acehtengahkab.go.id */}
-        <header className="bg-[#0F2A1E] border-b border-[#1B4332] px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <header className="bg-[var(--brand-deep)] border-b border-[var(--brand)] px-4 flex h-[61px] items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             {/* Official Logo */}
             <img
@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <h1 className="text-sm font-bold tracking-wide text-white">
                 Command Center
               </h1>
-              <p className="text-[10px] uppercase tracking-widest text-[#C6C3B4]">
+              <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
                 Aceh Tengah · Diskominfo
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 w-6 h-14 rounded-l-lg flex items-center justify-center transition-all duration-200 shadow-lg ${
             ewsOpen
               ? 'hidden'
-              : 'bg-[#FFFFFF] hover:bg-[#E9E6DA] text-[#767D6F] hover:text-[#1B4332] border border-r-0 border-[#C6C3B4]'
+              : 'bg-[var(--surface-card)] hover:bg-[#E9E6DA] text-[#767D6F] hover:text-[#1B4332] border border-r-0 border-[#C6C3B4]'
           }`}
           title="Tampilkan panel EWS"
         >
@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ewsOpen ? 'w-72' : 'w-0'
         }`}
       >
-        <div className="w-72 h-full border-l border-[#C6C3B4] p-4 overflow-y-auto bg-[#FFFFFF]">
+        <div className="w-72 h-full border-l border-[#C6C3B4] p-4 overflow-y-auto bg-[var(--surface-card)]">
           <div className="flex items-center justify-between mb-3">
             <EwsPanel />
             <button

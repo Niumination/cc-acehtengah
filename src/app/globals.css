@@ -33,6 +33,68 @@
   --danger-light: #FBE3DE;
   --error: #B3261E;
   --error-container: #FBE3DE;
+
+  /* ── Token semantik (dari 170fda4, tanpa color-scheme paksa) ──
+     Dipakai perbaikan UI header/sidebar/GIS/mainpage agar konsisten
+     dan bisa diaudit kontras terpusat. */
+  --surface-card: #FFFFFF;       /* kartu */
+  --surface-muted: #E9E6DA;      /* blok sekunder */
+  --surface-muted-2: #E1DDCD;
+  --text: #1E2420;
+  --text-body: #4B5249;
+  --text-muted: #5C6358;
+  --border: #9A9683;
+  --border-strong: #7E7A6A;
+  --brand: #1B4332;
+  --brand-soft: #2D6A4F;
+  --brand-deep: #0F2A1E;         /* header */
+  --brand-tint: #DCE8DE;
+  --on-brand: #FFFFFF;
+  --on-brand-muted: #E3E0D2;
+  --danger-tint: #FBE3DE;
+  --warning-tint: #F1E4C2;
+  --accent-tint: #F3DCC9;
+  /* alias agar token lama & baru sama */
+  --background: var(--surface);
+  --foreground: var(--text);
+  --primary: var(--brand);
+  --on-primary: var(--on-brand);
+  --outline: var(--text-muted);
+  --outline-variant: var(--border);
+  --success: var(--brand-soft);
+}
+
+/* ── Tema gelap (opsional, videotron) ── */
+[data-theme='dark'] {
+  --surface: #10150F;
+  --surface-card: #1A211A;
+  --surface-muted: #232B22;
+  --surface-muted-2: #2C352B;
+  --text: #F2F0E6;
+  --text-body: #D7D3C4;
+  --text-muted: #ABA694;
+  --border: #3D473C;
+  --border-strong: #6E7A6C;
+  --brand: #7FD1A4;
+  --brand-soft: #52B788;
+  --brand-deep: #0B1810;
+  --brand-tint: #1E3327;
+  --on-brand: #08120C;
+  --on-brand-muted: #C9D4C7;
+  --danger: #F2A9A2;
+  --danger-tint: #3A1D1A;
+  --warning: #E7CD8A;
+  --warning-tint: #33290F;
+  --accent: #E0A379;
+  --accent-tint: #3A2419;
+  --background: var(--surface);
+  --foreground: var(--text);
+  --primary: var(--brand);
+  --on-primary: var(--on-brand);
+  --outline: var(--text-muted);
+  --outline-variant: var(--border);
+  --success: var(--brand-soft);
+  --error: var(--danger);
 }
 
 @theme inline {
