@@ -981,6 +981,84 @@ merespons benar. `tsc` bersih · `eslint` 0 masalah · **30/30 tes lulus** ·
 
 ---
 
+### ✅ R1 + R2 + P1-08 + Prisma + UX eksekutif (commit `6d52a9a`)
+
+#### R1 — Gudang data SAPA ternormalisasi
+
+Model mati `Skpd`/`Dataset`/`DatasetRecord`/`Indicator` dihapus, diganti
+`SapaOpd`, `SapaIndicator`, `SapaObservation`, `SapaSyncRun`.
+`DatasetRecord.data` yang dulu menyimpan seluruh larik SAPA sebagai satu blob
+JSON kini menjadi baris ternormalisasi dengan kunci unik
+`(indicatorId, opdId, tahun)` — dapat di-query, di-index, dan di-upsert.
+
+**Diverifikasi pada PostgreSQL 18 sungguhan** (PGlite), 9 tes integrasi:
+migrasi, upsert idempoten, `NULLS NOT DISTINCT`, kunci asing, CASCADE.
+
+Migrasi `003_sapa_warehouse_ews.sql` diuji pada 4 skenario:
+
+| Skenario | Hasil |
+|---|---|
+| Basis data baru | tabel terbentuk lengkap ✓ |
+| Upgrade, tabel lama kosong | tabel lama dihapus ✓ |
+| Upgrade, **tabel lama berisi data** | **dipertahankan** + NOTICE ✓ (pagar pengaman) |
+| Dijalankan dua kali | idempoten, tanpa error ✓ |
+
+#### R2 — Early Warning System akhirnya berfungsi
+
+`IndicatorThreshold` (operator GT/GTE/LT/LTE + severity) dan evaluator murni
+di `src/lib/ews-evaluator.ts`. Dijalankan otomatis setiap selesai sinkronisasi.
+
+Aturan yang dikunci **17 tes**: tidak membanjiri notifikasi (satu alert aktif
+per ambang+tahun), auto-resolve saat kondisi membaik, menonaktifkan ambang ikut
+menyelesaikan alert, observasi non-numerik diabaikan, tahun berbeda terpisah.
+Di tingkat basis data, indeks unik parsial
+`(thresholdId, tahun) WHERE resolvedAt IS NULL` menolak alert ganda —
+**diuji nyata**, termasuk bahwa alert baru boleh dibuat setelah yang lama selesai.
+
+`EwsPanel` kini membedakan **tiga** keadaan: tidak diketahui / belum ada yang
+dipantau / benar-benar aman. "0 alert" tanpa ambang batas **tidak** lagi
+ditampilkan sebagai "semua normal".
+
+#### P1-08 — Rate limit & cache lintas instance
+
+`src/lib/store.ts`: Upstash Redis via REST bila dikonfigurasi, otomatis jatuh ke
+memori bila tidak — kegagalan Redis tidak pernah menggagalkan permintaan
+pengguna. `INCR`+`EXPIRE NX`+`PTTL` dalam satu pipeline agar tidak ada jendela
+kunci tanpa masa berlaku. Kunci cache LLM kini dinormalkan (dulu
+`"berapa OPD"` dan `"berapa  OPD"` dianggap berbeda sehingga selalu meleset).
+
+#### Prisma — 0 kerentanan, **tanpa** upgrade mayor
+
+Migrasi Prisma 6→7 **tidak dikerjakan**, dengan alasan yang diuji: `prisma
+generate` v7 tetap memerlukan unduhan engine yang terblokir di lingkungan audit,
+sehingga migrasi mayor lintas seluruh basis kode **tidak dapat diverifikasi sama
+sekali**. Menerapkannya secara buta bertentangan dengan instruksi "jangan ada
+kesalahan".
+
+Sasaran sebenarnya tercapai lewat `overrides: { "deepmerge-ts": "^8.0.1" }`:
+`npm audit` **3 high → found 0 vulnerabilities**. Kompatibilitas dibuktikan
+dengan menjalankan jalur nyata `@prisma/config` (`loadConfigFromFile`,
+`defineConfig`) di atas deepmerge-ts 8. Rencana upgrade Prisma 7 tetap
+dicatat sebagai tindak lanjut untuk lingkungan yang bisa menjalankan `generate`.
+
+#### UX eksekutif
+
+| Fitur | Catatan |
+|---|---|
+| **Mode gelap** | Seluruh warna struktural dikonversi dari hex mati ke 20 token semantik di 15 berkas — 0 hex tersisa pada HTML dashboard. Skrip inline anti-kedip mencegah kilatan putih di ruang kendali |
+| **Kontras kedua tema** | Dikunci 4 tes. Terang: 3,88–15,81. Gelap: 3,24–16,18. **Menyingkap kekurangan Sprint 2**: `--border-strong` `#8A8676` ternyata hanya **2,92:1** pada `--surface-muted` karena dulu hanya diuji terhadap putih → diperbaiki ke `#7E7A6A` |
+| **Ekspor PDF** | Tombol "Simpan sebagai PDF" memakai dialog cetak peramban + `@media print` — tanpa dependency. Tema dipaksa terang, elemen navigasi disembunyikan, kartu tidak terpotong, URL tautan dicetak |
+| **Sort & filter tabel** | Kolom dapat diurutkan (numerik-aware) dengan `aria-sort`, plus penyaring baris ber-`aria-live`. Muncul otomatis bila baris > 8 |
+
+**Gate:** `tsc` bersih · `eslint` **0** · **69 tes unit** + **9 tes integrasi DB**
+· `npm audit` **0 kerentanan** · `next build` sukses tanpa jaringan (27 route)
+· 15 pemeriksaan runtime lolos (0 gagal).
+
+**Berkas siap eksekusi pemilik repo:** `docs/ops/rotasi-secret.md` (daftar
+periksa lengkap + perintah verifikasi) dan `scripts/generate-secrets.mjs`.
+
+---
+
 ## 11. Rencana aksi berurutan
 
 ### Sprint 0 — Hentikan pendarahan (1–2 hari, wajib sebelum publikasi)

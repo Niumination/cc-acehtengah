@@ -99,60 +99,60 @@ export default function AkunPage() {
   };
 
   const inputClass =
-    'w-full rounded-lg border border-[#8A8676] bg-white px-4 py-2.5 text-sm text-[#1E2420] ' +
-    'placeholder-[#5C6358] focus:border-[#1B4332] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30';
+    'w-full rounded-lg border border-[var(--border-strong)] bg-white px-4 py-2.5 text-sm text-[var(--text)] ' +
+    'placeholder-[var(--text-muted)] focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/30';
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <header>
-        <p className="text-xs font-bold uppercase tracking-widest text-[#8A6E1D]">Pengaturan</p>
-        <h1 className="mt-1 text-2xl font-bold text-[#1E2420]">Akun Saya</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-[var(--warning)]">Pengaturan</p>
+        <h1 className="mt-1 text-2xl font-bold text-[var(--text)]">Akun Saya</h1>
       </header>
 
       {/* Profil */}
-      <section className="rounded-2xl border border-[#9A9683] bg-white p-6">
-        <h2 className="mb-4 text-sm font-bold text-[#1B4332]">Informasi Akun</h2>
+      <section className="rounded-2xl border border-[var(--border)] bg-white p-6">
+        <h2 className="mb-4 text-sm font-bold text-[var(--brand)]">Informasi Akun</h2>
         {loadingProfile ? (
-          <p className="text-sm text-[#5C6358]">Memuat…</p>
+          <p className="text-sm text-[var(--text-muted)]">Memuat…</p>
         ) : admin ? (
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <dt className="text-xs uppercase tracking-wider text-[#5C6358]">Nama</dt>
-              <dd className="mt-0.5 text-sm font-semibold text-[#1E2420]">{admin.nama}</dd>
+              <dt className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Nama</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-[var(--text)]">{admin.nama}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-[#5C6358]">Username</dt>
-              <dd className="mt-0.5 text-sm font-semibold text-[#1E2420]">{admin.username}</dd>
+              <dt className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Username</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-[var(--text)]">{admin.username}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-wider text-[#5C6358]">Peran</dt>
-              <dd className="mt-0.5 text-sm font-semibold text-[#1E2420]">{admin.role}</dd>
+              <dt className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Peran</dt>
+              <dd className="mt-0.5 text-sm font-semibold text-[var(--text)]">{admin.role}</dd>
             </div>
           </dl>
         ) : (
-          <p className="text-sm text-[#B3261E]">Sesi tidak terbaca.</p>
+          <p className="text-sm text-[var(--danger)]">Sesi tidak terbaca.</p>
         )}
 
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-5 rounded-lg border border-[#9A9683] px-4 py-2 text-sm font-medium text-[#1B4332] transition-colors hover:bg-[#E9E6DA]"
+          className="mt-5 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--brand)] transition-colors hover:bg-[var(--surface-muted)]"
         >
           Keluar
         </button>
       </section>
 
       {/* Ganti password */}
-      <section className="rounded-2xl border border-[#9A9683] bg-white p-6">
-        <h2 className="text-sm font-bold text-[#1B4332]">Ganti Password</h2>
-        <p className="mt-1 text-sm text-[#5C6358]">
+      <section className="rounded-2xl border border-[var(--border)] bg-white p-6">
+        <h2 className="text-sm font-bold text-[var(--brand)]">Ganti Password</h2>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">
           Minimal {MIN_PASSWORD_LENGTH} karakter. Setelah diganti, Anda perlu masuk kembali.
         </p>
 
         {error && (
           <p
             role="alert"
-            className="mt-4 rounded-lg border border-[#B3261E]/30 bg-[#FBE3DE] px-4 py-3 text-sm text-[#B3261E]"
+            className="mt-4 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-tint)] px-4 py-3 text-sm text-[var(--danger)]"
           >
             {error}
           </p>
@@ -160,7 +160,7 @@ export default function AkunPage() {
         {success && (
           <p
             role="status"
-            className="mt-4 rounded-lg border border-[#2D6A4F]/30 bg-[#DCE8DE] px-4 py-3 text-sm text-[#1B4332]"
+            className="mt-4 rounded-lg border border-[var(--brand-soft)]/30 bg-[var(--brand-tint)] px-4 py-3 text-sm text-[var(--brand)]"
           >
             {success}
           </p>
@@ -168,7 +168,7 @@ export default function AkunPage() {
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="currentPassword" className="mb-1.5 block text-sm text-[#4B5249]">
+            <label htmlFor="currentPassword" className="mb-1.5 block text-sm text-[var(--text-body)]">
               Password saat ini
             </label>
             <input
@@ -184,7 +184,7 @@ export default function AkunPage() {
           </div>
 
           <div>
-            <label htmlFor="newPassword" className="mb-1.5 block text-sm text-[#4B5249]">
+            <label htmlFor="newPassword" className="mb-1.5 block text-sm text-[var(--text-body)]">
               Password baru
             </label>
             <input
@@ -199,13 +199,13 @@ export default function AkunPage() {
               className={inputClass}
               aria-describedby="newPasswordHelp"
             />
-            <p id="newPasswordHelp" className="mt-1 text-xs text-[#5C6358]">
+            <p id="newPasswordHelp" className="mt-1 text-xs text-[var(--text-muted)]">
               Gunakan kombinasi huruf, angka, dan simbol.
             </p>
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="mb-1.5 block text-sm text-[#4B5249]">
+            <label htmlFor="confirmPassword" className="mb-1.5 block text-sm text-[var(--text-body)]">
               Ulangi password baru
             </label>
             <input
@@ -223,7 +223,7 @@ export default function AkunPage() {
           <button
             type="submit"
             disabled={submitting || !currentPassword || !newPassword || !confirmPassword}
-            className="rounded-lg bg-[#1B4332] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#2D6A4F] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-soft)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'Menyimpan…' : 'Simpan Password Baru'}
           </button>

@@ -1,15 +1,8 @@
 // ─── GET /api/ews — Early Warning System ───
 //
-// PERUBAHAN (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-07)
-//
-// Versi sebelumnya menangkap error database lalu mengembalikan
-// `200 {"alerts": []}`. Akibatnya panel EWS menampilkan
-// "Semua indikator dalam batas normal" justru ketika sistem peringatan dini
-// sedang buta total. Untuk sistem EWS, kegagalan senyap yang terlihat seperti
-// kondisi aman adalah kelas kesalahan paling berbahaya.
-//
-// Sekarang: kegagalan dikembalikan sebagai 503 dengan errorCode, sehingga UI
-// bisa membedakan "aman" dari "tidak diketahui".
+// R2: kini membaca alert nyata yang dihasilkan evaluator ambang batas.
+// Tetap mempertahankan pembedaan tiga keadaan dari §P1-07:
+//   ok / unavailable / (0 alert = benar-benar aman).
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -19,23 +12,45 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const alerts = await prisma.ewsAlert.findMany({
-      where: { resolvedAt: null },
-      include: {
-        indicator: {
-          select: { nama: true, satuan: true, dataset: { select: { slug: true, nama: true } } },
+    const [alerts, thresholdCount, lastRun] = await Promise.all([
+      prisma.ewsAlert.findMany({
+        where: { resolvedAt: null },
+        orderBy: [{ severity: 'desc' }, { createdAt: 'desc' }],
+        take: 100,
+        select: {
+          id: true,
+          pesan: true,
+          severity: true,
+          nilaiAktual: true,
+          batas: true,
+          tahun: true,
+          createdAt: true,
+          indicator: { select: { id: true, nama: true, satuan: true } },
         },
-      },
-      orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
-    });
+      }),
+      prisma.indicatorThreshold.count({ where: { isActive: true } }),
+      prisma.sapaSyncRun.findFirst({
+        where: { status: 'SUCCESS' },
+        orderBy: { startedAt: 'desc' },
+        select: { startedAt: true },
+      }),
+    ]);
 
-    return NextResponse.json({ alerts, status: 'ok' as const });
+    return NextResponse.json({
+      status: 'ok' as const,
+      alerts,
+      // Bila belum ada ambang batas, "0 alert" TIDAK berarti aman —
+      // artinya belum ada yang dipantau. UI membedakan keduanya.
+      thresholdCount,
+      lastEvaluatedAt: lastRun?.startedAt ?? null,
+    });
   } catch (err) {
     console.error('[ews] Gagal mengambil alert:', err);
     return NextResponse.json(
       {
-        alerts: null,
         status: 'unavailable' as const,
+        alerts: null,
+        thresholdCount: null,
         error: 'Sistem peringatan dini tidak dapat dihubungi. Status indikator TIDAK diketahui.',
         errorCode: 'EWS_UNAVAILABLE',
       },

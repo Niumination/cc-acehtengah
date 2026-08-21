@@ -4,6 +4,10 @@
   "outputDirectory": ".next",
   "crons": [
     {
+      "path": "/api/cron/sync-sapa",
+      "schedule": "0 21 * * *"
+    },
+    {
       "path": "/api/cron/prune-logs",
       "schedule": "0 18 * * *"
     }
