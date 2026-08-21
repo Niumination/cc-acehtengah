@@ -52,17 +52,22 @@ function buildMessages(systemPrompt: string, input: LLMInput): { role: string; c
  * Some reasoning models (DeepSeek, etc.) put chain-of-thought before the answer.
  */
 function stripReasoningPrefix(content: string): string {
-  // Remove think tags
   let cleaned = content;
+
+  // Strip <think>...</think> (DeepSeek-style)
   cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-  // Remove common reasoning prefixes
+  // Strip ```thinking ... ``` fenced blocks
+  cleaned = cleaned.replace(/```thinking[\s\S]*?```/gi, '').trim();
+
+  // Strip bare "thinking" prose prefixes models sometimes emit
   const prefixes = [
     /^Thinking[\.\s:]+/i,
     /^Let me (?:think|analyze|consider|break)/i,
     /^I need to (?:analyze|consider|look)/i,
-    /^\*{2}Thinking\*{2}[\.\s:]+/i,
+    /^\*\*Thinking\*\*[\.\s:]+/i,
     /^Step \d+[\.\s:]+/i,
+    /^(?:[\s\S])*?(?=\{\s*"narasi")/, // anything before the JSON object starts
   ];
 
   for (const prefix of prefixes) {
