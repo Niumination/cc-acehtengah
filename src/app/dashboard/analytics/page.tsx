@@ -21,7 +21,7 @@ interface AnalyticsData {
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
+    <div className="p-2.5 bg-[var(--surface-card)] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
       <p className="font-bold text-[#1B4332] mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color || p.fill }}>{p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}</p>
@@ -34,7 +34,7 @@ const PieTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
+    <div className="p-2.5 bg-[var(--surface-card)] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
       <p className="font-bold text-[#1B4332]">{d.name}</p>
       <p className="text-[#4B5249]">Jumlah: {d.count.toLocaleString()}</p>
     </div>
@@ -43,7 +43,7 @@ const PieTooltip = ({ active, payload }: any) => {
 
 function StatCard({ icon, label, value, color }: { icon: string; label: string; value: number; color: string }) {
   return (
-    <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-5">
+    <div className="bg-[var(--surface-card)] border border-[#C6C3B4] rounded-2xl p-5">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${color}`}>{icon}</div>
         <div>
@@ -89,7 +89,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <div className="text-4xl mb-3">⚠️</div>
         <p className="text-[#B3261E] text-sm mb-4">{error}</p>
-        <button onClick={fetchData} className="px-4 py-2 bg-[#1B4332] text-white text-sm rounded-lg hover:bg-[#2D6A4F]">Coba Lagi</button>
+        <button onClick={fetchData} className="px-4 py-2 bg-[#1B4332] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[#2D6A4F]">Coba Lagi</button>
       </div>
     );
   }
