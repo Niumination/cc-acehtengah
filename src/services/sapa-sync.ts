@@ -16,6 +16,14 @@ import { evaluateAndPersistAlerts } from '@/services/ews';
 /** Jumlah baris per operasi tulis — menjaga ukuran transaksi tetap wajar. */
 const BATCH_SIZE = 200;
 
+/**
+ * Jumlah query Prisma serentak. Supabase pooler (pgbouncer transaction mode)
+ * membatasi koneksi; membuka 200 query serentak lewat Promise.all membuat
+ * Prisma kehabisan slot pool (`Timed out fetching a new connection`).
+ * Concurrency kecil menjaga throughput tanpa membebani pool.
+ */
+const WRITE_CONCURRENCY = 5;
+
 export interface SyncSummary {
   runId: string;
   recordCount: number;
@@ -31,6 +39,22 @@ function chunk<T>(items: T[], size: number): T[][] {
   const hasil: T[][] = [];
   for (let i = 0; i < items.length; i += size) hasil.push(items.slice(i, i + size));
   return hasil;
+}
+
+/**
+ * Jalankan `fn` atas semua `items` dengan maksimal `limit` pekerjaan serentak.
+ * Pengganti `Promise.all(items.map(fn))` untuk lingkungan pooler yang membatasi
+ * koneksi. Urutan hasil tidak dijamin — aman untuk upsert independen.
+ */
+async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<unknown>): Promise<void> {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift() as T;
+      await fn(item);
+    }
+  });
+  await Promise.all(workers);
 }
 
 /**
@@ -56,56 +80,50 @@ export async function syncSapaToWarehouse(): Promise<SyncSummary> {
 
     // 1. OPD dan indikator lebih dulu — observasi merujuk keduanya.
     for (const batch of chunk(opds, BATCH_SIZE)) {
-      await Promise.all(
-        batch.map((o) =>
-          prisma.sapaOpd.upsert({
-            where: { id: o.id },
-            create: { id: o.id, nama: o.nama },
-            update: { nama: o.nama },
-          }),
-        ),
+      await mapLimit(batch, WRITE_CONCURRENCY, (o) =>
+        prisma.sapaOpd.upsert({
+          where: { id: o.id },
+          create: { id: o.id, nama: o.nama },
+          update: { nama: o.nama },
+        }),
       );
     }
 
     for (const batch of chunk(indicators, BATCH_SIZE)) {
-      await Promise.all(
-        batch.map((i) =>
-          prisma.sapaIndicator.upsert({
-            where: { id: i.id },
-            create: { id: i.id, kode: i.kode, nama: i.nama, satuan: i.satuan },
-            update: { kode: i.kode, nama: i.nama, satuan: i.satuan },
-          }),
-        ),
+      await mapLimit(batch, WRITE_CONCURRENCY, (i) =>
+        prisma.sapaIndicator.upsert({
+          where: { id: i.id },
+          create: { id: i.id, kode: i.kode, nama: i.nama, satuan: i.satuan },
+          update: { kode: i.kode, nama: i.nama, satuan: i.satuan },
+        }),
       );
     }
 
     // 2. Observasi — kunci upsert (indicatorId, opdId, tahun).
     for (const batch of chunk(observations, BATCH_SIZE)) {
-      await Promise.all(
-        batch.map((o) =>
-          prisma.sapaObservation.upsert({
-            where: {
-              indicatorId_opdId_tahun: {
-                indicatorId: o.indicatorId,
-                opdId: o.opdId,
-                // DB memakai NULLS NOT DISTINCT (migrasi 003) sehingga NULL sah
-                // dalam kunci unik (indicatorId, opdId, tahun). Prisma 6.19.3
-                // belum mendukung NULLS NOT DISTINCT, jadi tipe compound-unique
-                // digenerasikan sebagai `tahun: string` (non-null). Runtime aman:
-                // upsert menghasilkan ON CONFLICT yang menghormati NULLS NOT
-                // DISTINCT di level DB. Cast hanya untuk lolos typecheck.
-                tahun: o.tahun as string,
-              },
+      await mapLimit(batch, WRITE_CONCURRENCY, (o) =>
+        prisma.sapaObservation.upsert({
+          where: {
+            indicatorId_opdId_tahun: {
+              indicatorId: o.indicatorId,
+              opdId: o.opdId,
+              // DB memakai NULLS NOT DISTINCT (migrasi 003) sehingga NULL sah
+              // dalam kunci unik (indicatorId, opdId, tahun). Prisma 6.19.3
+              // belum mendukung NULLS NOT DISTINCT, jadi tipe compound-unique
+              // digenerasikan sebagai `tahun: string` (non-null). Runtime aman:
+              // upsert menghasilkan ON CONFLICT yang menghormati NULLS NOT
+              // DISTINCT di level DB. Cast hanya untuk lolos typecheck.
+              tahun: o.tahun as string,
             },
-            create: o,
-            update: {
-              nilaiTeks: o.nilaiTeks,
-              nilaiNumerik: o.nilaiNumerik,
-              satuan: o.satuan,
-              jadwal: o.jadwal,
-            },
-          }),
-        ),
+          },
+          create: o,
+          update: {
+            nilaiTeks: o.nilaiTeks,
+            nilaiNumerik: o.nilaiNumerik,
+            satuan: o.satuan,
+            jadwal: o.jadwal,
+          },
+        }),
       );
     }
 
