@@ -9,9 +9,10 @@
 // berkas ini hanya lapisan penulisan ke database.
 
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSapaRecords } from '@/lib/data-source';
-import { transformSapaRecords } from '@/lib/sapa-transform';
+import { transformSapaRecords, type ObservationRow } from '@/lib/sapa-transform';
 import { evaluateAndPersistAlerts } from '@/services/ews';
 
 /** Jumlah baris per operasi tulis — menjaga ukuran transaksi tetap wajar. */
@@ -56,6 +57,30 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<u
     }
   });
   await Promise.all(workers);
+}
+
+/**
+ * Tulis satu batch observasi sebagai satu statement multi-row INSERT ... ON
+ * CONFLICT. Satu statement per baris terlalu lambat lewat Supabase pooler.
+ */
+async function upsertObservationBatch(batch: ObservationRow[]): Promise<void> {
+  if (batch.length === 0) return;
+  const values = Prisma.join(
+    batch.map(
+      (o) =>
+        Prisma.sql`(${randomUUID()}, ${o.indicatorId}, ${o.opdId}, ${o.tahun}, ${o.nilaiTeks}, ${o.nilaiNumerik}, ${o.satuan}, ${o.jadwal})`,
+    ),
+  );
+  await prisma.$executeRaw`
+    INSERT INTO "SapaObservation"
+      ("id","indicatorId","opdId","tahun","nilaiTeks","nilaiNumerik","satuan","jadwal")
+    VALUES ${values}
+    ON CONFLICT ("indicatorId","opdId","tahun") DO UPDATE SET
+      "nilaiTeks"    = EXCLUDED."nilaiTeks",
+      "nilaiNumerik" = EXCLUDED."nilaiNumerik",
+      "satuan"       = EXCLUDED."satuan",
+      "jadwal"       = EXCLUDED."jadwal"
+  `;
 }
 
 /**
@@ -110,20 +135,14 @@ export async function syncSapaToWarehouse(): Promise<SyncSummary> {
     // Karena itu upsert ditulis sebagai SQL mentah `INSERT ... ON CONFLICT`,
     // yang menghormati NULLS NOT DISTINCT di level DB (diverifikasi oleh
     // tests/integration/warehouse-db.test.ts — "tahun NULL tidak duplikat").
+    //
+    // Selain itu, observasi ditulis SECARA BATCH (multi-row VALUES) — bukan satu
+    // statement per baris. Satu statement per baris lewat Supabase pooler
+    // (connection_limit rendah) terlalu lambat: 2.000+ baris melebihi batas
+    // `maxDuration` 300s di Vercel. Multi-row memangkas ~2.000 round-trip
+    // menjadi ~10 round-trip.
     for (const batch of chunk(observations, BATCH_SIZE)) {
-      await mapLimit(batch, WRITE_CONCURRENCY, (o) =>
-        prisma.$executeRaw`
-          INSERT INTO "SapaObservation"
-            ("id","indicatorId","opdId","tahun","nilaiTeks","nilaiNumerik","satuan","jadwal")
-          VALUES
-            (${randomUUID()}, ${o.indicatorId}, ${o.opdId}, ${o.tahun}, ${o.nilaiTeks}, ${o.nilaiNumerik}, ${o.satuan}, ${o.jadwal})
-          ON CONFLICT ("indicatorId","opdId","tahun") DO UPDATE SET
-            "nilaiTeks"    = EXCLUDED."nilaiTeks",
-            "nilaiNumerik" = EXCLUDED."nilaiNumerik",
-            "satuan"       = EXCLUDED."satuan",
-            "jadwal"       = EXCLUDED."jadwal"
-        `,
-      );
+      await upsertObservationBatch(batch);
     }
 
     // 3. Evaluasi EWS memakai data yang baru saja disimpan.
