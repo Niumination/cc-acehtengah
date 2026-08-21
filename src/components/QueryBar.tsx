@@ -88,7 +88,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="w-full max-w-2xl px-5 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center justify-center gap-2"
+          className="w-auto px-8 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>
