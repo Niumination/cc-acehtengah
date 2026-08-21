@@ -11,9 +11,9 @@ interface LLMInput {
 
 function getConfig() {
   return {
-    baseUrl: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
+    baseUrl: process.env.AI_BASE_URL ?? 'https://opencode.ai/zen/v1',
     apiKey: process.env.AI_API_KEY ?? '',
-    model: process.env.AI_MODEL ?? 'gpt-4o-mini',
+    model: process.env.AI_MODEL ?? 'nemotron-3-ultra-free',
   };
 }
 

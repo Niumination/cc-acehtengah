@@ -62,12 +62,16 @@ async function checkAi(): Promise<ServiceStatus> {
   const key = process.env.AI_API_KEY;
   if (!key) return 'skip';
   try {
-    const baseUrl = process.env.AI_BASE_URL ?? 'https://api.openai.com/v1';
-    const res = await fetch(`${baseUrl}/models`, {
+    const baseUrl = process.env.AI_BASE_URL ?? 'https://opencode.ai/zen/v1';
+    // Zen proxy tidak mengizinkan GET /models (403). Cek konektivitas ke
+    // base URL root saja; validitas key/model diuji saat query sungguh.
+    const res = await fetch(baseUrl, {
+      method: 'HEAD',
       signal: AbortSignal.timeout(10_000),
       headers: { Authorization: `Bearer ${key}` },
     });
-    return res.ok ? 'ok' : 'error';
+    // 2xx/3xx/401/403 semua berarti server terjangkau; 401/403 = key issue.
+    return res.status < 500 ? 'ok' : 'error';
   } catch {
     return 'error';
   }
