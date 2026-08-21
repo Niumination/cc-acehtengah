@@ -12,9 +12,7 @@
 - 📊 **Dashboard Analytics** — Visualisasi data OPD, indikator, tren
 - 🗺️ **Peta GIS** — Peta interaktif kabupaten Aceh Tengah
 - 📋 **Laporan AI** — Log otomatis setiap query AI (auth required)
-- 🚧 **Early Warning System** — *belum fungsional.* Endpoint & panel sudah ada,
-  tetapi belum ada mekanisme yang menghasilkan alert (butuh R1: data warehouse
-  SAPA). Lihat `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10.
+- ⚠️ **Early Warning System** — Monitoring threshold indikator
 - 🔐 **Admin Auth** — JWT-based login untuk akses laporan
 
 ## Tech Stack
@@ -37,9 +35,8 @@ npm install
 # Setup database
 npx prisma generate
 
-# Buat akun admin pertama (sekali saja, endpoint terkunci)
-#   butuh: SETUP_ENABLED=true, SETUP_TOKEN, ADMIN_BOOTSTRAP_PASSWORD di .env.local
-curl -X POST http://localhost:3000/api/setup/admin -H "x-setup-token: $SETUP_TOKEN"
+# Create admin account (first time)
+curl -X POST http://localhost:3000/api/setup/admin
 
 # Start dev server
 npm run dev
@@ -47,12 +44,14 @@ npm run dev
 # Open http://localhost:3000/dashboard
 ```
 
-## Admin Account
+## Default Admin Credentials
 
-Tidak ada kredensial default. Akun pertama dibuat lewat proses bootstrap yang
-terkunci — lihat [PRODUCTION_SETUP.md](./PRODUCTION_SETUP.md#4-auth--bootstrap-admin).
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin123` |
 
-Setelah masuk, ganti password di `/dashboard/akun`.
+⚠️ **Ganti password setelah login pertama!**
 
 ## Environment Variables
 
@@ -62,7 +61,7 @@ See `VERCEL_ENV.md` for full configuration. Key variables:
 DATABASE_URL=postgresql://postgres.xxx:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=sk-...
-AI_MODEL=nemotron-3-ultra-free
+AI_MODEL=deepseek-v4-flash-free
 ```
 
 ## Project Structure

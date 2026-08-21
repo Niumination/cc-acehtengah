@@ -7,7 +7,3 @@ next-env.d.ts
 .DS_Store
 .vercel
 .env*.local
-
-# Log keluaran scripts/sync-all.sh
-logs/
-.env*

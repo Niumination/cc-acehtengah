@@ -2,6 +2,19 @@
 // Data diambil dari https://cc.acehtengahkab.go.id (20 Jul 2026)
 // Aktifkan dengan: USE_MOCK_DATA=true di .env.local
 
+const NOW = new Date();
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+function monthsAgo(n: number) {
+  const d = new Date(NOW);
+  d.setMonth(d.getMonth() - n);
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function rand(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // Mock health check — data real dari CC Aceh Tengah homepage
 export function getMockHealth() {
   return {
@@ -101,7 +114,7 @@ export function getMockDatasets() {
 }
 
 // Mock AI query responses — data real dari cc.acehtengahkab.go.id
-export function getMockQueryResponse(query: string): Record<string, unknown> {
+export function getMockQueryResponse(query: string): any {
   const q = query.toLowerCase();
 
   if (q.includes('harga') || q.includes('bapokting') || q.includes('beras') || q.includes('bahan pokok')) {
@@ -251,6 +264,7 @@ export function getMockQueryResponse(query: string): Record<string, unknown> {
   }
 
   if (q.includes('kemiskinan')) {
+    const angkaKemiskinan = 71.4;
     return {
       narasi: `Data DTSEN mencatat 71.370 KK di Kab. Aceh Tengah dengan kecamatan terbanyak di BEBESEN (12.737 KK). Cakupan bantuan sosial capai target minimal. Program Keluarga Harapan (PKH) difokuskan di wilayah dengan indikator kemiskinan tinggi.`,
       visualisasi: {

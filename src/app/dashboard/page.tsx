@@ -117,12 +117,11 @@ export default function DashboardPage() {
       setStatusText(null);
       liveNarasiRef.current = '';
       setLiveNarasi('');
-    } catch (err) {
+    } catch (err: any) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      const isAbort = err instanceof Error && err.name === 'AbortError';
-      const errMsg = isAbort
+      const errMsg = err?.name === 'AbortError'
         ? 'AI membutuhkan waktu terlalu lama (45 detik). Coba pertanyaan yang lebih singkat.'
-        : `Terjadi kesalahan: ${err instanceof Error ? err.message : 'tidak diketahui'}`;
+        : `Terjadi kesalahan: ${err?.message ?? 'Unknown'}`;
       setError(errMsg);
       setMode('ai-response');
       setAiResponse(null);
@@ -160,12 +159,12 @@ export default function DashboardPage() {
       {mode === 'default' && <DefaultDashboard />}
 
       {mode === 'ai-response' && !isLoading && error && (
-        <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-8 text-center">
+        <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-8 text-center">
           <div className="text-4xl mb-3">⚠️</div>
-          <p className="text-sm text-[var(--danger)] mb-4">{error}</p>
+          <p className="text-sm text-[#B3261E] mb-4">{error}</p>
           <button
             onClick={handleReset}
-            className="px-4 py-2 bg-[var(--brand)] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[var(--brand-soft)]"
+            className="px-4 py-2 bg-[#1B4332] text-white text-sm rounded-lg hover:bg-[#2D6A4F]"
           >
             Kembali ke Beranda
           </button>
@@ -177,20 +176,20 @@ export default function DashboardPage() {
       )}
 
       {mode === 'ai-response' && isLoading && (
-        <div className="bg-[var(--surface-muted)] border border-[var(--border)] rounded-2xl p-12 text-center">
-          <div className="w-12 h-12 border-4 border-[var(--brand)]/20 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-4" style={{ animation: 'spin 0.8s linear infinite' }} />
-          <p className="text-sm text-[var(--text-muted)]">{statusText ?? 'AI sedang menganalisis data SAPA...'}</p>
+        <div className="bg-[#E9E6DA] border border-[#C6C3B4] rounded-2xl p-12 text-center">
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-[#767D6F]">{statusText ?? 'AI sedang menganalisis data SAPA...'}</p>
           {liveNarasi ? (
             <div className="mt-4 max-w-2xl mx-auto text-left">
-              <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-xl p-4">
-                <p className="text-sm text-[var(--text-body)] leading-relaxed whitespace-pre-wrap">
+              <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-xl p-4">
+                <p className="text-sm text-[#4B5249] leading-relaxed whitespace-pre-wrap">
                   {liveNarasi}
-                  <span className="inline-block w-2 h-4 bg-[var(--brand)] ml-0.5 animate-pulse" />
+                  <span className="inline-block w-2 h-4 bg-[#1B4332] ml-0.5 animate-pulse" />
                 </p>
               </div>
             </div>
           ) : (
-            <p className="text-[11px] text-[var(--text-body)] mt-1">Memproses permintaan Anda</p>
+            <p className="text-[10px] text-[#4B5249] mt-1">Memproses permintaan Anda</p>
           )}
         </div>
       )}

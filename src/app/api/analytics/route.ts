@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getUniqueOpd, getUniqueIndicators, filterByOpd } from '@/lib/sapa-client';
-import { getSapaRecords, isMockMode } from '@/lib/data-source';
-import { cached } from '@/lib/store';
+import { fetchSapaData, getUniqueOpd, getUniqueIndicators, filterByOpd } from '@/lib/sapa-client';
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
-// Cache bersama (§P1-08) — dulu variabel modul per-instance.
-const CACHE_TTL = 10 * 60 * 1000;
-const cacheKey = () => `analytics:v2:${isMockMode() ? 'mock' : 'live'}`;
+let analyticsCache: any = null;
+let cacheExpiry = 0;
 
 export async function GET() {
   try {
-    const result = await cached(cacheKey(), CACHE_TTL, async () => {
-    const records = await getSapaRecords();
+    if (analyticsCache && Date.now() < cacheExpiry) {
+      return NextResponse.json(analyticsCache);
+    }
+
+    const records = await fetchSapaData();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
 
@@ -21,7 +18,7 @@ export async function GET() {
     const opdBreakdown = opds.map(opd => {
       const opdRecords = filterByOpd(records, opd.nama);
       const opdIndicators = getUniqueIndicators(opdRecords);
-      const filledValues = opdRecords
+      const sampleValues = opdRecords
         .filter(r => r.variabel && r.variabel.trim() !== '')
         .map(r => ({
           indicator: r.kode_indikator_nama_indikator,
@@ -34,39 +31,17 @@ export async function GET() {
         jumlahIndikator: opd.jumlah,
         uniqueIndicators: opdIndicators.length,
         totalRecords: opdRecords.length,
-        // Jumlah PENUH record yang punya nilai — dipakai untuk hitung kelengkapan.
-        // Sebelumnya perhitungan memakai sampleValues yang sudah dipotong 5,
-        // sehingga kelengkapan mustahil melebihi 500/jumlahIndikator persen.
-        // Lihat LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-05(b)
-        filledRecords: filledValues.length,
-        hasData: filledValues.length > 0,
-        sampleValues: filledValues.slice(0, 5),
+        hasData: sampleValues.length > 0,
+        sampleValues: sampleValues.slice(0, 5),
       };
     });
 
     // Indicator frequency analysis
-    //
-    // BUG SEBELUMNYA (§P1-05a): kode membandingkan `r.id_kode_indikator` (ID numerik)
-    // dengan `ind.kode` (field kode_indikator_kode_indikator, berupa string kode).
-    // Dua field berbeda → hasil `opds` hampir selalu kosong.
-    // Sekarang OPD dikelompokkan sekali lewat Map berdasarkan ID indikator.
-    const opdsByIndicatorId = new Map<number, Set<string>>();
-    for (const r of records) {
-      if (r.id_kode_indikator == null) continue;
-      let set = opdsByIndicatorId.get(r.id_kode_indikator);
-      if (!set) {
-        set = new Set<string>();
-        opdsByIndicatorId.set(r.id_kode_indikator, set);
-      }
-      const nama = r.opds_nama_opd?.trim();
-      if (nama) set.add(nama);
-    }
-
     const indicatorFrequency = indicators.map(ind => ({
       nama: ind.nama,
       kode: ind.kode,
       jumlah: ind.jumlah,
-      opds: [...(opdsByIndicatorId.get(ind.id) ?? [])].slice(0, 5),
+      opds: [...new Set(records.filter(r => r.id_kode_indikator?.toString() === ind.kode).map(r => r.opds_nama_opd))].slice(0, 5),
     }));
 
     // Satuan (unit) distribution
@@ -93,14 +68,9 @@ export async function GET() {
       .sort((a, b) => b.count - a.count);
 
     // Data completeness per OPD
-    // Definisi: persentase record OPD yang punya nilai (variabel terisi)
-    // terhadap total record OPD tersebut. Dibatasi 0–100.
     const completeness = opdBreakdown.map(opd => ({
       nama: opd.nama,
-      completeness: opd.totalRecords > 0
-        ? Math.min(100, Math.round((opd.filledRecords / opd.totalRecords) * 100))
-        : 0,
-      filledRecords: opd.filledRecords,
+      completeness: opd.hasData ? Math.round((opd.sampleValues.length / Math.max(opd.jumlahIndikator, 1)) * 100) : 0,
       totalRecords: opd.totalRecords,
     })).sort((a, b) => b.completeness - a.completeness);
 
@@ -133,15 +103,11 @@ export async function GET() {
       lastFetched: new Date().toISOString(),
     };
 
-      return result;
-    });
+    analyticsCache = result;
+    cacheExpiry = Date.now() + 10 * 60 * 1000;
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.error('[analytics] Gagal:', err);
-    return NextResponse.json(
-      { error: 'Gagal mengambil data SAPA', errorCode: 'SAPA_UNAVAILABLE' },
-      { status: 503 },
-    );
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
