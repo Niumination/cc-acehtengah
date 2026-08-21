@@ -311,7 +311,7 @@ export default function SapaStats() {
                 dataKey="count"
                 nameKey="name"
                 label={({ name, value }) => `${name}: ${value}`}
-                labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+                labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
               >
                 {data.kategoriDistribusi.map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />

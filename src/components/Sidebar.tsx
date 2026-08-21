@@ -43,11 +43,11 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
 
   return (
     <div
-      className={`flex h-full flex-col border-r border-[var(--border-strong)] bg-white transition-all duration-300 ease-in-out ${
+      className={`flex h-full flex-col border-r border-[var(--border-strong)] bg-[var(--surface-card)] transition-all duration-300 ease-in-out ${
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      <div className={`bg-[var(--brand-deep)] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
+      <div className={`bg-[var(--brand-deep)] flex h-[61px] items-center ${collapsed ? 'px-2' : 'px-4'}`}>
         <div className="flex items-center gap-2.5">
           {onToggle && (
             <button
@@ -55,7 +55,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
               onClick={onToggle}
               aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
               aria-expanded={!collapsed}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] transition-all duration-200 hover:bg-[var(--brand-soft)] hover:text-white"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] transition-all duration-200 hover:bg-[var(--brand-soft)] hover:text-[var(--on-brand)]"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
@@ -67,7 +67,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold tracking-tight text-white">Aceh Tengah</p>
-              <p className="text-[11px] font-medium text-[#C6C3B4]">Command Center</p>
+              <p className="text-[11px] font-medium text-[var(--text-muted)]">Command Center</p>
             </div>
           )}
           {onClose && (
@@ -76,7 +76,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
               onClick={onClose}
               aria-label="Tutup menu navigasi"
               autoFocus
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-white"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-[var(--on-brand)]"
             >
               <span aria-hidden="true">✕</span>
             </button>

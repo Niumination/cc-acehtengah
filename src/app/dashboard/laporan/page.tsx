@@ -155,7 +155,7 @@ export default function LaporanPage() {
             router.replace('/login');
             router.refresh();
           }}
-          style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '4px' }}
+          style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--danger)', color: 'var(--on-brand)', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '4px' }}
         >
           🚪 Logout
         </button>
@@ -164,7 +164,7 @@ export default function LaporanPage() {
       {/* Stats bar */}
       {stats.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
-          <div style={{ padding: '8px 14px', borderRadius: '8px', background: 'var(--brand-soft)', color: '#fff', fontWeight: 700, fontSize: '0.82rem' }}>
+          <div style={{ padding: '8px 14px', borderRadius: '8px', background: 'var(--brand-soft)', color: 'var(--on-brand)', fontWeight: 700, fontSize: '0.82rem' }}>
             Total: {total.toLocaleString('id-ID')} kueri
           </div>
           {stats.map((s) => (
@@ -208,11 +208,11 @@ export default function LaporanPage() {
         <input type="date" value={dateTo} onChange={(e) => applyFilter(setDateTo)(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: '0.82rem' }} />
         <button onClick={fetchLogs}
-          style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--brand)', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+          style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--brand)', color: 'var(--on-brand)', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
           🔍 Cari
         </button>
         <button onClick={exportCSV}
-          style={{ padding: '8px 16px', borderRadius: '8px', background: '#D9C284', color: 'var(--text)', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+          style={{ padding: '8px 16px', borderRadius: '8px', background: 'var(--accent)', color: 'var(--text)', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
           ⬇ Export CSV
         </button>
       </div>

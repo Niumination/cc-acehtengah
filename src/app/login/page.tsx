@@ -3,16 +3,9 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-/**
- * Hanya izinkan path internal sebagai tujuan redirect.
- * Tanpa ini, `/login?from=https://situs-jahat.example` akan melempar pengguna
- * ke domain luar setelah login sukses (open redirect / phishing).
- * Lihat: LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-02
- */
 function safeRedirectTarget(raw: string | null): string {
   const fallback = '/dashboard/laporan';
   if (!raw) return fallback;
-  // Wajib diawali satu '/' dan tidak boleh '//' (protocol-relative) atau '/\'.
   if (!/^\/(?![/\\])/.test(raw)) return fallback;
   return raw;
 }
@@ -55,48 +48,40 @@ function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center"
       style={{
-        background: 'linear-gradient(135deg, #0f1a12 0%, #1a2e1f 30%, #2d1810 70%, #1a1210 100%)',
+        background: 'linear-gradient(135deg, var(--surface) 0%, var(--brand-tint) 100%)',
       }}>
-
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.03) 35px, rgba(255,255,255,0.03) 36px)',
-          }} />
-      </div>
 
       <div className="relative w-full max-w-md px-6">
         {/* Logo & Title */}
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">☕</div>
-          <h1 className="text-2xl font-bold text-[#D4A853] tracking-wide">
+          <h1 className="text-2xl font-bold text-[var(--accent)] tracking-wide">
             KOMANDO AT
           </h1>
-          <p className="text-[#9CA3AF] text-sm mt-1">
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             Command Center AI Aceh Tengah
           </p>
-          <div className="w-16 h-0.5 bg-[#D4A853]/30 mx-auto mt-4" />
+          <div className="w-16 h-0.5 bg-[var(--accent)]/30 mx-auto mt-4" />
         </div>
 
         {/* Login Card */}
-        <div className="bg-[#1E2420]/80 backdrop-blur-xl rounded-2xl border border-[#2D3B30] p-8 shadow-2xl">
-          <h2 className="text-lg font-semibold text-white mb-1">
+        <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-strong)] p-8 shadow-2xl">
+          <h2 className="text-lg font-semibold text-[var(--text)] mb-1">
             🔒 Akses Terbatas
           </h2>
-          <p className="text-[#9CA3AF] text-sm mb-6">
+          <p className="text-[var(--text-muted)] text-sm mb-6">
             Masuk untuk melihat laporan AI
           </p>
 
           {error && (
-            <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4 text-red-300 text-sm">
+            <div role="alert" className="bg-[var(--danger-tint)] border border-[var(--danger)]/30 rounded-lg px-4 py-3 mb-4 text-[var(--danger)] text-sm">
               ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-[#9CA3AF] text-sm mb-1.5">
+              <label htmlFor="username" className="block text-[var(--text-muted)] text-sm mb-1.5">
                 Username
               </label>
               <input
@@ -107,14 +92,14 @@ function LoginForm() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#8B94A1] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
+                className="w-full bg-[var(--surface-muted)] border border-[var(--border)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 transition-colors"
                 placeholder="Masukkan username"
                 autoFocus
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-[#9CA3AF] text-sm mb-1.5">
+              <label htmlFor="password" className="block text-[var(--text-muted)] text-sm mb-1.5">
                 Password
               </label>
               <input
@@ -125,7 +110,7 @@ function LoginForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#111611] border border-[#2D3B30] rounded-lg px-4 py-3 text-white placeholder-[#8B94A1] focus:outline-none focus:border-[#D4A853] focus:ring-1 focus:ring-[#D4A853]/50 transition-colors"
+                className="w-full bg-[var(--surface-muted)] border border-[var(--border)] rounded-lg px-4 py-3 text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/50 transition-colors"
                 placeholder="Masukkan password"
               />
             </div>
@@ -133,7 +118,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading || !username || !password}
-              className="w-full bg-[#D4A853] hover:bg-[#C49A43] disabled:opacity-50 disabled:cursor-not-allowed text-black font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg shadow-[#D4A853]/20 mt-2"
+              className="w-full bg-[var(--accent)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-[var(--on-brand)] font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg shadow-[var(--accent)]/20 mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -149,7 +134,7 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[#6B7280] text-xs mt-6">
+        <p className="text-center text-[var(--text-muted)] text-xs mt-6">
           © 2026 Diskominfo Aceh Tengah
         </p>
       </div>
@@ -160,8 +145,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f1a12' }}>
-        <div className="text-[#D4A853] text-lg">Memuat...</div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--surface)' }}>
+        <div className="text-[var(--accent)] text-lg">Memuat...</div>
       </div>
     }>
       <LoginForm />
