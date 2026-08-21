@@ -57,11 +57,9 @@ function LoginForm() {
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">☕</div>
           <h1 className="text-2xl font-bold text-[#D4A853] tracking-wide">
-            KOMANDO AT
+            SAPA SMART AI
           </h1>
-          <p className="text-[#9CA3AF] text-sm mt-1">
-            Command Center AI Aceh Tengah
-          </p>
+          <p className="text-[11px] text-[var(--text-muted)]">SAPA Smart AI Aceh Tengah</p>
           <div className="w-16 h-0.5 bg-[#D4A853]/30 mx-auto mt-4" />
         </div>
 

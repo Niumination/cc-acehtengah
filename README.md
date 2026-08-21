@@ -1,4 +1,4 @@
-# KOMANDO AT — Command Center AI Aceh Tengah
+# SAPA Smart AI — Satu Pintu Akses Data Aceh Tengah
 
 > Dashboard AI-powered untuk Pemerintah Kabupaten Aceh Tengah
 > Integrasi data SAPA (Satu Pintu Akses Data) dengan AI assistant

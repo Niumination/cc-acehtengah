@@ -1,14 +1,12 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import EwsPanel from '@/components/EwsPanel';
 import React, { useState, useEffect } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [currentTime, setCurrentTime] = useState('');
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [ewsOpen, setEwsOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -39,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
             <div>
               <h1 className="text-sm font-bold tracking-wide text-white">
-                Command Center
+                SAPA Smart AI
               </h1>
               <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)]">
                 Aceh Tengah · Diskominfo
@@ -80,41 +78,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto p-6 bg-[#F5F3EC]">
           {children}
         </main>
-
-        {/* EWS Toggle Button */}
-        <button
-          onClick={() => setEwsOpen((o) => !o)}
-          className={`absolute right-0 top-1/2 -translate-y-1/2 z-30 w-6 h-14 rounded-l-lg flex items-center justify-center transition-all duration-200 shadow-lg ${
-            ewsOpen
-              ? 'hidden'
-              : 'bg-[var(--surface-card)] hover:bg-[#E9E6DA] text-[#767D6F] hover:text-[#1B4332] border border-r-0 border-[#C6C3B4]'
-          }`}
-          title="Tampilkan panel EWS"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 3 4 6 9 9" />
-          </svg>
-        </button>
-      </div>
-
-      {/* EWS Panel — slide in/out */}
-      <div
-        className={`h-full flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out ${
-          ewsOpen ? 'w-72' : 'w-0'
-        }`}
-      >
-        <div className="w-72 h-full border-l border-[#C6C3B4] p-4 overflow-y-auto bg-[var(--surface-card)]">
-          <div className="flex items-center justify-between mb-3">
-            <EwsPanel />
-            <button
-              onClick={() => setEwsOpen(false)}
-              className="ml-2 w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-colors bg-[#E9E6DA] hover:bg-[#C6C3B4] text-[#767D6F] hover:text-[#1B4332]"
-              title="Tutup panel EWS"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

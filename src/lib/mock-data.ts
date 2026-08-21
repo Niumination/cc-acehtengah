@@ -322,7 +322,7 @@ export function getMockQueryResponse(query: string): any {
 
   // Default fallback
   return {
-    narasi: `Data yang Anda request saat ini dalam mode presentasi. Silakan pilih dataset yang tersedia: Bapokting (harga bahan pokok), DTSEN (data kependudukan), SAPA (registry data OPD), atau pertanyaan spesifik lainnya di Command Center Aceh Tengah.`,
+    narasi: `Data yang Anda request saat ini dalam mode presentasi. Silakan pilih dataset yang tersedia: Bapokting (harga bahan pokok), DTSEN (data kependudukan), SAPA (registry data OPD), atau pertanyaan spesifik lainnya di SAPA Smart AI Aceh Tengah.`,
     visualisasi: {
       tipe: 'none',
       konfigurasi: {},

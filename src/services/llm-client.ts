@@ -9,10 +9,15 @@ interface LLMInput {
 }
 
 function getConfig() {
+  const envModel = process.env.AI_MODEL;
+  // Migration: nemotron-3-ultra-free sering lambat & output terpotong (reasoning model).
+  // Fallback ke Ox Alpha Free (rank #6, cepat, output maksimal) — model ID resmi: x-preview-f-free.
+  const model =
+    envModel && envModel !== 'nemotron-3-ultra-free' ? envModel : 'x-preview-f-free';
   return {
     baseUrl: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
     apiKey: process.env.AI_API_KEY ?? '',
-    model: process.env.AI_MODEL ?? 'gpt-4o-mini',
+    model,
   };
 }
 
@@ -107,9 +112,9 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
     body: JSON.stringify({
       model: config.model,
       messages,
-      temperature: 0.1,
+      temperature: 0.3,
       top_p: 0.9,
-      max_tokens: 4096,
+      max_tokens: 2048,
     }),
     signal: AbortSignal.timeout(45000), // 45s — cukup untuk free tier
   });
@@ -162,9 +167,9 @@ export async function streamLLM(
   const body = JSON.stringify({
     model: config.model,
     messages,
-    temperature: 0.1,
+    temperature: 0.3,
     top_p: 0.9,
-    max_tokens: 4096,
+    max_tokens: 2048,
     stream: true,
   });
 

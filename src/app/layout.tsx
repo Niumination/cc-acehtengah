@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KOMANDO AT — Command Center AI Aceh Tengah",
-  description: "Command Center AI Pemerintah Kabupaten Aceh Tengah — Dashboard interaktif berbasis data SAPA",
+  title: "SAPA Smart AI — Satu Pintu Akses Data Aceh Tengah",
+  description: "SAPA Smart AI Pemerintah Kabupaten Aceh Tengah — Dashboard interaktif berbasis data SAPA (Satu Pintu Akses Data)",
   icons: { icon: "/favicon.ico" },
 };
 

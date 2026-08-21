@@ -10,11 +10,6 @@ const NAV_ITEMS = [
   { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Riwayat Query AI' },
 ];
 
-const SECONDARY_ITEMS = [
-  { href: '#ai', label: 'AI Asisten', icon: '🤖', desc: 'Tanya Data' },
-  { href: '#ews', label: 'EWS', icon: '⚠️', desc: 'Early Warning' },
-];
-
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
@@ -47,7 +42,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           {!collapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-              <p className="text-[10px] text-[var(--text-muted)] font-medium">Command Center</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-medium">SAPA Smart AI</p>
             </div>
           )}
         </div>
@@ -85,30 +80,6 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </Link>
           );
         })}
-
-        <div className="pt-3 mt-3 border-t border-[#C6C3B4]">
-          <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
-            {collapsed ? '•' : 'Tools'}
-          </p>
-          {SECONDARY_ITEMS.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-xl text-sm text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] transition-all duration-200 border border-transparent ${
-                collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
-              }`}
-            >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[#4B5249] truncate">{item.label}</p>
-                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
-                </div>
-              )}
-            </a>
-          ))}
-        </div>
       </nav>
 
       {/* System Status */}
