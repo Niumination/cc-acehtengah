@@ -39,8 +39,8 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
 
   return (
     <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-[#C6C3B4] flex items-center justify-between">
+      {/* Header — centered */}
+      <div className="px-5 py-3 border-b border-[#C6C3B4] flex items-center justify-center">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-xs shadow-lg">
             🤖
@@ -52,7 +52,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         {!isDefaultMode && (
           <button
             onClick={onReset}
-            className="text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
+            className="absolute right-5 text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
           >
             <span>←</span>
             <span>Kembali ke Beranda</span>
@@ -60,9 +60,9 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         )}
       </div>
 
-      {/* Keyword Chips */}
+      {/* Keyword Chips — centered */}
       <div className="px-5 py-3 border-b border-[#C6C3B4]">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 justify-center">
           {KEYWORD_CHIPS.map((chip) => (
             <button
               key={chip.label}
@@ -76,33 +76,35 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         </div>
       </div>
 
-      {/* Search Input */}
-      <form onSubmit={handleSubmit} className="px-5 py-3 flex gap-3">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
-          className="flex-1 px-4 py-2 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-sm text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="px-5 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Memproses</span>
-            </>
-          ) : (
-            <>
-              <span>Tanya</span>
-              <span>→</span>
-            </>
-          )}
-        </button>
+      {/* Search Input — centered */}
+      <form onSubmit={handleSubmit} className="px-5 py-3 flex justify-center">
+        <div className="flex gap-3 w-full max-w-2xl">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
+            className="flex-1 px-4 py-2 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-sm text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="px-5 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center gap-2 flex-shrink-0"
+          >
+            {isLoading ? (
+              <>
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Memproses</span>
+              </>
+            ) : (
+              <>
+                <span>Tanya</span>
+                <span>→</span>
+              </>
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );
