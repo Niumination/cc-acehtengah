@@ -1,7 +1,7 @@
 // ─── AI Orchestrator — SAPA + Cloud AI (Optimized + Streaming) ───
 
 import { detectIntent } from './intent-detector';
-import { callLLM, streamLLM, extractNarasiPartial } from './llm-client';
+import { callLLM, streamLLM, extractNarasiPartial, stripReasoningPrefix } from './llm-client';
 import { retrieveContext } from './rag-retriever';
 import {
   fetchSapaData,
@@ -372,23 +372,57 @@ function extractJsonObject(raw: string): any | null {
 }
 
 function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {
-  try {
-    const parsed = extractJsonObject(raw) ?? JSON.parse(raw);
-    return {
-      narasi: parsed.narasi ?? raw,
-      visualisasi: normalizeVisualization(parsed.visualisasi),
-      rekomendasi: parsed.rekomendasi,
-      dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
-      timestamp: new Date().toISOString(),
-    };
-  } catch {
-    return {
-      narasi: raw,
-      visualisasi: { tipe: 'none', konfigurasi: {} },
-      dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
-      timestamp: new Date().toISOString(),
-    };
+  // Bersihkan dulu dari markdown fence / reasoning / prose di luar JSON
+  const cleanedInput = stripReasoningPrefix(raw);
+  const extracted = extractJsonObject(cleanedInput);
+
+  if (extracted && typeof extracted === 'object') {
+    const narasi = typeof extracted.narasi === 'string' ? extracted.narasi.trim() : '';
+    // Jika narasi kosong TAPI ada field lain, jangan tampilkan JSON mentah
+    if (narasi) {
+      return {
+        narasi,
+        visualisasi: normalizeVisualization(extracted.visualisasi),
+        rekomendasi: Array.isArray(extracted.rekomendasi) ? extracted.rekomendasi : [],
+        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        timestamp: new Date().toISOString(),
+      };
+    }
   }
+
+  // Fallback: model tidak mengembalikan JSON valid.
+  // JANGAN tampilkan JSON mentah sebagai narasi.
+  const fallbackNarasi = extractReadableNarasi(cleanedInput);
+  return {
+    narasi: fallbackNarasi,
+    visualisasi: generateAutoChart(records),
+    rekomendasi: [],
+    dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Ekstrak narasi yang bisa dibaca dari output model yang gagal jadi JSON.
+ * - Jika ada field "narasi":"..." (meski JSON corrupt), ambil itu.
+ * - Jika murni prose (bukan JSON object), gunakan prose tersebut.
+ * - Jika benar-benar JSON mentah tanpa narasi, kembalikan pesan ramah.
+ */
+function extractReadableNarasi(cleaned: string): string {
+  // Coba ekstrak nilai narasi via regex (tangani JSON korup sebagian)
+  const m = cleaned.match(/"narasi"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (m) {
+    const s = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim();
+    if (s) return s;
+  }
+
+  const trimmed = cleaned.trim();
+  // Jika output berupa JSON object mentah (diawali { dan bukan prose), jangan tampilkan mentah
+  if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('```')) {
+    return 'Maaf, AI gagal memformat respons dengan benar. Silakan ajukan pertanyaan dengan kalimat yang lebih spesifik.';
+  }
+  // Prosa biasa — gunakan apa adanya (sudah dibersihkan dari reasoning)
+  return trimmed || 'Maaf, AI tidak memberikan respons yang dapat ditampilkan. Silakan coba lagi.';
 }
 
 /**

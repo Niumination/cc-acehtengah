@@ -288,7 +288,13 @@ export default function LaporanPage() {
                     {entry.aiResponse?.narasi && (
                       <div style={{ margin: '12px 0', padding: '12px', borderRadius: '8px', background: '#F5F3EC', fontSize: '0.84rem', lineHeight: 1.6, color: '#1E2420' }}>
                         <div style={{ fontWeight: 700, fontSize: '0.72rem', color: '#8A6E1D', marginBottom: '6px' }}>JAWABAN AI</div>
-                        {entry.aiResponse.narasi}
+                        {(() => {
+                          const n = entry.aiResponse.narasi || '';
+                          const isRawJson = n.trim().startsWith('{') || n.trim().startsWith('[') || n.trim().startsWith('```');
+                          return isRawJson
+                            ? 'Maaf, AI gagal memformat respons. Silakan tanya ulang dengan kalimat lebih spesifik.'
+                            : n;
+                        })()}
                       </div>
                     )}
 

@@ -51,7 +51,7 @@ function buildMessages(systemPrompt: string, input: LLMInput): { role: string; c
  * Strip reasoning/thinking prefixes from model output.
  * Some reasoning models (DeepSeek, etc.) put chain-of-thought before the answer.
  */
-function stripReasoningPrefix(content: string): string {
+export function stripReasoningPrefix(content: string): string {
   let cleaned = content;
 
   // Strip <think>...</think> (DeepSeek-style)
@@ -108,21 +108,31 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 
   const messages = buildMessages(systemPrompt, input);
 
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: 0.3,
-      top_p: 0.9,
-      max_tokens: 2048,
-    }),
-    signal: AbortSignal.timeout(45000), // 45s — cukup untuk free tier
-  });
+  const doFetch = async (): Promise<Response> => {
+    return fetch(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        temperature: 0.3,
+        top_p: 0.9,
+        max_tokens: 2560,
+      }),
+      signal: AbortSignal.timeout(90000), // 90s
+    });
+  };
+
+  let res = await doFetch();
+  // Retry once on network/5xx errors before any content (idempotent-safe)
+  if (!res.ok && res.status >= 500) {
+    console.warn('[LLM] callLLM failed (retry 1x):', res.status);
+    await new Promise((r) => setTimeout(r, 500));
+    res = await doFetch();
+  }
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
@@ -174,7 +184,7 @@ export async function streamLLM(
     messages,
     temperature: 0.3,
     top_p: 0.9,
-    max_tokens: 2048,
+    max_tokens: 2560,
     stream: true,
   });
 
@@ -186,7 +196,7 @@ export async function streamLLM(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body,
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(90000), // 90s
     });
     return { res };
   };
