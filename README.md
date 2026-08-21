@@ -12,7 +12,9 @@
 - 📊 **Dashboard Analytics** — Visualisasi data OPD, indikator, tren
 - 🗺️ **Peta GIS** — Peta interaktif kabupaten Aceh Tengah
 - 📋 **Laporan AI** — Log otomatis setiap query AI (auth required)
-- ⚠️ **Early Warning System** — Monitoring threshold indikator
+- 🚧 **Early Warning System** — *belum fungsional.* Endpoint & panel sudah ada,
+  tetapi belum ada mekanisme yang menghasilkan alert (butuh R1: data warehouse
+  SAPA). Lihat `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10.
 - 🔐 **Admin Auth** — JWT-based login untuk akses laporan
 
 ## Tech Stack

@@ -1,6 +1,12 @@
-// Resolver hook agar alias "@/..." (tsconfig paths) bekerja di `node --test`,
-// termasuk melengkapi ekstensi .ts/.tsx yang biasanya ditangani bundler.
-// Tanpa ini, file src yang memakai alias tidak bisa diuji sebagai unit murni.
+// Resolver hook agar alias "@/..." (tsconfig paths) dan ekstensi .ts/.tsx —
+// yang biasanya ditangani bundler Next.js — juga bekerja ketika modul di src/
+// dijalankan langsung oleh Node.
+//
+// Dipakai bersama oleh:
+//   • `npm test`             (node --test)
+//   • `scripts/sync-all.sh`  (job sinkronisasi di luar runtime Next.js)
+//
+// Tanpa ini, `import '@/lib/prisma'` gagal dengan ERR_MODULE_NOT_FOUND.
 import { registerHooks } from 'node:module';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { resolve as resolvePath } from 'node:path';

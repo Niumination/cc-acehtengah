@@ -37,9 +37,17 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan AI (Auth)** | ✅ | `/dashboard/laporan` |
-| Early Warning System | ✅ | `/api/ews` |
+| Early Warning System | 🚧 **belum fungsional** | `/api/ews` |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
+
+> **Catatan status EWS (terverifikasi):** endpoint dan panel UI sudah ada, tetapi
+> **belum ada satu pun kode yang membuat `EwsAlert`**. Rantai datanya putus:
+> `EwsAlert` → butuh `Indicator` → butuh `Dataset`, sedangkan `Dataset` tidak
+> pernah terisi karena seluruh data diambil langsung dari SAPA tanpa disimpan.
+> Akibatnya panel EWS akan selalu menampilkan "Semua indikator dalam batas
+> normal". Menyalakannya butuh R1 (data warehouse SAPA) lebih dulu — lihat
+> `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 dan roadmap R1–R2.
 
 ## Auth System
 

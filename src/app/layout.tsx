@@ -1,22 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// Font di-SELF-HOST lewat paket resmi `geist` (Vercel), bukan next/font/google.
+// Alasan (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-06): next/font/google
+// mengunduh font saat BUILD. Bila fonts.googleapis.com tidak terjangkau —
+// gangguan jaringan CI, kebijakan egress, atau blokir — `next build` GAGAL
+// TOTAL, bukan sekadar memakai fallback. Paket `geist` menyertakan berkas
+// .woff2 di node_modules sehingga build tidak menyentuh jaringan sama sekali.
+// Bonus: tidak ada permintaan pihak ketiga dari peramban warga (privasi).
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-  // Bila Google Fonts tidak dapat dihubungi saat build, gunakan fallback
-  // sistem alih-alih menggagalkan build (§P1-06).
-  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-  fallback: ["ui-monospace", "Courier New", "monospace"],
-});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cc-acehtengah.vercel.app";
 
@@ -66,7 +58,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-[#F5F3EC] text-[#1E2420]">{children}</body>
     </html>

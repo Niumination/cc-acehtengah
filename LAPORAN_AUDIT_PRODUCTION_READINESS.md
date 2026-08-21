@@ -947,6 +947,40 @@ merespons benar. `tsc` bersih · `eslint` 0 masalah · **30/30 tes lulus** ·
 
 ---
 
+### ✅ Paket kebersihan pasca-reviu (commit `270e288`)
+
+| ID | Temuan | Bukti sesudah perbaikan |
+|---|---|---|
+| **P1-06** | Build gagal total bila `fonts.googleapis.com` tak terjangkau | Font di-self-host lewat paket resmi `geist` (45 berkas `.woff2` di `node_modules`). Build kini **tidak menyentuh jaringan**: baris `fonts.googleapis` hilang sepenuhnya dari log build. Bonus: peramban warga tidak lagi memanggil server pihak ketiga |
+| **P3-08** | `scripts/sync-all.sh` tidak bisa bekerja | Ditulis ulang dengan `set -Eeuo pipefail`, ERR trap, dan lock file. Tiga bug asli diperbaiki dan **diverifikasi**: (a) exit code kini `1` saat gagal — dulu selalu `0` karena `$?` mengambil status `tee`; (b) `npx tsx` (bukan dependency) diganti `node --experimental-strip-types`; (c) `require()` di konteks ESM diganti `import()`. Lock diuji: proses kedua membalas "DILEWATI" |
+| **P2-18** | Laporan mematok `limit: '200'` tanpa navigasi | Paginasi 25/halaman dengan tombol Sebelumnya/Berikutnya, penanda "Menampilkan 1–25 dari N", `aria-live`, dan reset ke halaman 1 saat filter berubah. Nama berkas CSV menyebut halaman agar tidak menyesatkan |
+| **P2-19** | Log kueri AI disimpan selamanya | `src/lib/retention.ts` + job cron harian `/api/cron/prune-logs` (terdaftar di `vercel.json`), dilindungi `Authorization: Bearer CRON_SECRET`. Diuji: tanpa/salah token → `404`, token benar → lolos otorisasi |
+| **Klaim EWS** | `AGENTS.md` menandai EWS ✅ padahal mustahil menyala | Status dikoreksi menjadi 🚧 **belum fungsional** di `AGENTS.md` dan `README.md`, disertai penjelasan rantai data yang putus dan rujukan ke R1 |
+| **P3-11** | `.nvmrc`=22 vs `engines.node`=">=20" | Diselaraskan ke `>=22.6.0` — versi minimum yang mendukung `--experimental-strip-types` yang dipakai `npm test` dan `sync-all.sh` |
+| Utang teknis | Resolver alias `@/` terkubur di `tests/` | Dipindah ke `scripts/ts-alias-loader.mjs` dan dipakai bersama oleh `npm test` **dan** `sync-all.sh` |
+
+**Dua bug nyata yang tersingkap saat mengerjakan paket ini:**
+
+1. **`scripts/sync-all.sh` hasil perbaikan pertama saya tetap mustahil jalan.**
+   Uji menunjukkan `ERR_MODULE_NOT_FOUND: Cannot find package '@/lib'` — alias
+   tsconfig hanya dipahami bundler Next.js, bukan Node. Ketahuan karena skrip
+   benar-benar dijalankan, bukan sekadar dicek sintaksnya. Setelah memakai
+   resolver bersama, kegagalannya berpindah ke `P1001 Can't reach database` —
+   mode kegagalan yang benar.
+
+2. **`Number('') === 0`, bukan `NaN`.** Akibatnya
+   `CHAT_LOG_RETENTION_DAYS=""` (variabel ada tapi kosong — pola lazim di berkas
+   `.env`) akan dibaca sebagai 0 lalu dipangkas ke batas minimum, sehingga
+   retensi diam-diam menjadi **7 hari alih-alih 90** — menghapus 83 hari
+   riwayat tanpa disadari. Ditemukan oleh tes yang baru ditulis, lalu diperbaiki
+   dan dikunci dengan kasus `''`, `'   '`, dan `null`.
+
+**Gate:** `tsc` bersih · `eslint` 0 masalah · **35/35 tes lulus** ·
+`next build` sukses tanpa jaringan · 6 pemeriksaan regresi Sprint 0–2 lolos ·
+4 pemeriksaan cron retensi lolos.
+
+---
+
 ## 11. Rencana aksi berurutan
 
 ### Sprint 0 — Hentikan pendarahan (1–2 hari, wajib sebelum publikasi)
