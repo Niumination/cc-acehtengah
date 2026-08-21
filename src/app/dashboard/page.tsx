@@ -146,14 +146,16 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Query Bar — ALWAYS visible */}
-      <QueryBar
-        onQuery={handleQuery}
-        isLoading={isLoading}
-        onReset={handleReset}
-        isDefaultMode={mode === 'default'}
-      />
+    <div className="space-y-5">
+      {/* Query Bar — ALWAYS visible, centered */}
+      <div className="max-w-3xl mx-auto">
+        <QueryBar
+          onQuery={handleQuery}
+          isLoading={isLoading}
+          onReset={handleReset}
+          isDefaultMode={mode === 'default'}
+        />
+      </div>
 
       {/* Content Area — switches between default and AI response */}
       {mode === 'default' && <DefaultDashboard />}

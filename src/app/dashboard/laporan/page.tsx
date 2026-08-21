@@ -51,7 +51,6 @@ export default function LaporanPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -69,24 +68,12 @@ export default function LaporanPage() {
       setLogs(data.logs || []);
       setTotal(data.total || 0);
       setStats(data.stats || []);
-      setLastUpdated(new Date());
     } catch (err: any) {
       setError(err.message || 'Gagal memuat data');
     } finally {
       setLoading(false);
     }
   }, [intentFilter, searchFilter, dateFrom, dateTo]);
-
-  // Realtime: poll tiap 15s + refetch saat tab kembali visible
-  useEffect(() => {
-    const id = setInterval(fetchLogs, 15000);
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchLogs(); };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [fetchLogs]);
 
   useEffect(() => {
     fetchLogs();
@@ -133,12 +120,8 @@ export default function LaporanPage() {
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E2420', margin: '0 0 6px' }}>
             Riwayat AI Query
           </h1>
-          <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5 }}>
             Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#2D6A4F', background: '#E9E6DA', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#52B788', display: 'inline-block', animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }} />
-              LIVE · {lastUpdated ? lastUpdated.toLocaleTimeString('id-ID') : '—'}
-            </span>
           </p>
         </div>
         <button
