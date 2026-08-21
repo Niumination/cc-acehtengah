@@ -47,7 +47,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      <div className={`bg-[var(--brand-deep)] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
+      <div className={`bg-[var(--brand-deep)] flex h-[61px] items-center ${collapsed ? 'px-2' : 'px-4'}`}>
         <div className="flex items-center gap-2.5">
           {onToggle && (
             <button

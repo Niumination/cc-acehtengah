@@ -176,7 +176,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--brand)] bg-[var(--brand-deep)] px-4 py-3">
+        <header className="flex h-[61px] flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--brand)] bg-[var(--brand-deep)] px-4">
           <div className="flex min-w-0 items-center gap-3">
             <button
               ref={menuButtonRef}
