@@ -302,31 +302,39 @@ Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA.
 
 STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
 
-ATURAN:
+ATURAN WAJIB:
 1. HANYA gunakan data riil dari field "data_ditemukan". Jangan mengarang angka.
 2. Data "tahun":"terbaru" berarti indikator tanpa tahun spesifik — gunakan sebagai data terkini.
-3. Tampilkan data yang ditemukan dengan format yang jelas (nilai + satuan + periode).
+3. Tampilkan data yang ditemukan dengan format jelas (nilai + satuan + periode + OPD sumber).
 4. Jika data spesifik tidak ada di "data_ditemukan", tampilkan data terkait dari "indikator_relevan".
 5. Selalu sebutkan OPD dan sumber data.
 6. Gunakan Bahasa Indonesia formal, lugas, actionable.
 7. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
+8. WAJIB mengisi "rekomendasi" dengan 2-3 poin tindakan nyata & spesifik untuk Kepala Daerah (berdasarkan data di atas). JANGAN biarkan kosong.
+9. Pilih "visualisasi" yang TEPAT:
+   - "metric" → untuk 1 nilai utama (mis. "Jumlah ASN: 9.610 orang")
+   - "table" → untuk daftar >3 baris detail (columns + rows)
+   - "chart" → untuk perbandingan antar kategori / tren antar tahun / komposisi rasio
+     * bar: {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
+     * line/area: untuk tren {type:"line", xKey:"tahun", data:[{tahun, nilai}], lines:["nilai"]}
+     * pie/donut: untuk komposisi {type:"donut", xKey:"indikator", data:[{indikator, nilai}], lines:["nilai"]}
+   - "none" hanya jika benar-benar tidak ada data untuk divisualisasikan.
+   Untuk query angka tunggal, GUNAKAN "metric" (nilai utama) — bukan chart.
 
 CONTOH RESPONS:
 Query: "berapa jumlah ASN"
-Data ditemukan: [{opd:"BKPSDM", indikator:"Jumlah ASN", nilai:"9694", satuan:"orang", periode:"2025"}]
-→ "Berdasarkan data SAPA, jumlah ASN di Kabupaten Aceh Tengah adalah 9.694 orang (sumber: BKPSDM, periode 2025)."
+Data: [{opd:"BKPSDM", indikator:"Jumlah ASN", nilai:"9610", satuan:"orang", periode:"2026"}]
+→ {
+  "narasi": "Berdasarkan data SAPA (BKPSDM, 2026), jumlah ASN Kabupaten Aceh Tengah adalah 9.610 orang, terdiri dari PNS dan PPPK.",
+  "visualisasi": {"tipe":"metric", "konfigurasi":{"metrics":[{"label":"Jumlah ASN", "value":"9.610", "unit":"orang"}]}},
+  "rekomendasi": [
+    "Lakukan audit kejelasan status 84 pegawai menyusul reorganisasi OPD untuk menghindari tumpang tindih penugasan.",
+    "Susun roadmap penguatan kompetensi PPPK paruh waktu menuju pegawai penuh waktu guna efisiensi layanan."
+  ]
+}
 
-VISUALISASI (pilih salah satu):
-- "table" untuk daftar (columns, rows)
-- "metric" untuk ringkasan angka (metrics: [{label, value, unit}])
-- "chart" untuk tren/perbandingan/komposisi:
-  * bar: {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
-  * line/area: untuk tren antar tahun {type:"line", xKey:"tahun", data:[{tahun, nilai}], lines:["nilai"]}
-  * pie/donut: untuk komposisi/rasio {type:"donut", xKey:"indikator", data:[{indikator, nilai}], lines:["nilai"]}
-- "none" jika tidak perlu
-
-FORMAT JSON:
-{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
+FORMAT JSON (wajib valid, satu object):
+{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{}},"rekomendasi":["...","..."]}`;
 }
 
 /**
@@ -429,13 +437,33 @@ function extractReadableNarasi(cleaned: string): string {
  * Auto-generate a statistical chart from SAPA records when the model
  * didn't provide a visualization. Uses aggregated indicator values.
  */
-function generateAutoChart(records: SapaRecord[]): { tipe: 'chart'; konfigurasi: Record<string, any> } {
+function generateAutoChart(records: SapaRecord[]): { tipe: 'chart' | 'table' | 'metric'; konfigurasi: Record<string, any> } {
   const aggregated = aggregateByIndicator(records);
-  const entries = aggregated.slice(0, 10);
-  if (entries.length < 2) {
-    return { tipe: 'chart', konfigurasi: { type: 'bar', xKey: 'indikator', data: [], bars: ['nilai'] } };
+  const entries = aggregated.slice(0, 12);
+
+  // 1 nilai utama → metric (lebih tepat dari chart)
+  if (entries.length === 1) {
+    const e = entries[0];
+    return {
+      tipe: 'metric',
+      konfigurasi: {
+        metrics: [{ label: e.nama, value: e.nilaiNumber, unit: e.satuan ?? '' }],
+      },
+    };
   }
 
+  // >8 indikator → table (lebih rapi & readable daripada bar chart ramai)
+  if (entries.length > 8) {
+    return {
+      tipe: 'table',
+      konfigurasi: {
+        columns: ['Indikator', 'Nilai', 'Satuan'],
+        rows: entries.map((e) => [e.nama, e.nilaiNumber, e.satuan ?? '']),
+      },
+    };
+  }
+
+  // 2-8 indikator → bar chart (perbandingan)
   return {
     tipe: 'chart',
     konfigurasi: {
