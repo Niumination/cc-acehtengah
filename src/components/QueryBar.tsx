@@ -39,20 +39,19 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
 
   return (
     <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl overflow-hidden">
-      {/* Header — centered */}
-      <div className="px-5 py-3 border-b border-[#C6C3B4] flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-xs shadow-lg">
+      {/* Header — centered, judul + subtext bertumpuk */}
+      <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-sm shadow-lg">
             🤖
           </div>
-          <span className="text-xs font-bold text-[#1B4332]">SAPA Smart AI</span>
-          <span className="text-[10px] text-[#767D6F]">·</span>
-          <span className="text-[10px] text-[#767D6F]">Tanya data SAPA Aceh Tengah</span>
+          <span className="text-base font-bold text-[#1B4332]">SAPA Smart AI</span>
         </div>
+        <span className="text-xs text-[#767D6F]">Tanya data SAPA Aceh Tengah</span>
         {!isDefaultMode && (
           <button
             onClick={onReset}
-            className="absolute right-5 text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
+            className="absolute right-5 top-5 text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
           >
             <span>←</span>
             <span>Kembali ke Beranda</span>
@@ -61,7 +60,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
       </div>
 
       {/* Keyword Chips — centered */}
-      <div className="px-5 py-3 border-b border-[#C6C3B4]">
+      <div className="px-5 py-3">
         <div className="flex flex-wrap gap-2 justify-center">
           {KEYWORD_CHIPS.map((chip) => (
             <button
@@ -76,35 +75,33 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         </div>
       </div>
 
-      {/* Search Input — centered */}
-      <form onSubmit={handleSubmit} className="px-5 py-3 flex justify-center">
-        <div className="flex gap-3 w-full max-w-2xl">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
-            className="flex-1 px-4 py-2 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-sm text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="px-5 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center gap-2 flex-shrink-0"
-          >
-            {isLoading ? (
-              <>
-                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Memproses</span>
-              </>
-            ) : (
-              <>
-                <span>Tanya</span>
-                <span>→</span>
-              </>
-            )}
-          </button>
-        </div>
+      {/* Search Input + Button — centered, button di bawah */}
+      <form onSubmit={handleSubmit} className="px-5 pb-5 pt-1 flex flex-col items-center gap-3">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
+          className="w-full max-w-2xl px-5 py-3 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-base text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
+          disabled={isLoading}
+        />
+        <button
+          type="submit"
+          disabled={isLoading || !input.trim()}
+          className="w-full max-w-2xl px-5 py-3 bg-[#1B4332] text-white rounded-xl text-base font-semibold hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Memproses</span>
+            </>
+          ) : (
+            <>
+              <span>Tanya</span>
+              <span>→</span>
+            </>
+          )}
+        </button>
       </form>
     </div>
   );
