@@ -8,6 +8,7 @@
 // Seluruh aturan penguraian ada di `src/lib/sapa-transform.ts` (murni & teruji);
 // berkas ini hanya lapisan penulisan ke database.
 
+import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { getSapaRecords } from '@/lib/data-source';
 import { transformSapaRecords } from '@/lib/sapa-transform';
@@ -100,30 +101,28 @@ export async function syncSapaToWarehouse(): Promise<SyncSummary> {
     }
 
     // 2. Observasi — kunci upsert (indicatorId, opdId, tahun).
+    //
+    // CATATAN PENTING (Prisma 6.19.3): `prisma.sapaObservation.upsert()` TIDAK
+    // bisa dipakai di sini karena compound-unique `(indicatorId, opdId, tahun)`
+    // memuat kolom nullable `tahun`, dan Prisma 6.x menolak `null` pada klausa
+    // `where` compound unique ("Argument `tahun` must not be null"). DB memakai
+    // NULLS NOT DISTINCT (migrasi 003) sehingga NULL sah sebagai nilai kunci.
+    // Karena itu upsert ditulis sebagai SQL mentah `INSERT ... ON CONFLICT`,
+    // yang menghormati NULLS NOT DISTINCT di level DB (diverifikasi oleh
+    // tests/integration/warehouse-db.test.ts — "tahun NULL tidak duplikat").
     for (const batch of chunk(observations, BATCH_SIZE)) {
       await mapLimit(batch, WRITE_CONCURRENCY, (o) =>
-        prisma.sapaObservation.upsert({
-          where: {
-            indicatorId_opdId_tahun: {
-              indicatorId: o.indicatorId,
-              opdId: o.opdId,
-              // DB memakai NULLS NOT DISTINCT (migrasi 003) sehingga NULL sah
-              // dalam kunci unik (indicatorId, opdId, tahun). Prisma 6.19.3
-              // belum mendukung NULLS NOT DISTINCT, jadi tipe compound-unique
-              // digenerasikan sebagai `tahun: string` (non-null). Runtime aman:
-              // upsert menghasilkan ON CONFLICT yang menghormati NULLS NOT
-              // DISTINCT di level DB. Cast hanya untuk lolos typecheck.
-              tahun: o.tahun as string,
-            },
-          },
-          create: o,
-          update: {
-            nilaiTeks: o.nilaiTeks,
-            nilaiNumerik: o.nilaiNumerik,
-            satuan: o.satuan,
-            jadwal: o.jadwal,
-          },
-        }),
+        prisma.$executeRaw`
+          INSERT INTO "SapaObservation"
+            ("id","indicatorId","opdId","tahun","nilaiTeks","nilaiNumerik","satuan","jadwal")
+          VALUES
+            (${randomUUID()}, ${o.indicatorId}, ${o.opdId}, ${o.tahun}, ${o.nilaiTeks}, ${o.nilaiNumerik}, ${o.satuan}, ${o.jadwal})
+          ON CONFLICT ("indicatorId","opdId","tahun") DO UPDATE SET
+            "nilaiTeks"    = EXCLUDED."nilaiTeks",
+            "nilaiNumerik" = EXCLUDED."nilaiNumerik",
+            "satuan"       = EXCLUDED."satuan",
+            "jadwal"       = EXCLUDED."jadwal"
+        `,
       );
     }
 
