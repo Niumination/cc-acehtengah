@@ -138,10 +138,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const statusTone =
     health.kind === 'ok' && health.status === 'healthy' && health.mode === 'live'
-      ? 'bg-[var(--brand-soft)]/30 border-[#52B788]/50 text-[#8FE3B5]'
+      ? 'bg-[var(--brand-tint)] border-[var(--brand-soft)]/50 text-[var(--brand)]'
       : health.kind === 'ok' && health.mode === 'mock'
-        ? 'bg-[#D9C284]/15 border-[#D9C284]/40 text-[#E7D6A3]'
-        : 'bg-[var(--danger)]/20 border-[#F0A9A2]/40 text-[#F0A9A2]';
+        ? 'bg-[var(--warning-tint)] border-[var(--warning)]/40 text-[var(--warning)]'
+        : 'bg-[var(--danger-tint)] border-[var(--danger)]/40 text-[var(--danger)]';
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--surface)] text-[var(--text)]">
@@ -184,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setMobileNavOpen(true)}
               aria-label="Buka menu navigasi"
               aria-expanded={mobileNavOpen}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-white md:hidden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-[var(--on-brand)] md:hidden"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
@@ -205,7 +205,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <h1 className="truncate text-sm font-bold tracking-wide text-white">
                 Command Center Aceh Tengah
               </h1>
-              <p className="text-[11px] uppercase tracking-widest text-[#C6C3B4]">Diskominfo</p>
+              <p className="text-[11px] uppercase tracking-widest text-[var(--text-muted)]">Diskominfo</p>
             </div>
           </div>
 
@@ -254,7 +254,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setEwsOpen(true)}
             aria-label="Tampilkan panel peringatan dini"
             aria-expanded={false}
-            className="absolute right-0 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[var(--border-strong)] bg-white text-[var(--text-body)] shadow-lg hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]"
+            className="absolute right-0 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[var(--border-strong)] bg-[var(--surface-card)] text-[var(--text-body)] shadow-lg hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]"
           >
             <svg
               width="12"
@@ -280,7 +280,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ewsOpen ? 'w-72' : 'w-0'
         }`}
       >
-        <div className="h-full w-72 overflow-y-auto border-l border-[var(--border-strong)] bg-white p-4">
+        <div className="h-full w-72 overflow-y-auto border-l border-[var(--border-strong)] bg-[var(--surface-card)] p-4">
           <div className="mb-3 flex items-start gap-2">
             <EwsPanel />
             <button

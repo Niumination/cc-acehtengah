@@ -165,7 +165,7 @@ export default function DashboardPage() {
           <p className="text-sm text-[var(--danger)] mb-4">{error}</p>
           <button
             onClick={handleReset}
-            className="px-4 py-2 bg-[var(--brand)] text-white text-sm rounded-lg hover:bg-[var(--brand-soft)]"
+            className="px-4 py-2 bg-[var(--brand)] text-[var(--on-brand)] text-sm rounded-lg hover:bg-[var(--brand-soft)]"
           >
             Kembali ke Beranda
           </button>

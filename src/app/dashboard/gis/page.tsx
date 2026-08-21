@@ -229,7 +229,7 @@ export default function GisPage() {
 
       {/* Daftar kecamatan */}
       {data && (
-        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
+        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-card)]">
           <div className="border-b border-[var(--border)] px-5 py-4">
             <h2 className="text-sm font-bold text-[var(--brand)]">
               Daftar Kecamatan ({data.kecamatan.length})
@@ -309,7 +309,7 @@ function SummaryCard({
   sub: string;
 }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] p-5">
       <p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
       <p className="mt-1 text-2xl font-bold text-[var(--brand)]">
         {value === null ? <span className="text-[var(--text-muted)]">—</span> : value.toLocaleString('id-ID')}
