@@ -88,7 +88,13 @@ export async function syncSapaToWarehouse(): Promise<SyncSummary> {
               indicatorId_opdId_tahun: {
                 indicatorId: o.indicatorId,
                 opdId: o.opdId,
-                tahun: o.tahun,
+                // DB memakai NULLS NOT DISTINCT (migrasi 003) sehingga NULL sah
+                // dalam kunci unik (indicatorId, opdId, tahun). Prisma 6.19.3
+                // belum mendukung NULLS NOT DISTINCT, jadi tipe compound-unique
+                // digenerasikan sebagai `tahun: string` (non-null). Runtime aman:
+                // upsert menghasilkan ON CONFLICT yang menghormati NULLS NOT
+                // DISTINCT di level DB. Cast hanya untuk lolos typecheck.
+                tahun: o.tahun as string,
               },
             },
             create: o,
