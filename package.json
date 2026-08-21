@@ -8,12 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "test": "node --test --import ./tests/register.mjs --experimental-strip-types --disable-warning=ExperimentalWarning \"tests/*.test.ts\"",
+    "test": "node --test --import ./scripts/ts-alias-loader.mjs --experimental-strip-types --disable-warning=ExperimentalWarning \"tests/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "bcryptjs": "^3.0.3",
+    "geist": "^1.7.2",
     "jose": "^6.2.4",
     "leaflet": "^1.9.4",
     "next": "16.3.1",
@@ -36,7 +37,7 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.6.0"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,

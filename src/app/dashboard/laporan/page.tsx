@@ -54,11 +54,30 @@ export default function LaporanPage() {
   const [dateTo, setDateTo] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Paginasi (§P2-18). Sebelumnya `limit: '200'` dipatok mati tanpa navigasi,
+  // sehingga log ke-201 dan seterusnya tidak pernah bisa dilihat sama sekali.
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
+
+  // Setiap perubahan filter mengembalikan tampilan ke halaman pertama, agar
+  // pengguna tidak terjebak pada offset yang sudah melewati jumlah hasil baru.
+  // Dilakukan di handler — BUKAN di useEffect turunan — supaya tidak memicu
+  // cascading render (react-hooks/set-state-in-effect).
+  const applyFilter = useCallback(<T,>(setter: (value: T) => void) => {
+    return (value: T) => {
+      setter(value);
+      setPage(0);
+    };
+  }, []);
+
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '200' });
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(page * PAGE_SIZE),
+      });
       if (intentFilter !== 'all') params.set('intent', intentFilter);
       if (searchFilter) params.set('search', searchFilter);
       if (dateFrom) params.set('from', new Date(dateFrom).toISOString());
@@ -75,7 +94,7 @@ export default function LaporanPage() {
     } finally {
       setLoading(false);
     }
-  }, [intentFilter, searchFilter, dateFrom, dateTo]);
+  }, [intentFilter, searchFilter, dateFrom, dateTo, page]);
 
   // Dijadwalkan lewat microtask agar setState tidak dipanggil sinkron di body
   // effect (react-hooks/set-state-in-effect).
@@ -96,12 +115,13 @@ export default function LaporanPage() {
       `"${JSON.stringify(l.metadata || {})}"`,
     ]);
 
+    // Catatan: mengekspor HALAMAN yang sedang tampil, bukan seluruh riwayat.
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `laporan-ai-query-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `laporan-ai-hal${page + 1}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -145,7 +165,7 @@ export default function LaporanPage() {
       {stats.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
           <div style={{ padding: '8px 14px', borderRadius: '8px', background: '#2D6A4F', color: '#fff', fontWeight: 700, fontSize: '0.82rem' }}>
-            Total: {total} query
+            Total: {total.toLocaleString('id-ID')} kueri
           </div>
           {stats.map((s) => (
             <div key={s.intent} style={{
@@ -165,7 +185,7 @@ export default function LaporanPage() {
         <input
           placeholder="Cari pertanyaan..."
           value={searchFilter}
-          onChange={(e) => setSearchFilter(e.target.value)}
+          onChange={(e) => applyFilter(setSearchFilter)(e.target.value)}
           style={{
             padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683',
             background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem', flex: 1, minWidth: '180px',
@@ -174,7 +194,7 @@ export default function LaporanPage() {
         />
         <select
           value={intentFilter}
-          onChange={(e) => setIntentFilter(e.target.value)}
+          onChange={(e) => applyFilter(setIntentFilter)(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem', fontWeight: 600 }}
         >
           <option value="all">Semua Kategori</option>
@@ -182,10 +202,10 @@ export default function LaporanPage() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+        <input type="date" value={dateFrom} onChange={(e) => applyFilter(setDateFrom)(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
         <span style={{ color: '#5C6358', fontSize: '0.8rem' }}>s/d</span>
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+        <input type="date" value={dateTo} onChange={(e) => applyFilter(setDateTo)(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #9A9683', background: '#F5F3EC', color: '#1E2420', fontSize: '0.82rem' }} />
         <button onClick={fetchLogs}
           style={{ padding: '8px 16px', borderRadius: '8px', background: '#1B4332', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
@@ -313,6 +333,66 @@ export default function LaporanPage() {
           })}
         </div>
       )}
+      {/* Navigasi halaman */}
+      {total > PAGE_SIZE && (
+        <nav
+          aria-label="Navigasi halaman laporan"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            marginTop: '20px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <p style={{ fontSize: '0.82rem', color: '#5C6358', margin: 0 }}>
+            Menampilkan{' '}
+            <strong>
+              {total === 0 ? 0 : page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)}
+            </strong>{' '}
+            dari {total.toLocaleString('id-ID')} kueri
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0 || loading}
+              style={paginationButtonStyle(page === 0 || loading)}
+            >
+              ← Sebelumnya
+            </button>
+            <span
+              aria-live="polite"
+              style={{ fontSize: '0.82rem', color: '#4B5249', minWidth: '96px', textAlign: 'center' }}
+            >
+              Hal {page + 1} / {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={(page + 1) * PAGE_SIZE >= total || loading}
+              style={paginationButtonStyle((page + 1) * PAGE_SIZE >= total || loading)}
+            >
+              Berikutnya →
+            </button>
+          </div>
+        </nav>
+      )}
     </div>
   );
+}
+
+function paginationButtonStyle(disabled: boolean): React.CSSProperties {
+  return {
+    padding: '8px 14px',
+    borderRadius: '8px',
+    border: '1px solid #8A8676',
+    background: disabled ? '#E9E6DA' : '#FFFFFF',
+    color: disabled ? '#8A8676' : '#1B4332',
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  };
 }
