@@ -297,7 +297,7 @@ export async function processAIQueryStreaming(
 export { extractNarasiPartial };
 
 function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
-  return `Anda adalah AI Command Center Pemerintah Kabupaten Aceh Tengah.
+  return `Anda adalah SAPA Smart AI Pemerintah Kabupaten Aceh Tengah.
 Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA.
 
 STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id

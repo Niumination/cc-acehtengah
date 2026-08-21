@@ -45,7 +45,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-xs shadow-lg">
             🤖
           </div>
-          <span className="text-xs font-bold text-[#1B4332]">AI Command Center</span>
+          <span className="text-xs font-bold text-[#1B4332]">SAPA Smart AI</span>
           <span className="text-[10px] text-[#767D6F]">·</span>
           <span className="text-[10px] text-[#767D6F]">Tanya data SAPA Aceh Tengah</span>
         </div>

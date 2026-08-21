@@ -1,6 +1,6 @@
-# cc-acehtengah — Command Center Aceh Tengah
+# cc-acehtengah — SAPA Smart AI Aceh Tengah
 
-> **Next.js 16 + Prisma 6 + LLM + RAG** — Integrasi SAPA → SPLP → Command Center AI
+> **Next.js 16 + Prisma 6 + LLM + RAG** — Integrasi SAPA → SPLP → SAPA Smart AI
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)

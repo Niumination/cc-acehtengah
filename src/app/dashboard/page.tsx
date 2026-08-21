@@ -146,7 +146,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-5xl mx-auto">
       {/* Query Bar — ALWAYS visible */}
       <QueryBar
         onQuery={handleQuery}
