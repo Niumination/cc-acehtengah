@@ -1,69 +1,131 @@
+// ─── GET /api/health — Status ketergantungan eksternal ───
+//
+// PERUBAHAN (LAPORAN_AUDIT_PRODUCTION_READINESS.md §P1-04)
+//
+// Sebelumnya mode mock mengembalikan bentuk yang BERBEDA dari mode live:
+//   mock → { services: { db, ollama, qdrant, splp }, sapa: {...} }   ← Ollama sudah tak dipakai
+//   live → { services: { sapa, ai, qdrant }, config: {...} }
+// Konsumen mana pun akan pecah saat mode berganti. Sekarang satu tipe
+// `HealthResponse` dipakai kedua jalur.
+//
+// Catatan keamanan: blok `config` tidak lagi membocorkan URL provider AI dan
+// nama model ke publik — hanya menyebut apakah sudah dikonfigurasi.
+
 import { NextResponse } from 'next/server';
-import { getMockHealth } from '@/lib/mock-data';
+import { isMockMode } from '@/lib/data-source';
+import { isAuthConfigured } from '@/lib/auth';
 
-export async function GET() {
-  if (process.env.USE_MOCK_DATA === 'true') {
-    return NextResponse.json(getMockHealth());
-  }
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-  const services: Record<string, 'ok' | 'error' | 'skip'> = {};
+type ServiceStatus = 'ok' | 'error' | 'skip';
 
-  // Cek SAPA API (public)
+interface HealthResponse {
+  status: 'healthy' | 'degraded';
+  mode: 'mock' | 'live';
+  timestamp: string;
+  services: {
+    sapa: ServiceStatus;
+    ai: ServiceStatus;
+    qdrant: ServiceStatus;
+    auth: ServiceStatus;
+  };
+  config: {
+    sapaConfigured: boolean;
+    aiConfigured: boolean;
+    qdrantConfigured: boolean;
+    authConfigured: boolean;
+  };
+}
+
+const SAPA_HEALTH_URL = 'https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data';
+
+function summarize(services: HealthResponse['services']): 'healthy' | 'degraded' {
+  return Object.values(services).some((s) => s === 'error') ? 'degraded' : 'healthy';
+}
+
+async function checkSapa(): Promise<ServiceStatus> {
   try {
-    const res = await fetch('https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data', {
-      signal: AbortSignal.timeout(10000),
+    const res = await fetch(SAPA_HEALTH_URL, {
+      signal: AbortSignal.timeout(10_000),
       headers: { 'Content-Type': 'application/json' },
     });
+    if (!res.ok) return 'error';
     const json = await res.json();
-    services.sapa = res.ok && json.api_status === 1 ? 'ok' : 'error';
+    return json?.api_status === 1 ? 'ok' : 'error';
   } catch {
-    services.sapa = 'error';
+    return 'error';
   }
+}
 
-  // Cek AI Provider
+async function checkAi(): Promise<ServiceStatus> {
+  const key = process.env.AI_API_KEY;
+  if (!key) return 'skip';
   try {
-    const aiKey = process.env.AI_API_KEY;
-    const aiUrl = process.env.AI_BASE_URL ?? 'https://api.openai.com/v1';
-    if (!aiKey) {
-      services.ai = 'skip';
-    } else {
-      const res = await fetch(`${aiUrl}/models`, {
-        signal: AbortSignal.timeout(10000),
-        headers: { Authorization: `Bearer ${aiKey}` },
-      });
-      services.ai = res.ok ? 'ok' : 'error';
-    }
+    const baseUrl = process.env.AI_BASE_URL ?? 'https://api.openai.com/v1';
+    const res = await fetch(`${baseUrl}/models`, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    return res.ok ? 'ok' : 'error';
   } catch {
-    services.ai = 'error';
+    return 'error';
   }
+}
 
-  // Cek Qdrant (opsional)
+async function checkQdrant(): Promise<ServiceStatus> {
+  const url = process.env.QDRANT_URL;
+  if (!url) return 'skip';
   try {
-    const qdrantUrl = process.env.QDRANT_URL;
-    if (!qdrantUrl) {
-      services.qdrant = 'skip';
-    } else {
-      const res = await fetch(`${qdrantUrl}/collections`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      services.qdrant = res.ok ? 'ok' : 'error';
-    }
+    const res = await fetch(`${url}/collections`, { signal: AbortSignal.timeout(5_000) });
+    return res.ok ? 'ok' : 'error';
   } catch {
-    services.qdrant = 'skip';
+    return 'error';
+  }
+}
+
+export async function GET() {
+  const authOk: ServiceStatus = isAuthConfigured() ? 'ok' : 'error';
+
+  if (isMockMode()) {
+    const services: HealthResponse['services'] = {
+      sapa: 'skip',
+      ai: 'skip',
+      qdrant: 'skip',
+      auth: authOk,
+    };
+    const payload: HealthResponse = {
+      status: summarize(services),
+      mode: 'mock',
+      timestamp: new Date().toISOString(),
+      services,
+      config: {
+        sapaConfigured: false,
+        aiConfigured: false,
+        qdrantConfigured: false,
+        authConfigured: authOk === 'ok',
+      },
+    };
+    return NextResponse.json(payload);
   }
 
-  const allOk = Object.values(services).every((s) => s === 'ok' || s === 'skip');
-  const anyError = Object.values(services).some((s) => s === 'error');
+  const [sapa, ai, qdrant] = await Promise.all([checkSapa(), checkAi(), checkQdrant()]);
+  const services: HealthResponse['services'] = { sapa, ai, qdrant, auth: authOk };
 
-  return NextResponse.json({
-    status: anyError ? 'degraded' : 'healthy',
+  const payload: HealthResponse = {
+    status: summarize(services),
+    mode: 'live',
     timestamp: new Date().toISOString(),
     services,
     config: {
-      sapa: 'https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data',
-      ai: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
-      aiModel: process.env.AI_MODEL ?? 'gpt-4o-mini',
-      qdrant: process.env.QDRANT_URL ?? '(not configured)',
+      sapaConfigured: true,
+      aiConfigured: Boolean(process.env.AI_API_KEY),
+      qdrantConfigured: Boolean(process.env.QDRANT_URL),
+      authConfigured: authOk === 'ok',
     },
+  };
+
+  return NextResponse.json(payload, {
+    status: payload.status === 'healthy' ? 200 : 503,
   });
 }
