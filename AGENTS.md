@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 22, 2026 — theme light default + WCAG AA, security JWT/rate-limit (#3), analytics fix, AI spinner fix
+> **Last update:** Aug 22, 2026 — rebrand KOMANDO AT→SAPA Smart AI, sidebar AI/EWS dihapus, layout QueryBar center, laporan refresh saat tab visible, model AI Ox Alpha (`x-preview-f-free`), robust JSON parse (no raw JSON leak), timeout 45s→90s + retry, spinner rapi
 > **Backlog priority:** P2
 
 > **⚠️ EWS (Early Warning System) BELUM FUNGSIONAL — MASUK BACKLOG:**
@@ -134,5 +134,5 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `nemotron-3-ultra-free` | |
+| `AI_MODEL` | `nemotron-3-ultra-free` (di-override kode → `x-preview-f-free` Ox Alpha Free) | Vercel env = `x-preview-f-free`; di kode `llm-client.ts` nemotron-ultra dipetakan ke Ox Alpha |
 | `JWT_SECRET` | random string | Auto-generated if not set |
