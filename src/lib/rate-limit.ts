@@ -1,86 +1,58 @@
-// ─── Rate Limiter (fixed window, in-memory) ───
+// ─── Rate limiter (P0-05, diperkuat oleh P1-08) ───
 //
-// KETERBATASAN YANG HARUS DIPAHAMI:
-// Penyimpanan ada di memori proses. Di Vercel/serverless setiap instance punya
-// memori sendiri, sehingga batas efektif = limit × jumlah instance aktif.
-// Ini adalah mitigasi *best effort* untuk menahan abuse kasar (bot, script
-// berulang), BUKAN pengganti rate limiter terdistribusi.
+// Kini bersandar pada `src/lib/store.ts` yang memakai Upstash Redis bila
+// dikonfigurasi, dan otomatis jatuh ke memori proses bila tidak.
 //
-// Untuk produksi dengan trafik nyata, ganti implementasi ini dengan store
-// bersama (Upstash Redis / Vercel KV) tanpa mengubah call site — signature
-// `checkRateLimit()` sengaja dibuat sinkron-sederhana agar mudah ditukar.
-// Lihat: LAPORAN_AUDIT_PRODUCTION_READINESS.md §P0-05 dan §P1-08
+// Perbedaan penting dari versi sebelumnya: dengan Redis, batas berlaku LINTAS
+// instance serverless. Tanpa Redis, batas efektif = limit × jumlah instance —
+// keterbatasan ini dilaporkan lewat `backend` pada hasil agar dapat dipantau.
 
-interface Bucket {
-  count: number;
-  resetAt: number;
-}
-
-const buckets = new Map<string, Bucket>();
-
-/** Batas jumlah key yang disimpan, mencegah memory leak dari IP acak. */
-const MAX_BUCKETS = 10_000;
-
-function sweepExpired(now: number): void {
-  for (const [key, bucket] of buckets) {
-    if (bucket.resetAt <= now) buckets.delete(key);
-  }
-}
+import { incrementCounter, resetCounter, activeBackend, type StoreBackend } from '@/lib/store';
 
 export interface RateLimitResult {
   ok: boolean;
   limit: number;
   remaining: number;
-  /** Detik sampai window direset — dipakai untuk header Retry-After. */
+  /** Detik sampai window direset — dipakai header Retry-After. */
   retryAfterSeconds: number;
+  backend: StoreBackend;
 }
 
 export interface RateLimitOptions {
-  /** Identitas pemanggil, mis. `query:203.0.113.9`. */
+  /** Identitas pemanggil, mis. `query:m:203.0.113.9`. */
   key: string;
-  /** Jumlah request maksimum dalam satu window. */
+  /** Jumlah permintaan maksimum dalam satu window. */
   limit: number;
   /** Panjang window dalam milidetik. */
   windowMs: number;
 }
 
-export function checkRateLimit({ key, limit, windowMs }: RateLimitOptions): RateLimitResult {
-  const now = Date.now();
-
-  if (buckets.size > MAX_BUCKETS) sweepExpired(now);
-
-  const existing = buckets.get(key);
-
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return {
-      ok: true,
-      limit,
-      remaining: limit - 1,
-      retryAfterSeconds: Math.ceil(windowMs / 1000),
-    };
-  }
-
-  existing.count += 1;
-  const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetAt - now) / 1000));
+export async function checkRateLimit({
+  key,
+  limit,
+  windowMs,
+}: RateLimitOptions): Promise<RateLimitResult> {
+  const { count, resetAt, backend } = await incrementCounter(`rl:${key}`, windowMs);
+  const retryAfterSeconds = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
 
   return {
-    ok: existing.count <= limit,
+    ok: count <= limit,
     limit,
-    remaining: Math.max(0, limit - existing.count),
+    remaining: Math.max(0, limit - count),
     retryAfterSeconds,
+    backend,
   };
 }
 
-/** Reset satu key — dipakai setelah login sukses agar percobaan gagal tidak menumpuk. */
-export function resetRateLimit(key: string): void {
-  buckets.delete(key);
+/** Reset satu kunci — dipakai setelah login berhasil agar percobaan gagal tidak menumpuk. */
+export async function resetRateLimit(key: string): Promise<void> {
+  await resetCounter(`rl:${key}`);
 }
 
 /**
  * Ambil IP klien dari header proxy.
- * Di Vercel `x-forwarded-for` di-set oleh platform dan tidak bisa di-spoof klien;
- * di self-host pastikan reverse proxy menimpa header ini.
+ * Di Vercel `x-forwarded-for` di-set platform dan tidak dapat dipalsukan klien;
+ * pada self-host pastikan reverse proxy menimpa header ini.
  */
 export function getClientIp(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -99,3 +71,5 @@ export function rateLimitHeaders(result: RateLimitResult): Record<string, string
     'X-RateLimit-Remaining': String(result.remaining),
   };
 }
+
+export { activeBackend };

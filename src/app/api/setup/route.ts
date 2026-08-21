@@ -5,14 +5,16 @@
 
 import { NextResponse } from 'next/server';
 import { ensureChatSessionTable } from '@/lib/db-migration';
-import { guardSetupRoute } from '@/lib/setup-guard';
+import { evaluateSetupAccess } from '@/lib/setup-guard';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
-  const denied = guardSetupRoute(req);
-  if (denied) return denied;
+  // Gagal → 404 supaya keberadaan endpoint tidak terkonfirmasi ke pemindai.
+  if (!evaluateSetupAccess(req).allowed) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   try {
     const ok = await ensureChatSessionTable();

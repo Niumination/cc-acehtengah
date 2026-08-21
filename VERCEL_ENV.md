@@ -9,7 +9,7 @@ DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1
 # ─── AI Provider (OpenCode Zen - FREE models) ───
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=«redacted:sk-…»
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 
 # ─── Auth (WAJIB — tidak ada fallback, app fail-closed tanpa ini) ───
 # Generate: openssl rand -base64 48    (minimal 32 karakter)
@@ -20,6 +20,18 @@ SETUP_ENABLED=false
 # SETUP_TOKEN=«openssl rand -hex 32»
 # ADMIN_BOOTSTRAP_USERNAME=admin
 # ADMIN_BOOTSTRAP_PASSWORD=«minimal 12 karakter»
+
+# ─── URL publik (Open Graph, robots.txt, sitemap.xml) ───
+NEXT_PUBLIC_SITE_URL=https://cc-acehtengah.vercel.app
+
+# ─── Penyimpanan bersama (opsional, sangat disarankan) ───
+# Tanpa ini rate limit & cache hanya per-instance serverless.
+# UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
+# UPSTASH_REDIS_REST_TOKEN=«token»
+
+# ─── Retensi log AI (job cron harian, lihat vercel.json) ───
+CHAT_LOG_RETENTION_DAYS=90
+CRON_SECRET=«openssl rand -hex 32»
 
 # ─── Mode ───
 USE_MOCK_DATA=false
