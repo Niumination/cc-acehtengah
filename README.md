@@ -62,7 +62,7 @@ See `VERCEL_ENV.md` for full configuration. Key variables:
 DATABASE_URL=postgresql://postgres.xxx:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=sk-...
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 ```
 
 ## Project Structure

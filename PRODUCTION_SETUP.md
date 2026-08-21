@@ -44,7 +44,7 @@ DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:PASSWORD@aws-0-ap-northe
 ```env
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=sk-...
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 ```
 
 ---
@@ -100,7 +100,7 @@ Lihat bagian 4 untuk prosedur bootstrap yang aman.
 
 | Provider | Free? | Model | Base URL |
 |----------|:-----:|-------|----------|
-| **OpenCode Zen** | ✅ | `deepseek-v4-flash-free` | `https://opencode.ai/zen/v1` |
+| **OpenCode Zen** | ✅ | `nemotron-3-ultra-free` | `https://opencode.ai/zen/v1` |
 | OpenRouter | 💰 | `gpt-4o-mini` | `https://openrouter.ai/api/v1` |
 | Groq | ✅ | `llama-3.1-70b-versatile` | `https://api.groq.com/openai/v1` |
 

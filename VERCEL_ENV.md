@@ -9,7 +9,7 @@ DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1
 # ─── AI Provider (OpenCode Zen - FREE models) ───
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=«redacted:sk-…»
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 
 # ─── Auth (WAJIB — tidak ada fallback, app fail-closed tanpa ini) ───
 # Generate: openssl rand -base64 48    (minimal 32 karakter)
