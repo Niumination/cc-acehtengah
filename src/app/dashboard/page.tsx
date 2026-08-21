@@ -177,20 +177,9 @@ export default function DashboardPage() {
 
       {mode === 'ai-response' && isLoading && (
         <div className="bg-[#E9E6DA] border border-[#C6C3B4] rounded-2xl p-12 text-center">
-          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-[#1B4332]/30 border-t-[#1B4332] rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-[#767D6F]">{statusText ?? 'AI sedang menganalisis data SAPA...'}</p>
-          {liveNarasi ? (
-            <div className="mt-4 max-w-2xl mx-auto text-left">
-              <div className="bg-[var(--surface-card)] border border-[#C6C3B4] rounded-xl p-4">
-                <p className="text-sm text-[#4B5249] leading-relaxed whitespace-pre-wrap">
-                  {liveNarasi}
-                  <span className="inline-block w-2 h-4 bg-[#1B4332] ml-0.5 animate-pulse" />
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-[10px] text-[#4B5249] mt-1">Memproses permintaan Anda</p>
-          )}
+          <p className="text-[10px] text-[#4B5249] mt-1">Menyusun jawaban...</p>
         </div>
       )}
     </div>

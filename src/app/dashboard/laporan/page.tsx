@@ -75,6 +75,13 @@ export default function LaporanPage() {
     }
   }, [intentFilter, searchFilter, dateFrom, dateTo]);
 
+  // Refresh saat tab kembali visible (bukan polling berkali-kali)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchLogs(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [fetchLogs]);
+
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
@@ -124,6 +131,13 @@ export default function LaporanPage() {
             Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
           </p>
         </div>
+        <button
+          onClick={fetchLogs}
+          disabled={loading}
+          style={{ padding: '8px 16px', borderRadius: '8px', background: '#1B4332', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          🔄 Segarkan
+        </button>
         <button
           onClick={async () => {
             await fetch('/api/auth/logout', { method: 'POST' });
