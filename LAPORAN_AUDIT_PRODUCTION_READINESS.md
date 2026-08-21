@@ -947,7 +947,7 @@ merespons benar. `tsc` bersih · `eslint` 0 masalah · **30/30 tes lulus** ·
 
 ---
 
-### ✅ Paket kebersihan pasca-reviu (commit `270e288`)
+### ✅ Paket kebersihan pasca-reviu (commit `69df4c4`)
 
 | ID | Temuan | Bukti sesudah perbaikan |
 |---|---|---|
