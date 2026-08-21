@@ -9,7 +9,6 @@
 // berkas ini hanya lapisan penulisan ke database.
 
 import { randomUUID } from 'node:crypto';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSapaRecords } from '@/lib/data-source';
 import { transformSapaRecords, type ObservationRow } from '@/lib/sapa-transform';
@@ -60,27 +59,43 @@ async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<u
 }
 
 /**
+ * Escape nilai literal untuk SQL mentah ($executeRawUnsafe). Supabase pooler
+ * (pgbouncer transaction mode) TIDAK mendukung prepared statement lintas
+ * transaksi ("prepared statement does not exist"), sehingga $executeRaw dengan
+ * template literal (yang memakai prepared statement) gagal. Karena itu dipakai
+ * SQL mentah + escaping manual di sini.
+ */
+function sqlLiteral(v: string | number | null): string {
+  if (v === null) return 'NULL';
+  if (typeof v === 'number') {
+    return Number.isFinite(v) ? String(v) : 'NULL';
+  }
+  return `'${v.replace(/'/g, "''")}'`;
+}
+
+/**
  * Tulis satu batch observasi sebagai satu statement multi-row INSERT ... ON
  * CONFLICT. Satu statement per baris terlalu lambat lewat Supabase pooler.
  */
 async function upsertObservationBatch(batch: ObservationRow[]): Promise<void> {
   if (batch.length === 0) return;
-  const values = Prisma.join(
-    batch.map(
+  const rows = batch
+    .map(
       (o) =>
-        Prisma.sql`(${randomUUID()}, ${o.indicatorId}, ${o.opdId}, ${o.tahun}, ${o.nilaiTeks}, ${o.nilaiNumerik}, ${o.satuan}, ${o.jadwal})`,
-    ),
-  );
-  await prisma.$executeRaw`
+        `(${sqlLiteral(randomUUID())}, ${o.indicatorId}, ${o.opdId}, ${sqlLiteral(o.tahun)}, ${sqlLiteral(o.nilaiTeks)}, ${sqlLiteral(o.nilaiNumerik)}, ${sqlLiteral(o.satuan)}, ${sqlLiteral(o.jadwal)})`,
+    )
+    .join(', ');
+
+  await prisma.$executeRawUnsafe(`
     INSERT INTO "SapaObservation"
       ("id","indicatorId","opdId","tahun","nilaiTeks","nilaiNumerik","satuan","jadwal")
-    VALUES ${values}
+    VALUES ${rows}
     ON CONFLICT ("indicatorId","opdId","tahun") DO UPDATE SET
       "nilaiTeks"    = EXCLUDED."nilaiTeks",
       "nilaiNumerik" = EXCLUDED."nilaiNumerik",
       "satuan"       = EXCLUDED."satuan",
       "jadwal"       = EXCLUDED."jadwal"
-  `;
+  `);
 }
 
 /**
