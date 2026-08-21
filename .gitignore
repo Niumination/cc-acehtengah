@@ -10,3 +10,4 @@ next-env.d.ts
 
 # Log keluaran scripts/sync-all.sh
 logs/
+.env*
