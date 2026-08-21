@@ -13,7 +13,7 @@
     "test:db": "node --test --import ./scripts/ts-alias-loader.mjs --experimental-strip-types --disable-warning=ExperimentalWarning \"tests/integration/*.test.ts\""
   },
   "dependencies": {
-    "@prisma/client": "6.19.3",
+    "@prisma/client": "7.9.1",
     "bcryptjs": "^3.0.3",
     "geist": "^1.7.2",
     "jose": "^6.2.4",
