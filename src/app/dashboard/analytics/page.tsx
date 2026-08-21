@@ -166,8 +166,8 @@ export default function AnalyticsPage() {
       </div>
 
       {/* OPD Performance — full width, tall */}
-      <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-[var(--brand)] mb-4">🏛️ OPD Performance — Jumlah Indikator</h2>
+      <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-[var(--text)] mb-4">🏛️ OPD Performance — Jumlah Indikator</h2>
         <ResponsiveContainer width="100%" height={Math.max(500, opdData.length * 32)}>
           <BarChart data={opdData} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -180,8 +180,8 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Data Completeness — full width, tall */}
-      <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-[var(--brand)] mb-4">✅ Data Completeness per OPD</h2>
+      <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-[var(--text)] mb-4">✅ Data Completeness per OPD</h2>
         <ResponsiveContainer width="100%" height={Math.max(500, compData.length * 32)}>
           <BarChart data={compData} layout="vertical" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -196,8 +196,8 @@ export default function AnalyticsPage() {
       {/* Pie Charts Row */}
       <div className="grid grid-cols-3 gap-4">
         {/* Kategori Indikator */}
-        <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-          <h2 className="text-sm font-bold text-[var(--brand)] mb-3">🏷️ Kategori Indikator</h2>
+        <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-[var(--text)] mb-3">🏷️ Kategori Indikator</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={data.kategoriIndikator} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
@@ -209,8 +209,8 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Satuan Distribution */}
-        <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-          <h2 className="text-sm font-bold text-[var(--brand)] mb-3">📐 Satuan / Unit</h2>
+        <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-[var(--text)] mb-3">📐 Satuan / Unit</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={satData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
@@ -222,8 +222,8 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Jadwal Pemutakhiran */}
-        <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-          <h2 className="text-sm font-bold text-[var(--brand)] mb-3">🔄 Jadwal Pemutakhiran</h2>
+        <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+          <h2 className="text-sm font-bold text-[var(--text)] mb-3">🔄 Jadwal Pemutakhiran</h2>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie data={data.jadwalDistribusi} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="count" nameKey="name" label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
@@ -236,8 +236,8 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Top 20 Indicator Frequency */}
-      <div className="bg-[var(--brand-deep)]/90 border border-[var(--border)] rounded-2xl p-5">
-        <h2 className="text-sm font-bold text-[var(--brand)] mb-4">📊 Top 20 Indikator Terbanyak</h2>
+      <div className="bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-5">
+        <h2 className="text-sm font-bold text-[var(--text)] mb-4">📊 Top 20 Indikator Terbanyak</h2>
         <ResponsiveContainer width="100%" height={Math.max(400, topInd.length * 30)}>
           <BarChart data={topInd} layout="vertical" margin={{ top: 5, right: 30, left: 300, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
