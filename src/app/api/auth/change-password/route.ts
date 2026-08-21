@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const limit = checkRateLimit({
+  const limit = await checkRateLimit({
     key: `chpw:${session.id}:${getClientIp(req)}`,
     limit: 5,
     windowMs: 15 * 60 * 1000,

@@ -43,11 +43,11 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
 
   return (
     <div
-      className={`flex h-full flex-col border-r border-[#8A8676] bg-white transition-all duration-300 ease-in-out ${
+      className={`flex h-full flex-col border-r border-[var(--border-strong)] bg-white transition-all duration-300 ease-in-out ${
         collapsed ? 'w-[68px]' : 'w-56'
       }`}
     >
-      <div className={`bg-[#0F2A1E] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
+      <div className={`bg-[var(--brand-deep)] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
         <div className="flex items-center gap-2.5">
           {onToggle && (
             <button
@@ -55,7 +55,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
               onClick={onToggle}
               aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
               aria-expanded={!collapsed}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2D6A4F] bg-[#1B4332] text-[#E3E0D2] transition-all duration-200 hover:bg-[#2D6A4F] hover:text-white"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] transition-all duration-200 hover:bg-[var(--brand-soft)] hover:text-white"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
@@ -76,7 +76,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
               onClick={onClose}
               aria-label="Tutup menu navigasi"
               autoFocus
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2D6A4F] bg-[#1B4332] text-[#E3E0D2] hover:bg-[#2D6A4F] hover:text-white"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-white"
             >
               <span aria-hidden="true">✕</span>
             </button>
@@ -89,7 +89,7 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
         className={`flex-1 space-y-1 py-4 ${collapsed ? 'px-2' : 'px-3'}`}
       >
         <p
-          className={`mb-2 text-[11px] font-bold uppercase tracking-widest text-[#5C6358] ${
+          className={`mb-2 text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] ${
             collapsed ? 'px-0 text-center' : 'px-3'
           }`}
         >
@@ -113,8 +113,8 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
                     collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
                   } ${
                     isActive
-                      ? 'border border-[#2D6A4F]/40 bg-[#DCE8DE] text-[#1B4332]'
-                      : 'border border-transparent text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332]'
+                      ? 'border border-[var(--brand-soft)]/40 bg-[var(--brand-tint)] text-[var(--brand)]'
+                      : 'border border-transparent text-[var(--text-body)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]'
                   }`}
                 >
                   <span aria-hidden="true" className="flex-shrink-0 text-base">
@@ -124,12 +124,12 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
                     <span className="min-w-0">
                       <span
                         className={`block truncate text-xs font-semibold ${
-                          isActive ? 'text-[#1B4332]' : 'text-[#4B5249]'
+                          isActive ? 'text-[var(--brand)]' : 'text-[var(--text-body)]'
                         }`}
                       >
                         {item.label}
                       </span>
-                      <span className="block truncate text-[11px] text-[#5C6358]">{item.desc}</span>
+                      <span className="block truncate text-[11px] text-[var(--text-muted)]">{item.desc}</span>
                     </span>
                   )}
                 </Link>
@@ -139,8 +139,8 @@ export default function Sidebar({ collapsed = false, onToggle, onNavigate, onClo
         </ul>
       </nav>
 
-      <div className={`border-t border-[#9A9683] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
-        {!collapsed && <p className="text-[11px] text-[#5C6358]">Diskominfo Aceh Tengah</p>}
+      <div className={`border-t border-[var(--border)] ${collapsed ? 'px-2 py-3' : 'px-4 py-4'}`}>
+        {!collapsed && <p className="text-[11px] text-[var(--text-muted)]">Diskominfo Aceh Tengah</p>}
       </div>
     </div>
   );

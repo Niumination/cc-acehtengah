@@ -17,6 +17,7 @@ import Sidebar from '@/components/Sidebar';
 import EwsPanel from '@/components/EwsPanel';
 import Image from 'next/image';
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 type HealthState =
@@ -137,13 +138,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const statusTone =
     health.kind === 'ok' && health.status === 'healthy' && health.mode === 'live'
-      ? 'bg-[#2D6A4F]/30 border-[#52B788]/50 text-[#8FE3B5]'
+      ? 'bg-[var(--brand-soft)]/30 border-[#52B788]/50 text-[#8FE3B5]'
       : health.kind === 'ok' && health.mode === 'mock'
         ? 'bg-[#D9C284]/15 border-[#D9C284]/40 text-[#E7D6A3]'
-        : 'bg-[#B3261E]/20 border-[#F0A9A2]/40 text-[#F0A9A2]';
+        : 'bg-[var(--danger)]/20 border-[#F0A9A2]/40 text-[#F0A9A2]';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F3EC] text-[#1E2420]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)] text-[var(--text)]">
       <a href="#konten-utama" className="skip-link">
         Lompat ke konten utama
       </a>
@@ -175,7 +176,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[#1B4332] bg-[#0F2A1E] px-4 py-3">
+        <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--brand)] bg-[var(--brand-deep)] px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <button
               ref={menuButtonRef}
@@ -183,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setMobileNavOpen(true)}
               aria-label="Buka menu navigasi"
               aria-expanded={mobileNavOpen}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[#2D6A4F] bg-[#1B4332] text-[#E3E0D2] hover:bg-[#2D6A4F] hover:text-white md:hidden"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] hover:bg-[var(--brand-soft)] hover:text-white md:hidden"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
                 <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
@@ -211,10 +212,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-3">
             {/* Waktu — hanya setelah mount */}
             <div className="hidden text-right sm:block">
-              <p className="font-mono text-xs text-[#E3E0D2]">
+              <p className="font-mono text-xs text-[var(--on-brand-muted)]">
                 {now ? now.toLocaleTimeString('id-ID', CLOCK_FORMAT) : '--:--:--'}
               </p>
-              <p className="text-[11px] text-[#9A9683]">
+              <p className="text-[11px] text-[var(--border)]">
                 {now ? now.toLocaleDateString('id-ID', DATE_FORMAT) : '—'}
               </p>
             </div>
@@ -231,16 +232,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span>{statusLabel}</span>
             </p>
 
+            <ThemeToggle />
+
             <Link
               href="/dashboard/akun"
-              className="rounded-full border border-[#2D6A4F] px-3 py-1.5 text-[11px] font-medium text-[#E3E0D2] hover:bg-[#1B4332]"
+              className="rounded-full border border-[var(--brand-soft)] px-3 py-1.5 text-[11px] font-medium text-[var(--on-brand-muted)] hover:bg-[var(--brand)]"
             >
               Akun
             </Link>
           </div>
         </header>
 
-        <main id="konten-utama" tabIndex={-1} className="flex-1 overflow-y-auto bg-[#F5F3EC] p-4 sm:p-6">
+        <main id="konten-utama" tabIndex={-1} className="flex-1 overflow-y-auto bg-[var(--surface)] p-4 sm:p-6">
           {children}
         </main>
 
@@ -251,7 +254,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setEwsOpen(true)}
             aria-label="Tampilkan panel peringatan dini"
             aria-expanded={false}
-            className="absolute right-0 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[#8A8676] bg-white text-[#4B5249] shadow-lg hover:bg-[#E9E6DA] hover:text-[#1B4332]"
+            className="absolute right-0 top-1/2 z-30 flex h-14 w-6 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-[var(--border-strong)] bg-white text-[var(--text-body)] shadow-lg hover:bg-[var(--surface-muted)] hover:text-[var(--brand)]"
           >
             <svg
               width="12"
@@ -277,14 +280,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ewsOpen ? 'w-72' : 'w-0'
         }`}
       >
-        <div className="h-full w-72 overflow-y-auto border-l border-[#8A8676] bg-white p-4">
+        <div className="h-full w-72 overflow-y-auto border-l border-[var(--border-strong)] bg-white p-4">
           <div className="mb-3 flex items-start gap-2">
             <EwsPanel />
             <button
               type="button"
               onClick={() => setEwsOpen(false)}
               aria-label="Tutup panel peringatan dini"
-              className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-[#E9E6DA] text-[#4B5249] transition-colors hover:bg-[#9A9683] hover:text-[#1B4332]"
+              className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-[var(--surface-muted)] text-[var(--text-body)] transition-colors hover:bg-[var(--border)] hover:text-[var(--brand)]"
             >
               <span aria-hidden="true">✕</span>
             </button>

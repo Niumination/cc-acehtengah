@@ -24,6 +24,11 @@ SETUP_ENABLED=false
 # ─── URL publik (Open Graph, robots.txt, sitemap.xml) ───
 NEXT_PUBLIC_SITE_URL=https://cc-acehtengah.vercel.app
 
+# ─── Penyimpanan bersama (opsional, sangat disarankan) ───
+# Tanpa ini rate limit & cache hanya per-instance serverless.
+# UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
+# UPSTASH_REDIS_REST_TOKEN=«token»
+
 # ─── Retensi log AI (job cron harian, lihat vercel.json) ───
 CHAT_LOG_RETENTION_DAYS=90
 CRON_SECRET=«openssl rand -hex 32»

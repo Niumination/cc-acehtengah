@@ -22,30 +22,3 @@ export interface IntentResult {
   opdFilter?: string;
 }
 
-export interface SyncResult {
-  slug: string;
-  status: 'ok' | 'error';
-  error?: string;
-}
-
-export interface EwsAlertData {
-  id: string;
-  pesan: string;
-  severity: 'INFO' | 'WARNING' | 'CRITICAL';
-  indicator: {
-    nama: string;
-    satuan: string;
-    dataset: { slug: string; nama: string };
-  };
-  createdAt: string;
-}
-
-export interface DatasetSummary {
-  slug: string;
-  nama: string;
-  deskripsi?: string;
-  lastSync?: string;
-  isActive: boolean;
-  recordCount?: number;
-  skpd?: string;
-}
