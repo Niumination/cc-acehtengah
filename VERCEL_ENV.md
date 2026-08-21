@@ -9,7 +9,7 @@ DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1
 # ─── AI Provider (OpenCode Zen - FREE models) ───
 AI_BASE_URL=https://opencode.ai/zen/v1
 AI_API_KEY=«redacted:sk-…»
-AI_MODEL=deepseek-v4-flash-free
+AI_MODEL=nemotron-3-ultra-free
 
 # ─── Auth (Optional — auto-generated if not set) ───
 JWT_SECRET=random-secret-string-here
@@ -23,5 +23,6 @@ USE_MOCK_DATA=false
 # - JANGAN pakai direct connection (db.xxx.supabase.co:5432) — IPv6 only!
 # - prepared_statements=false WAJIB untuk Supavisor transaction mode
 # - Admin table: POST /api/setup/admin (first time only)
-# - Default admin: admin / admin123
+# - Akun admin dibuat via bootstrap terkunci (ADMIN_BOOTSTRAP_PASSWORD),
+#   bukan default admin/admin123. Ganti password di /dashboard/akun.
 # ============================================================
