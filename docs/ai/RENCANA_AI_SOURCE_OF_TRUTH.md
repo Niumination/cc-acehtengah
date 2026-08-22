@@ -10,7 +10,7 @@
 
 ## 0. Koreksi audit sebelumnya (wajib dibaca)
 
-Dua dokumen awal (`AUDIT_AI_SISTEM.md`, `AUDIT_AI_794b80a.md`) tetap valid untuk alur HEAD, dengan koreksi faktual berikut:
+Dua dokumen awal (`docs/ai/AUDIT_AI_SISTEM.md`, `docs/ai/AUDIT_AI_794b80a.md`) tetap valid untuk alur HEAD, dengan koreksi faktual berikut:
 
 | Klaim lama | Fakta di git/kode |
 |---|---|
@@ -183,7 +183,7 @@ Fungsi murni `groundOutput(parsed, evidence)`:
 
 Ambil **hanya** dari `5faa080` yang terkait query:
 
-- `src/lib/rate-limit.ts` + pemakaian di `/api/query`
+- `src/lib/rate-limit.ts` + **dependensi `src/lib/store.ts`** (Redis/Mem fallback) + pemakaian di `/api/query`
 - `maxDuration`
 - try/catch `req.json()`
 - mock SSE (jika `USE_MOCK_DATA`; mock tetap harus berlabel bukan SAPA live)

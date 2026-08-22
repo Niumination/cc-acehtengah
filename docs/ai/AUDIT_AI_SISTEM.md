@@ -80,7 +80,7 @@ Masalah:
 - Cache proses 10 menit. Multi-instance (Vercel) = cache terpecah; data bisa stale antar instance.
 - Tokenisasi membuang stopword termasuk `jumlah`, `total`, `data`, `aceh`, `tengah`. Umumnya cukup; query sangat generik (“berapa data”) hampir tanpa token → `filteredData` = seluruh dataset.
 - `filterByAnyKeyword` adalah OR. Komentar “AND dulu lalu OR” **tidak diimplementasi** — tidak ada pass AND.
-- `aggregateByIndicator`: jika dua record punya tahun, **nilai pertama yang masuk map yang menang**, bukan tahun terbaru. Risiko angka salah tahun.
+- `aggregateByIndicator`: Map `id_kode_indikator` — prefer record bertahun (`existing.tahun==null && r.tahun` upgrade), antar record ber-tahun **first-win** tanpa banding `tahun` numerik max. Jika urutan SAPA berubah, angka tahun salah bisa terpilih.
 - Tahun kosong dinormalisasi `"terbaru"` lalu disebut “data terkini” di prompt — **klaim waktu tanpa bukti**.
 
 ### 2.5 RAG

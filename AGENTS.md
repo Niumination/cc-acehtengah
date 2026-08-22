@@ -14,6 +14,8 @@
 > "normal". **Butuh R1 (data warehouse SAPA)** sebelum EWS bisa nyala.
 > Lihat `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 + roadmap R1–R2.
 
+> **🤖 AI Source-of-Truth SAPA:** `docs/ai/RENCANA_AI_SOURCE_OF_TRUTH.md` (kontrak 5 fase) · `docs/ai/AGENT_BRIEF_PR_AI_SOT.md` (brief + matriks R1–R12) · `docs/ai/AUDIT_AI_SISTEM.md` + `AUDIT_AI_794b80a.md` (audit HEAD vs baseline `794b80a`). PR #16 merged — next: Fase A tes → Fase B retrieval.
+
 ## Arsitektur
 
 ```
