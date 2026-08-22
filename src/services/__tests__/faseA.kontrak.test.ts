@@ -121,13 +121,13 @@ describe('Fase A — Kontrak & regresi (pure, no network)', () => {
         variabel: '100',
       };
       const b: SapaRecord = { ...a, id: 91, tahun: '2024', variabel: '200' };
-      // order: 2023 dulu → HEAD first-win antara tahun-bearing = 100 (salah)
+      // Fase B: tahun max order-independent → 200/2024 tanpa tergantung urutan
       const aggForward = aggregateByIndicator([a, b]);
-      // Fase B harus 200/2024 tanpa tergantung order
-      // Sebelum Fase B ini akan merah (100), sesudah Fase B harus 200
-      expect(aggForward[0].nilaiNumber).toBe(100); // dokumentasi bug HEAD
+      expect(aggForward[0].nilaiNumber).toBe(200);
+      expect(aggForward[0].tahun).toBe('2024');
       const aggReverse = aggregateByIndicator([b, a]);
       expect(aggReverse[0].nilaiNumber).toBe(200);
+      expect(aggReverse[0].tahun).toBe('2024');
     });
     it('record tanpa tahun vs dengan tahun → upgrade', () => {
       const withoutYear: SapaRecord = {

@@ -7,6 +7,7 @@ import {
   fetchSapaData,
   filterByOpd,
   filterByAnyKeyword,
+  filterByAllKeywords,
   getUniqueOpd,
   getUniqueIndicators,
   aggregateByIndicator,
@@ -35,14 +36,16 @@ async function getCachedSapaData(): Promise<SapaRecord[]> {
 const queryCache = new Map<string, { response: HybridResponse; expiresAt: number }>();
 
 function getCached(query: string): HybridResponse | null {
-  const cached = queryCache.get(query);
+  const key = normalizeText(query);
+  const cached = queryCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.response;
-  queryCache.delete(query);
+  queryCache.delete(key);
   return null;
 }
 
 function setCache(query: string, response: HybridResponse) {
-  queryCache.set(query, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
+  const key = normalizeText(query);
+  queryCache.set(key, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
   if (queryCache.size > 50) {
     const oldest = queryCache.keys().next().value;
     if (oldest) queryCache.delete(oldest);
@@ -56,46 +59,79 @@ async function buildContext(query: string) {
 
   const allRecords = await getCachedSapaData();
 
-  // Normalisasi tahun: tahun None/kosong → 'terbaru'
-  const normalizedRecords = allRecords.map((r) => ({
-    ...r,
-    tahun: r.tahun && r.tahun.trim() ? r.tahun : 'terbaru',
-  })) as SapaRecord[];
+  // Tahun dibiarkan apa adanya (null jika kosong) — jangan relabel 'terbaru'
+  const normalizedRecords = allRecords;
 
-  let filteredData: SapaRecord[] = normalizedRecords;
-  if (opdFilter) {
-    filteredData = filterByOpd(normalizedRecords, opdFilter);
-  }
-
-  // Token query untuk filter indikator (OR match — lebih permissive)
   const tokens = tokenizeQuery(query);
 
-  // Jika tidak ada OPD filter, coba match indikator dengan token (OR)
+  // Hierarchical selection: byOpd∩AND → AND → byOpd∩OR → OR → byOpd → kosong
+  let filteredData: SapaRecord[] = [];
   let matchedRecords: SapaRecord[] = [];
-  if (tokens.length > 0 && !opdFilter) {
-    matchedRecords = filterByAnyKeyword(normalizedRecords, tokens);
-    // Batasi hasil OR ke indikator yang match SEMUA token dulu (lebih relevan),
-    // fallback ke OR jika hasil kosong
-    if (matchedRecords.length === 0) {
-      matchedRecords = filterByAnyKeyword(normalizedRecords, [tokens[0]]);
+  let filterDipakai: string = 'none';
+
+  const byOpd = opdFilter ? filterByOpd(normalizedRecords, opdFilter) : [];
+  const byAnd = tokens.length > 0 ? filterByAllKeywords(normalizedRecords, tokens) : [];
+  const byOr = tokens.length > 0 ? filterByAnyKeyword(normalizedRecords, tokens) : [];
+
+  if (opdFilter && tokens.length > 0) {
+    const opdAnd = byOpd.filter((r) =>
+      tokens.every((t) => normalizeText(r.kode_indikator_nama_indikator).includes(normalizeText(t))),
+    );
+    if (opdAnd.length > 0) {
+      filteredData = opdAnd;
+      filterDipakai = 'opd+AND';
+    } else if (byAnd.length > 0) {
+      filteredData = byAnd;
+      filterDipakai = 'AND';
+    } else {
+      const opdOr = byOpd.filter((r) =>
+        tokens.some((t) => normalizeText(r.kode_indikator_nama_indikator).includes(normalizeText(t))),
+      );
+      if (opdOr.length > 0) {
+        filteredData = opdOr;
+        filterDipakai = 'opd+OR';
+      } else if (byOr.length > 0) {
+        filteredData = byOr;
+        filterDipakai = 'OR';
+      } else if (byOpd.length > 0) {
+        filteredData = byOpd;
+        filterDipakai = 'opd';
+      } else {
+        filteredData = [];
+        filterDipakai = 'none';
+      }
     }
-    if (matchedRecords.length > 0) {
-      filteredData = matchedRecords;
+  } else if (opdFilter) {
+    filteredData = byOpd;
+    filterDipakai = byOpd.length > 0 ? 'opd' : 'none';
+  } else if (tokens.length > 0) {
+    if (byAnd.length > 0) {
+      filteredData = byAnd;
+      filterDipakai = 'AND';
+    } else if (byOr.length > 0) {
+      filteredData = byOr;
+      filterDipakai = 'OR';
+    } else {
+      filteredData = [];
+      filterDipakai = 'none';
     }
+  } else {
+    filteredData = [];
+    filterDipakai = 'none';
   }
+
+  matchedRecords = filteredData;
 
   const allOpds = getUniqueOpd(normalizedRecords);
   const allIndicators = getUniqueIndicators(normalizedRecords);
   const filteredOpds = getUniqueOpd(filteredData);
   const filteredIndicators = getUniqueIndicators(filteredData);
 
-  // AGGREGASI per indikator — SEMUA indikator unik (bukan cap 50 record mentah)
+  // AGGREGASI per indikator
   const aggregated = aggregateByIndicator(filteredData);
   const aggregatedAll = aggregateByIndicator(normalizedRecords);
 
-  // PRIORITASKAN indikator yang match token query — letakkan di paling depan
-  // (model free tier tidak teliti membaca payload panjang; data relevan harus
-  //  terlihat di awal prompt)
+  // Prioritaskan indikator match token di depan payload
   const tokenNorm = tokens.map(normalizeText);
   const prioritized: typeof aggregated = [];
   const rest: typeof aggregated = [];
@@ -106,29 +142,33 @@ async function buildContext(query: string) {
   }
   const ordered = [...prioritized, ...rest];
 
-  // Compact data for LLM — ringkasan agregat semua indikator relevan
+  // Evidence cap 30 compact (bukan 150 pretty) — untuk grounding SoT
+  const evidence = ordered.slice(0, 30).map((a) => ({
+    opd: a.opd,
+    indikator: a.nama,
+    nilai: a.nilai,
+    satuan: a.satuan,
+    tahun: a.tahun,
+    id: a.id,
+  }));
+
+  // Compact data for LLM — tanpa pretty-print 15k putus tengah
   const dataForLLM = {
     ringkasan: {
       total_data: normalizedRecords.length,
       total_opd: allOpds.length,
       total_indikator: allIndicators.length,
-      opd_list: allOpds.slice(0, 20).map(o => `${o.nama}(${o.jumlah})`).join(', '),
-      tahun: [...new Set(normalizedRecords.map(r => r.tahun))].join(', '),
+      opd_list: allOpds.slice(0, 20).map((o) => `${o.nama}(${o.jumlah})`).join(', '),
+      tahun: [...new Set(normalizedRecords.map((r) => (r.tahun?.trim() || '')) .filter(Boolean))].join(', '),
+      filterDipakai,
     },
     filtered: {
       count: filteredData.length,
       opd: opdFilter || 'semua',
-      opd_ditemukan: filteredOpds.map(o => o.nama).join(', '),
-      indikator_relevan: filteredIndicators.slice(0, 40).map(i => i.nama).join('; '),
-      // Semua indikator unik ter-agregasi — data match query DI DEPAN
-      data_ditemukan: ordered.slice(0, 150).map((a) => ({
-        opd: a.opd,
-        indikator: a.nama,
-        nilai: a.nilai,
-        satuan: a.satuan,
-        tahun: a.tahun ?? 'terbaru',
-      })),
-      // Total agregat keseluruhan sebagai konteks tambahan
+      opd_ditemukan: filteredOpds.map((o) => o.nama).join(', '),
+      indikator_relevan: filteredIndicators.slice(0, 40).map((i) => i.nama).join('; '),
+      data_ditemukan: evidence,
+      evidenceCount: evidence.length,
       agregat_total: aggregatedAll.length,
     },
   };
@@ -136,7 +176,18 @@ async function buildContext(query: string) {
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
   const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
 
-  return { intent, opdFilter, allRecords: normalizedRecords, filteredData, matchedRecords, dataForLLM, konteksRegulasi, systemPrompt };
+  return {
+    intent,
+    opdFilter,
+    filterDipakai,
+    allRecords: normalizedRecords,
+    filteredData,
+    matchedRecords,
+    evidence,
+    dataForLLM,
+    konteksRegulasi,
+    systemPrompt,
+  };
 }
 
 // ─── Non-blocking DB save with latency metadata ───

@@ -203,10 +203,30 @@ export function filterByAnyKeyword(records: SapaRecord[], keywords: string[]): S
   });
 }
 
+/** Filter by ALL keywords (token-level AND match) — indikator + OPD combined */
+export function filterByAllKeywords(records: SapaRecord[], keywords: string[]): SapaRecord[] {
+  const normalized = keywords.map(normalizeText).filter(Boolean);
+  if (normalized.length === 0) return [];
+  return records.filter((r) => {
+    const combined =
+      normalizeText(r.kode_indikator_nama_indikator) + ' ' + normalizeText(r.opds_nama_opd);
+    return normalized.every((kw) => combined.includes(kw));
+  });
+}
+
+function parseYear(tahun: string | null): number | null {
+  if (!tahun) return null;
+  const t = tahun.trim();
+  if (!t) return null;
+  if (!/^\d{4}$/.test(t)) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * Aggregate records per indicator — latest numeric value per indicator.
- * Prefers records WITH a year (tahun), then falls back to year-less ones.
- * Returns list sorted by value descending, with dedup by id_kode_indikator.
+ * Pilih tahun numerik maksimum per id_kode_indikator (order-independent).
+ * Jika semua tahun null/non-numerik → keep first. Sorted by nilaiNumber desc.
  */
 export function aggregateByIndicator(records: SapaRecord[]): {
   id: number;
@@ -229,7 +249,6 @@ export function aggregateByIndicator(records: SapaRecord[]): {
     if (!Number.isFinite(nilaiNumber)) continue;
 
     const existing = map.get(r.id_kode_indikator);
-    // Prefer record with a year; if both have years, keep the larger value
     if (!existing) {
       map.set(r.id_kode_indikator, {
         id: r.id_kode_indikator,
@@ -240,15 +259,23 @@ export function aggregateByIndicator(records: SapaRecord[]): {
         satuan: r.satuan,
         tahun: r.tahun || null,
       });
-    } else if (existing.tahun == null && r.tahun) {
-      // Upgrade to year-bearing record
-      map.set(r.id_kode_indikator, {
-        ...existing,
-        nilai: r.variabel,
-        nilaiNumber,
-        satuan: r.satuan,
-        tahun: r.tahun,
-      });
+    } else {
+      const ey = parseYear(existing.tahun);
+      const ny = parseYear(r.tahun);
+      let shouldReplace = false;
+      if (ey === null && ny !== null) shouldReplace = true;
+      else if (ey !== null && ny !== null && ny > ey) shouldReplace = true;
+      if (shouldReplace) {
+        map.set(r.id_kode_indikator, {
+          id: r.id_kode_indikator,
+          nama,
+          opd: r.opds_nama_opd.trim(),
+          nilai: r.variabel,
+          nilaiNumber,
+          satuan: r.satuan,
+          tahun: r.tahun,
+        });
+      }
     }
   }
 
@@ -264,6 +291,6 @@ export function getSapaSummary(records: SapaRecord[]) {
     totalOpd: opds.length,
     totalIndicators: indicators.length,
     topOpd: opds[0],
-    tahun: [...new Set(records.map((r) => r.tahun ?? 'terbaru'))],
+    tahun: [...new Set(records.map((r) => r.tahun?.trim() || '').filter(Boolean))],
   };
 }
