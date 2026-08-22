@@ -3,6 +3,8 @@
 import { detectIntent } from './intent-detector';
 import { callLLM, streamLLM, extractNarasiPartial, stripReasoningPrefix } from './llm-client';
 import { retrieveContext } from './rag-retriever';
+import { groundOutput, buildVizFromEvidence } from './grounding';
+import type { EvidenceItem } from './grounding';
 import {
   fetchSapaData,
   filterByOpd,
@@ -143,7 +145,7 @@ async function buildContext(query: string) {
   const ordered = [...prioritized, ...rest];
 
   // Evidence cap 30 compact (bukan 150 pretty) — untuk grounding SoT
-  const evidence = ordered.slice(0, 30).map((a) => ({
+  const evidence: EvidenceItem[] = ordered.slice(0, 30).map((a) => ({
     opd: a.opd,
     indikator: a.nama,
     nilai: a.nilai,
@@ -152,25 +154,14 @@ async function buildContext(query: string) {
     id: a.id,
   }));
 
-  // Compact data for LLM — tanpa pretty-print 15k putus tengah
+  // SoT Fase C: payload ringkas — HANYA evidence (bukan pretty ringkasan 150 baris)
   const dataForLLM = {
-    ringkasan: {
-      total_data: normalizedRecords.length,
-      total_opd: allOpds.length,
-      total_indikator: allIndicators.length,
-      opd_list: allOpds.slice(0, 20).map((o) => `${o.nama}(${o.jumlah})`).join(', '),
-      tahun: [...new Set(normalizedRecords.map((r) => (r.tahun?.trim() || '')) .filter(Boolean))].join(', '),
-      filterDipakai,
-    },
-    filtered: {
-      count: filteredData.length,
-      opd: opdFilter || 'semua',
-      opd_ditemukan: filteredOpds.map((o) => o.nama).join(', '),
-      indikator_relevan: filteredIndicators.slice(0, 40).map((i) => i.nama).join('; '),
-      data_ditemukan: evidence,
-      evidenceCount: evidence.length,
-      agregat_total: aggregatedAll.length,
-    },
+    query,
+    intent: intent.kategori,
+    filterDipakai,
+    evidence,
+    evidenceCount: evidence.length,
+    total_data: normalizedRecords.length,
   };
 
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
@@ -224,7 +215,33 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
 
-    // Step 4: Panggil LLM (non-streaming fallback path)
+    // SoT Fase C: jika evidence kosong → jangan panggil LLM
+    if (ctx.evidence.length === 0) {
+      const empty: HybridResponse = {
+        narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
+        visualisasi: { tipe: 'none', konfigurasi: {} },
+        rekomendasi: [],
+        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        timestamp: new Date().toISOString(),
+      };
+      const metadata = {
+        opdFilter: ctx.opdFilter || null,
+        filterDipakai: ctx.filterDipakai,
+        evidenceCount: 0,
+        grounding: 'pass' as const,
+        totalData: ctx.allRecords.length,
+        filteredCount: ctx.filteredData.length,
+        latencyMs: Date.now() - startedAt,
+        stepsMs: steps,
+        model: process.env.AI_MODEL,
+        streamed: false,
+      };
+      void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
+      setCache(query, empty);
+      return empty;
+    }
+
+    // Step 4: Panggil LLM (satu kali)
     const llmStarted = Date.now();
     const llmResponse = await callLLM(ctx.systemPrompt, {
       query,
@@ -233,20 +250,25 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     });
     steps.llm = Date.now() - llmStarted;
 
-    // Step 5: Parse & cache
-    const result = parseHybridResponse(llmResponse, ctx.filteredData);
-    // Pastikan rekomendasi selalu ada (Gemini sering mengabaikan field ini)
-    if (result.rekomendasi.length === 0) {
-      result.rekomendasi = await ensureRekomendasi(result.narasi, ctx.filteredData);
-    }
-    // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
-    if (result.visualisasi.tipe === 'none') {
-      result.visualisasi = generateAutoChart(ctx.filteredData);
+    // Step 5: Parse + grounding SoT
+    const parsed = parseHybridResponse(llmResponse, ctx.filteredData);
+    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
+    let result = grounded;
+    // Viz dari evidence jika model tidak kasih atau grounding mengganti
+    if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
+      result = { ...result, visualisasi: buildVizFromEvidence(ctx.evidence) };
+    } else if (grounding === 'replaced') {
+      // groundOutput sudah pakai viz dari evidence, pastikan konsisten
+      result = { ...grounded, visualisasi: buildVizFromEvidence(ctx.evidence) };
     }
 
     // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
     const metadata = {
       opdFilter: ctx.opdFilter || null,
+      filterDipakai: ctx.filterDipakai,
+      evidenceCount: ctx.evidence.length,
+      grounding,
+      groundingReason: reason ?? null,
       totalData: ctx.allRecords.length,
       filteredCount: ctx.filteredData.length,
       matchedCount: ctx.matchedRecords.length,
@@ -301,26 +323,55 @@ export async function processAIQueryStreaming(
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
 
-    // Step 2: Panggil LLM dengan streaming
+    // SoT: evidence kosong → jangan panggil LLM
+    if (ctx.evidence.length === 0) {
+      const empty: HybridResponse = {
+        narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
+        visualisasi: { tipe: 'none', konfigurasi: {} },
+        rekomendasi: [],
+        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        timestamp: new Date().toISOString(),
+      };
+      const metadata = {
+        opdFilter: ctx.opdFilter || null,
+        filterDipakai: ctx.filterDipakai,
+        evidenceCount: 0,
+        grounding: 'pass' as const,
+        totalData: ctx.allRecords.length,
+        filteredCount: ctx.filteredData.length,
+        latencyMs: Date.now() - startedAt,
+        stepsMs: steps,
+        model: process.env.AI_MODEL,
+        streamed: true,
+      };
+      void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
+      setCache(query, empty);
+      return empty;
+    }
+
+    // Step 2: Panggil LLM dengan streaming (satu kali)
     onStatus('AI sedang menyusun jawaban...');
     const llmStarted = Date.now();
     const llmResponse = await streamLLM(ctx.systemPrompt, { query, data: ctx.dataForLLM, konteks: ctx.konteksRegulasi }, onChunk);
     steps.llm = Date.now() - llmStarted;
 
-    // Step 3: Parse & cache
-    const result = parseHybridResponse(llmResponse, ctx.filteredData);
-    // Pastikan rekomendasi selalu ada (Gemini sering mengabaikan field ini)
-    if (result.rekomendasi.length === 0) {
-      result.rekomendasi = await ensureRekomendasi(result.narasi, ctx.filteredData);
-    }
-    // Auto-chart: kalau model tidak kasih visualisasi tapi ada data, generate diagram statistik
-    if (result.visualisasi.tipe === 'none') {
-      result.visualisasi = generateAutoChart(ctx.filteredData);
+    // Step 3: Parse + grounding SoT
+    const parsed = parseHybridResponse(llmResponse, ctx.filteredData);
+    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
+    let result = grounded;
+    if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
+      result = { ...result, visualisasi: buildVizFromEvidence(ctx.evidence) };
+    } else if (grounding === 'replaced') {
+      result = { ...grounded, visualisasi: buildVizFromEvidence(ctx.evidence) };
     }
 
     // Step 4: Simpan ke DB (non-blocking)
     const metadata = {
       opdFilter: ctx.opdFilter || null,
+      filterDipakai: ctx.filterDipakai,
+      evidenceCount: ctx.evidence.length,
+      grounding,
+      groundingReason: reason ?? null,
       totalData: ctx.allRecords.length,
       filteredCount: ctx.filteredData.length,
       matchedCount: ctx.matchedRecords.length,
@@ -359,43 +410,26 @@ export { extractNarasiPartial };
 
 function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
   return `Anda adalah SAPA Smart AI Pemerintah Kabupaten Aceh Tengah.
-Tugas: Membantu Kepala Daerah mengambil keputusan berbasis data dari SAPA.
+Tugas: Merumuskan data dalam field "evidence" menjadi narasi Bahasa Indonesia yang akurat.
 
 STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
 
 ATURAN WAJIB:
-1. HANYA gunakan data riil dari field "data_ditemukan". Jangan mengarang angka.
-2. Data "tahun":"terbaru" berarti indikator tanpa tahun spesifik — gunakan sebagai data terkini.
-3. Tampilkan data yang ditemukan dengan format jelas (nilai + satuan + periode + OPD sumber).
-4. Jika data spesifik tidak ada di "data_ditemukan", tampilkan data terkait dari "indikator_relevan".
-5. Selalu sebutkan OPD dan sumber data.
-6. Gunakan Bahasa Indonesia formal, lugas, actionable.
-7. Analisis bermakna — interpretasi, bukan sekadar membaca angka.
-8. WAJIB mengisi "rekomendasi" dengan 2-3 poin tindakan nyata & spesifik untuk Kepala Daerah (berdasarkan data di atas). JANGAN biarkan kosong.
-9. Pilih "visualisasi" yang TEPAT:
-   - "metric" → untuk 1 nilai utama (mis. "Jumlah ASN: 9.610 orang")
-   - "table" → untuk daftar >3 baris detail (columns + rows)
-   - "chart" → untuk perbandingan antar kategori / tren antar tahun / komposisi rasio
-     * bar: {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
-     * line/area: untuk tren {type:"line", xKey:"tahun", data:[{tahun, nilai}], lines:["nilai"]}
-     * pie/donut: untuk komposisi {type:"donut", xKey:"indikator", data:[{indikator, nilai}], lines:["nilai"]}
-   - "none" hanya jika benar-benar tidak ada data untuk divisualisasikan.
-   Untuk query angka tunggal, GUNAKAN "metric" (nilai utama) — bukan chart.
-
-CONTOH RESPONS:
-Query: "berapa jumlah ASN"
-Data: [{opd:"BKPSDM", indikator:"Jumlah ASN", nilai:"9610", satuan:"orang", periode:"2026"}]
-→ {
-  "narasi": "Berdasarkan data SAPA (BKPSDM, 2026), jumlah ASN Kabupaten Aceh Tengah adalah 9.610 orang, terdiri dari PNS dan PPPK.",
-  "visualisasi": {"tipe":"metric", "konfigurasi":{"metrics":[{"label":"Jumlah ASN", "value":"9.610", "unit":"orang"}]}},
-  "rekomendasi": [
-    "Lakukan audit kejelasan status 84 pegawai menyusul reorganisasi OPD untuk menghindari tumpang tindih penugasan.",
-    "Susun roadmap penguatan kompetensi PPPK paruh waktu menuju pegawai penuh waktu guna efisiensi layanan."
-  ]
-}
+1. HANYA gunakan angka, tahun, nama OPD, dan nama indikator yang ada di "evidence". Jangan menambah angka baru.
+2. Jika "evidence" kosong: jawab "Data untuk pertanyaan ini tidak ditemukan di SAPA." — jangan mengarang.
+3. Tahun: gunakan nilai "tahun" dari evidence. Jika null/kosong → tulis "tahun tidak tercantum di SAPA".
+4. Selalu sebutkan OPD dan satuan dari evidence.
+5. Bahasa Indonesia formal, lugas, actionable. Narasi = interpretasi evidence, bukan membaca ulang mentah.
+6. "rekomendasi": 0-3 kalimat TANPA angka baru. Jika tidak relevan, kosongkan ([]).
+7. "visualisasi" HANYA dari evidence:
+   - 1 item → "metric" {metrics:[{label, value, unit}]}
+   - 2-8 item → "chart" bar {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
+   - >8 item → "table" {columns:["Indikator","Nilai","Satuan","OPD","Tahun"], rows}
+   - kosong → "none"
+8. Jangan menambah detail di luar evidence (contoh: pecahan PNS/PPPK, jumlah pegawai turunan, dsb).
 
 FORMAT JSON (wajib valid, satu object):
-{"narasi":"...","visualisasi":{"tipe":"table|metric|chart|none","konfigurasi":{}},"rekomendasi":["...","..."]}`;
+{"narasi":"...","visualisasi":{"tipe":"metric|table|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
 }
 
 /**
@@ -459,12 +493,11 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
     }
   }
 
-  // Fallback: model tidak mengembalikan JSON valid.
-  // JANGAN tampilkan JSON mentah sebagai narasi.
+  // Fallback: model tidak mengembalikan JSON valid — viz tetap dari evidence
   const fallbackNarasi = extractReadableNarasi(cleanedInput);
   return {
     narasi: fallbackNarasi,
-    visualisasi: generateAutoChart(records),
+    visualisasi: { tipe: 'none', konfigurasi: {} },
     rekomendasi: [],
     dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
     timestamp: new Date().toISOString(),
@@ -494,83 +527,9 @@ function extractReadableNarasi(cleaned: string): string {
   return trimmed || 'Maaf, AI tidak memberikan respons yang dapat ditampilkan. Silakan coba lagi.';
 }
 
-/**
- * Auto-generate a statistical chart from SAPA records when the model
- * didn't provide a visualization. Uses aggregated indicator values.
- */
-function generateAutoChart(records: SapaRecord[]): { tipe: 'chart' | 'table' | 'metric'; konfigurasi: Record<string, any> } {
-  const aggregated = aggregateByIndicator(records);
-  const entries = aggregated.slice(0, 12);
+// Dihapus Fase C SoT: generateAutoChart & ensureRekomendasi (LLM ke-2) —
+// Viz sekarang hanya dari evidence via buildVizFromEvidence; rekomendasi tanpa angka baru.
 
-  // 1 nilai utama → metric (lebih tepat dari chart)
-  if (entries.length === 1) {
-    const e = entries[0];
-    return {
-      tipe: 'metric',
-      konfigurasi: {
-        metrics: [{ label: e.nama, value: e.nilaiNumber, unit: e.satuan ?? '' }],
-      },
-    };
-  }
-
-  // >8 indikator → table (lebih rapi & readable daripada bar chart ramai)
-  if (entries.length > 8) {
-    return {
-      tipe: 'table',
-      konfigurasi: {
-        columns: ['Indikator', 'Nilai', 'Satuan'],
-        rows: entries.map((e) => [e.nama, e.nilaiNumber, e.satuan ?? '']),
-      },
-    };
-  }
-
-  // 2-8 indikator → bar chart (perbandingan)
-  return {
-    tipe: 'chart',
-    konfigurasi: {
-      type: 'bar',
-      xKey: 'indikator',
-      data: entries.map((e) => ({
-        indikator: e.nama.length > 35 ? e.nama.slice(0, 32) + '…' : e.nama,
-        nilai: e.nilaiNumber,
-        satuan: e.satuan,
-      })),
-      bars: ['nilai'],
-    },
-  };
-}
-
-/**
- * Fallback: kalau model tidak mengisi rekomendasi (Gemini sering skip field ini),
- * panggil LLM sekali lagi secara ringkas HANYA untuk menghasilkan 2-3 rekomendasi
- * berdasarkan narasi + data. Murah (max_tokens kecil). Kalau tetap gagal, pakai
- * heuristic dari data SAPA.
- */
-async function ensureRekomendasi(narasi: string, records: SapaRecord[]): Promise<string[]> {
-  try {
-    const prompt = `Anda asisten kebijakan Pemkab Aceh Tengah. Berdasarkan narasi berikut, buatkan 2-3 poin rekomendasi tindakan NYATA & SPESIFIK untuk Kepala Daerah. Respons HANYA array JSON string, tanpa teks lain.\n\nNARASI:\n${narasi.slice(0, 1500)}`;
-    const out = await callLLM(prompt, { query: 'rekomendasi', data: { ringkasan: { count: records.length } }, konteks: [] });
-    const cleaned = stripReasoningPrefix(out).trim();
-    const m = cleaned.match(/\[[\s\S]*\]/);
-    if (m) {
-      const arr = JSON.parse(m[0]);
-      if (Array.isArray(arr) && arr.length > 0) {
-        return arr.filter((x: any) => typeof x === 'string' && x.trim()).map((x: string) => x.trim()).slice(0, 3);
-      }
-    }
-  } catch (e) {
-    console.error('[AI] ensureRekomendasi gagal:', e);
-  }
-  const top = aggregateByIndicator(records).slice(0, 3);
-  if (top.length > 0) {
-    return [
-      `Tinjau kembali indikator "${top[0].nama}" (${top[0].nilaiNumber} ${top[0].satuan ?? ''}) sebagai prioritas penyusunan kebijakan.`,
-      'Lakukan verifikasi silang data dengan OPD terkait untuk memastikan akurasi sebelum pengambilan keputusan.',
-      'Susun tindak lanjut berbasis data untuk peningkatan layanan publik di Kabupaten Aceh Tengah.',
-    ];
-  }
-  return ['Lengkapi data SAPA untuk mendukung analisis yang lebih mendalam.', 'Koordinasikan antar-OPD guna penyelarasan indikator pembangunan.'];
-}
 
 /**
  * Normalize visualization config to the format the frontend renderer expects:

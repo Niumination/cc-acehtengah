@@ -35,8 +35,9 @@ function buildMessages(systemPrompt: string, input: LLMInput): { role: string; c
   }
 
   if (input.data) {
-    const dataStr = JSON.stringify(input.data, null, 2);
-    const truncated = dataStr.length > 15000 ? dataStr.slice(0, 15000) + '\n...[dipotong]' : dataStr;
+    // SoT Fase C: compact JSON — jangan pretty-print 15k yang putus tengah objek
+    const dataStr = JSON.stringify(input.data);
+    const truncated = dataStr.length > 12000 ? dataStr.slice(0, 12000) + '\n...[dipotong]' : dataStr;
     messages.push({
       role: 'system',
       content: `Data Terkini dari SAPA:\n${truncated}`,
@@ -95,9 +96,7 @@ export function extractNarasiPartial(raw: string): string {
 }
 
 /**
- * Non-streaming LLM call (fallback / simple path).
- * max_tokens kept at 4096 — model is a reasoning model that spends tokens
- * on reasoning_content before content; too-low budgets truncate the answer.
+ * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500 (cukup untuk JSON).
  */
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
   const config = getConfig();
@@ -118,9 +117,9 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
       body: JSON.stringify({
         model: config.model,
         messages,
-        temperature: 0.3,
+        temperature: 0.1,
         top_p: 0.9,
-        max_tokens: 2560,
+        max_tokens: 1500,
       }),
       signal: AbortSignal.timeout(90000), // 90s
     });
@@ -162,10 +161,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 }
 
 /**
- * Streaming LLM call — calls onChunk(delta) as tokens arrive, returns the full content.
- * Retries once if the request fails BEFORE the first chunk (idempotent-safe).
- * max_tokens kept at 4096: this is a reasoning model — reasoning_content consumes
- * budget before content starts; small budgets truncate or empty the answer.
+ * Streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500.
  */
 export async function streamLLM(
   systemPrompt: string,
@@ -182,9 +178,9 @@ export async function streamLLM(
   const body = JSON.stringify({
     model: config.model,
     messages,
-    temperature: 0.3,
+    temperature: 0.1,
     top_p: 0.9,
-    max_tokens: 2560,
+    max_tokens: 1500,
     stream: true,
   });
 
