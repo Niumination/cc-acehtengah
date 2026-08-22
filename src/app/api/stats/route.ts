@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     // Fetch live SAPA data
-    const records = await fetchSapaData();
+    const { records } = await fetchSapaData();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
 

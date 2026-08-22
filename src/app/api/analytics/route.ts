@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json(analyticsCache);
     }
 
-    const records = await fetchSapaData();
+    const { records } = await fetchSapaData();
     const opds = getUniqueOpd(records);
     const indicators = getUniqueIndicators(records);
 

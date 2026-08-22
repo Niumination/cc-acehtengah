@@ -7,6 +7,7 @@ import { groundOutput, buildVizFromEvidence } from './grounding';
 import type { EvidenceItem } from './grounding';
 import {
   fetchSapaData,
+  dataSourceLabel,
   filterByOpd,
   filterByAnyKeyword,
   filterByAllKeywords,
@@ -16,22 +17,23 @@ import {
   normalizeText,
   tokenizeQuery,
   type SapaRecord,
+  type SapaDataOrigin,
 } from '@/lib/sapa-client';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
 
 // ─── SAPA Data Cache (10 menit) ───
-let sapaCache: { records: SapaRecord[]; expiresAt: number } | null = null;
+let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
 const SAPA_CACHE_TTL = 10 * 60 * 1000;
 
-async function getCachedSapaData(): Promise<SapaRecord[]> {
+async function getCachedSapaData(): Promise<{ records: SapaRecord[]; origin: SapaDataOrigin }> {
   if (sapaCache && sapaCache.expiresAt > Date.now()) {
-    return sapaCache.records;
+    return { records: sapaCache.records, origin: sapaCache.origin };
   }
-  const records = await fetchSapaData();
-  sapaCache = { records, expiresAt: Date.now() + SAPA_CACHE_TTL };
-  return records;
+  const { records, origin } = await fetchSapaData();
+  sapaCache = { records, origin, expiresAt: Date.now() + SAPA_CACHE_TTL };
+  return { records, origin };
 }
 
 // ─── LLM Response Cache (5 menit) ───
@@ -59,10 +61,10 @@ async function buildContext(query: string) {
   const intent = await detectIntent(query);
   const opdFilter = (intent as any).opdFilter as string | undefined;
 
-  const allRecords = await getCachedSapaData();
+  const { records: sapaRecords, origin: dataOrigin } = await getCachedSapaData();
 
   // Tahun dibiarkan apa adanya (null jika kosong) — jangan relabel 'terbaru'
-  const normalizedRecords = allRecords;
+  const normalizedRecords = sapaRecords;
 
   const tokens = tokenizeQuery(query);
 
@@ -171,6 +173,7 @@ async function buildContext(query: string) {
     intent,
     opdFilter,
     filterDipakai,
+    dataOrigin,
     allRecords: normalizedRecords,
     filteredData,
     matchedRecords,
@@ -203,6 +206,45 @@ async function saveChatSession(params: {
   }
 }
 
+// ─── Observability metadata builder (pure, testable) ───
+export function buildObservabilityMeta(input: {
+  opdFilter?: string | null;
+  filterDipakai: string;
+  evidence: EvidenceItem[];
+  grounding: 'pass' | 'replaced';
+  groundingReason?: string | null;
+  totalData: number;
+  filteredCount: number;
+  matchedCount?: number;
+  latencyMs: number;
+  stepsMs: Record<string, number>;
+  model: string | undefined | null;
+  finishReason: string | null;
+  dataOrigin: SapaDataOrigin;
+  streamed: boolean;
+  error?: string | null;
+}): Record<string, any> {
+  return {
+    opdFilter: input.opdFilter ?? null,
+    filterDipakai: input.filterDipakai,
+    evidenceCount: input.evidence.length,
+    evidenceIds: input.evidence.map((e) => e.id).slice(0, 30),
+    grounding: input.grounding,
+    groundingReason: input.groundingReason ?? null,
+    totalData: input.totalData,
+    filteredCount: input.filteredCount,
+    matchedCount: input.matchedCount ?? null,
+    latencyMs: input.latencyMs,
+    stepsMs: input.stepsMs,
+    model: input.model ?? null,
+    finish_reason: input.finishReason ?? null,
+    dataOrigin: input.dataOrigin,
+    dataSource: dataSourceLabel(input.dataOrigin),
+    streamed: input.streamed,
+    ...(input.error ? { error: input.error } : {}),
+  };
+}
+
 export async function processAIQuery(query: string): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
@@ -221,21 +263,23 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
         narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
-        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        dataSource: dataSourceLabel(ctx.dataOrigin),
         timestamp: new Date().toISOString(),
       };
-      const metadata = {
-        opdFilter: ctx.opdFilter || null,
+      const metadata = buildObservabilityMeta({
+        opdFilter: ctx.opdFilter ?? null,
         filterDipakai: ctx.filterDipakai,
-        evidenceCount: 0,
-        grounding: 'pass' as const,
+        evidence: [],
+        grounding: 'pass',
         totalData: ctx.allRecords.length,
         filteredCount: ctx.filteredData.length,
         latencyMs: Date.now() - startedAt,
         stepsMs: steps,
         model: process.env.AI_MODEL,
+        finishReason: null,
+        dataOrigin: ctx.dataOrigin,
         streamed: false,
-      };
+      });
       void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
       setCache(query, empty);
       return empty;
@@ -243,7 +287,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 4: Panggil LLM (satu kali)
     const llmStarted = Date.now();
-    const llmResponse = await callLLM(ctx.systemPrompt, {
+    const llmRes = await callLLM(ctx.systemPrompt, {
       query,
       data: ctx.dataForLLM,
       konteks: ctx.konteksRegulasi,
@@ -251,7 +295,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     steps.llm = Date.now() - llmStarted;
 
     // Step 5: Parse + grounding SoT
-    const parsed = parseHybridResponse(llmResponse, ctx.filteredData);
+    const parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
     let result = grounded;
     // Viz dari evidence jika model tidak kasih atau grounding mengganti
@@ -263,10 +307,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     }
 
     // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
-    const metadata = {
-      opdFilter: ctx.opdFilter || null,
+    const metadata = buildObservabilityMeta({
+      opdFilter: ctx.opdFilter ?? null,
       filterDipakai: ctx.filterDipakai,
-      evidenceCount: ctx.evidence.length,
+      evidence: ctx.evidence,
       grounding,
       groundingReason: reason ?? null,
       totalData: ctx.allRecords.length,
@@ -274,9 +318,11 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       matchedCount: ctx.matchedRecords.length,
       latencyMs: Date.now() - startedAt,
       stepsMs: steps,
-      model: process.env.AI_MODEL,
+      model: llmRes.model,
+      finishReason: llmRes.finishReason,
+      dataOrigin: ctx.dataOrigin,
       streamed: false,
-    };
+    });
     void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
     setCache(query, result);
@@ -295,7 +341,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       query,
       intent: 'error',
       result: errorResult,
-      metadata: { error: err instanceof Error ? err.message : 'Unknown', latencyMs: Date.now() - startedAt },
+      metadata: { error: err instanceof Error ? err.message : 'Unknown', latencyMs: Date.now() - startedAt, finish_reason: null, dataOrigin: 'splp' as const },
     });
 
     return errorResult;
@@ -329,21 +375,23 @@ export async function processAIQueryStreaming(
         narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
-        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        dataSource: dataSourceLabel(ctx.dataOrigin),
         timestamp: new Date().toISOString(),
       };
-      const metadata = {
-        opdFilter: ctx.opdFilter || null,
+      const metadata = buildObservabilityMeta({
+        opdFilter: ctx.opdFilter ?? null,
         filterDipakai: ctx.filterDipakai,
-        evidenceCount: 0,
-        grounding: 'pass' as const,
+        evidence: [],
+        grounding: 'pass',
         totalData: ctx.allRecords.length,
         filteredCount: ctx.filteredData.length,
         latencyMs: Date.now() - startedAt,
         stepsMs: steps,
         model: process.env.AI_MODEL,
+        finishReason: null,
+        dataOrigin: ctx.dataOrigin,
         streamed: true,
-      };
+      });
       void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
       setCache(query, empty);
       return empty;
@@ -352,11 +400,11 @@ export async function processAIQueryStreaming(
     // Step 2: Panggil LLM dengan streaming (satu kali)
     onStatus('AI sedang menyusun jawaban...');
     const llmStarted = Date.now();
-    const llmResponse = await streamLLM(ctx.systemPrompt, { query, data: ctx.dataForLLM, konteks: ctx.konteksRegulasi }, onChunk);
+    const llmRes = await streamLLM(ctx.systemPrompt, { query, data: ctx.dataForLLM, konteks: ctx.konteksRegulasi }, onChunk);
     steps.llm = Date.now() - llmStarted;
 
     // Step 3: Parse + grounding SoT
-    const parsed = parseHybridResponse(llmResponse, ctx.filteredData);
+    const parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
     let result = grounded;
     if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
@@ -366,10 +414,10 @@ export async function processAIQueryStreaming(
     }
 
     // Step 4: Simpan ke DB (non-blocking)
-    const metadata = {
-      opdFilter: ctx.opdFilter || null,
+    const metadata = buildObservabilityMeta({
+      opdFilter: ctx.opdFilter ?? null,
       filterDipakai: ctx.filterDipakai,
-      evidenceCount: ctx.evidence.length,
+      evidence: ctx.evidence,
       grounding,
       groundingReason: reason ?? null,
       totalData: ctx.allRecords.length,
@@ -377,9 +425,11 @@ export async function processAIQueryStreaming(
       matchedCount: ctx.matchedRecords.length,
       latencyMs: Date.now() - startedAt,
       stepsMs: steps,
-      model: process.env.AI_MODEL,
+      model: llmRes.model,
+      finishReason: llmRes.finishReason,
+      dataOrigin: ctx.dataOrigin,
       streamed: true,
-    };
+    });
     void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
     setCache(query, result);
@@ -474,7 +524,7 @@ function extractJsonObject(raw: string): any | null {
   return null;
 }
 
-function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse {
+function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: SapaDataOrigin = 'splp'): HybridResponse {
   // Bersihkan dulu dari markdown fence / reasoning / prose di luar JSON
   const cleanedInput = stripReasoningPrefix(raw);
   const extracted = extractJsonObject(cleanedInput);
@@ -487,7 +537,7 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
         narasi,
         visualisasi: normalizeVisualization(extracted.visualisasi),
         rekomendasi: Array.isArray(extracted.rekomendasi) ? extracted.rekomendasi : [],
-        dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+        dataSource: dataSourceLabel(dataOrigin),
         timestamp: new Date().toISOString(),
       };
     }
@@ -499,7 +549,7 @@ function parseHybridResponse(raw: string, records: SapaRecord[]): HybridResponse
     narasi: fallbackNarasi,
     visualisasi: { tipe: 'none', konfigurasi: {} },
     rekomendasi: [],
-    dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+    dataSource: dataSourceLabel(dataOrigin),
     timestamp: new Date().toISOString(),
   };
 }

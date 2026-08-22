@@ -95,11 +95,13 @@ export function extractNarasiPartial(raw: string): string {
   return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
 }
 
+export type LLMResult = { text: string; finishReason: string | null; model: string };
+
 /**
  * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500 (cukup untuk JSON).
  * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
-export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
+export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LLMResult> {
   const config = getConfig();
 
   if (!config.apiKey) {
@@ -140,7 +142,8 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
   }
 
   const data = await res.json();
-  const message = data.choices?.[0]?.message;
+  const choice = data.choices?.[0];
+  const message = choice?.message;
 
   if (!message) {
     throw new Error('AI returned empty response');
@@ -158,7 +161,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
     throw new Error('AI returned completely empty response');
   }
 
-  return stripReasoningPrefix(content);
+  return { text: stripReasoningPrefix(content), finishReason: choice?.finish_reason ?? null, model: config.model };
 }
 
 /**
@@ -169,7 +172,7 @@ export async function streamLLM(
   systemPrompt: string,
   input: LLMInput,
   onChunk: (delta: string) => void,
-): Promise<string> {
+): Promise<LLMResult> {
   const config = getConfig();
 
   if (!config.apiKey) {
@@ -223,6 +226,7 @@ export async function streamLLM(
   let buffer = '';
   let fullContent = '';
   let fullReasoning = '';
+  let lastFinishReason: string | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -240,7 +244,9 @@ export async function streamLLM(
 
       try {
         const chunk = JSON.parse(payload);
-        const delta = chunk.choices?.[0]?.delta ?? {};
+        const choice = chunk.choices?.[0];
+        if (choice?.finish_reason) lastFinishReason = choice.finish_reason;
+        const delta = choice?.delta ?? {};
         const text = delta.content ?? '';
         const reasoning = delta.reasoning_content ?? delta.reasoning ?? '';
         if (text) {
@@ -260,7 +266,7 @@ export async function streamLLM(
   const cleaned = stripReasoningPrefix(fullContent);
   if (!cleaned && fullReasoning) {
     console.warn('[LLM] Stream returned reasoning but no content. Reasoning length:', fullReasoning.length);
-    return stripReasoningPrefix(fullReasoning);
+    return { text: stripReasoningPrefix(fullReasoning), finishReason: lastFinishReason, model: config.model };
   }
-  return cleaned;
+  return { text: cleaned, finishReason: lastFinishReason, model: config.model };
 }
