@@ -97,6 +97,7 @@ export function extractNarasiPartial(raw: string): string {
 
 /**
  * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500 (cukup untuk JSON).
+ * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<string> {
   const config = getConfig();
@@ -121,7 +122,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
         top_p: 0.9,
         max_tokens: 1500,
       }),
-      signal: AbortSignal.timeout(90000), // 90s
+      signal: AbortSignal.timeout(60000), // 60s — sinkron dengan dashboard 65s + maxDuration 60
     });
   };
 
@@ -162,6 +163,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<st
 
 /**
  * Streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500.
+ * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
 export async function streamLLM(
   systemPrompt: string,
@@ -192,7 +194,7 @@ export async function streamLLM(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body,
-      signal: AbortSignal.timeout(90000), // 90s
+      signal: AbortSignal.timeout(60000), // 60s
     });
     return { res };
   };
