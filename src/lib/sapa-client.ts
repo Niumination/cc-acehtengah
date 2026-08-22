@@ -75,9 +75,17 @@ export interface SapaResponse {
   data: SapaRecord[];
 }
 
+export type SapaDataOrigin = 'direct' | 'splp';
+
+export function dataSourceLabel(origin: SapaDataOrigin): string {
+  return origin === 'direct'
+    ? 'SAPA Aceh Tengah (sapa.acehtengahkab.go.id)'
+    : 'SAPA Aceh Tengah (api-splp.layanan.go.id)';
+}
+
 // ─── Fetch: Direct API (OAuth) dengan fallback SPLP ───
 
-export async function fetchSapaData(): Promise<SapaRecord[]> {
+export async function fetchSapaData(): Promise<{ records: SapaRecord[]; origin: SapaDataOrigin }> {
   // 1. Coba Direct API dengan OAuth token
   try {
     const token = await getOAuthToken();
@@ -94,7 +102,7 @@ export async function fetchSapaData(): Promise<SapaRecord[]> {
     if (json.api_status !== 1 || !Array.isArray(json.data)) {
       throw new Error(`Direct SAPA API failed: ${json.api_message}`);
     }
-    return json.data;
+    return { records: json.data, origin: 'direct' };
   } catch (directErr) {
     console.warn('[SAPA] Direct API gagal, fallback ke SPLP:', directErr instanceof Error ? directErr.message : directErr);
   }
@@ -113,7 +121,7 @@ export async function fetchSapaData(): Promise<SapaRecord[]> {
   if (json.api_status !== 1) {
     throw new Error(`SPLP API failed: ${json.api_message}`);
   }
-  return json.data;
+  return { records: json.data, origin: 'splp' };
 }
 
 // ─── Helpers: Normalisasi & Filtering ───

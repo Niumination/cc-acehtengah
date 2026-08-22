@@ -203,7 +203,8 @@ export function buildMockSapaRecords(): SapaRecord[] {
  */
 export async function getSapaRecords(): Promise<SapaRecord[]> {
   if (isMockMode()) return buildMockSapaRecords();
-  return fetchSapaData();
+  const { records } = await fetchSapaData();
+  return records;
 }
 
 /** Label sumber data untuk ditampilkan di UI/log. */

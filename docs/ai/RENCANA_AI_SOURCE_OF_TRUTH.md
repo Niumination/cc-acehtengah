@@ -179,23 +179,17 @@ Fungsi murni `groundOutput(parsed, evidence)`:
 - `generateAutoChart` hanya dari `evidence`, bukan seluruh filter.
 - Intent kategori dimasukkan ke payload, tidak mengubah SoT.
 
-### Fase D — Transport & fondasi yang sempat dihapus (cherry-pick, bukan revert-revert)
+### Fase D — Transport (cherry-pick) — Selesai `2132855`
 
-Ambil **hanya** dari `5faa080` yang terkait query:
+Ambil hanya dari `5faa080` yang terkait query: rate-limit + store + maxDuration=60 + try/catch req.json + mock SSE berlabel. Timeout UI 65s >= LLM 60s, liveNarasi dipulihkan.
 
-- `src/lib/rate-limit.ts` + **dependensi `src/lib/store.ts`** (Redis/Mem fallback) + pemakaian di `/api/query`
-- `maxDuration`
-- try/catch `req.json()`
-- mock SSE (jika `USE_MOCK_DATA`; mock tetap harus berlabel bukan SAPA live)
+### Fase E — Observabilitas — Selesai (commit berikut)
 
-Samakan timeout UI. Pulihkan `liveNarasi`.
-
-**Jangan** dalam fase ini: JWT/setup/akun (PR terpisah keamanan), GIS, theme, EWS, Qdrant.
-
-### Fase E — Observabilitas
-
-Metadata `chatSession`: `filterDipakai`, `evidenceCount`, `grounding: pass|replaced`, `model`, `dataOrigin`, `latencyMs`, `finish_reason`.  
-Jangan log isi lengkap evidence jika besar; id + hash cukup.
+- fetchSapaData -> {records, origin} + dataSourceLabel(origin): dataSource di UI kini benar (direct vs splp), dataOrigin di chatSession.metadata.
+- callLLM/streamLLM -> LLMResult {text, finishReason, model}: finish_reason + model tercatat.
+- buildObservabilityMeta() pure teruji: opdFilter/filterDipakai/evidenceCount/evidenceIds(<=30)/grounding/groundingReason/totalData/filteredCount/matchedCount/latencyMs/stepsMs/model/finish_reason/dataOrigin/dataSource/streamed.
+- parseHybridResponse(..., dataOrigin) tidak lagi hardcode SPLP.
+- Jangan log isi lengkap evidence jika besar; evidenceIds + evidenceCount cukup.
 
 ---
 
@@ -259,6 +253,7 @@ AI SoT dianggap selesai jika semua benar:
 | PR-2 | Fase A tes + fixture | Rendah |
 | PR-3 | Fase B retrieval | Sedang — ubah jawaban |
 | PR-4 | Fase C prompt + ground + hapus LLM-2 | Sedang |
-| PR-5 | Fase D transport/timeout/rate limit/live UI | Sedang — cherry-pick hati-hati |
+| PR-5 | Fase D transport/timeout/rate limit/live UI — Selesai 2132855 | Selesai |
+| PR-6 | Fase E observabilitas (dataOrigin/finish_reason/metadata) | Selesai |
 
 Jangan gabung PR-3–5 dalam satu commit “god fix”. Itu pola yang sudah memaksa `7cb1d0e`.
