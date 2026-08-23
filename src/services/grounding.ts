@@ -54,6 +54,15 @@ export function buildAllowedYears(evidence: EvidenceItem[]): Set<string> {
   return set;
 }
 
+export function buildAllowedOpds(evidence: EvidenceItem[]): Set<string> {
+  const set = new Set<string>();
+  for (const e of evidence) {
+    const opd = e.opd?.trim();
+    if (opd) set.add(opd.toLowerCase());
+  }
+  return set;
+}
+
 function collectTextForGrounding(parsed: HybridResponse): string {
   const parts: string[] = [];
   if (parsed.narasi) parts.push(parsed.narasi);
@@ -81,6 +90,7 @@ export function isGrounded(parsed: HybridResponse, evidence: EvidenceItem[]): { 
 
   const allowedNumbers = buildAllowedNumbers(evidence);
   const allowedYears = buildAllowedYears(evidence);
+  const allowedOpds = buildAllowedOpds(evidence);
   const text = collectTextForGrounding(parsed);
 
   // 1. Tahun plausibel (1900-2100) harus subset evidence; nilai 4-digit seperti 9610 bukan tahun
@@ -112,6 +122,31 @@ export function isGrounded(parsed: HybridResponse, evidence: EvidenceItem[]): { 
       // izinkan prefix tahun? tidak — strict
       reasons.push(`angka halu: ${raw}→${norm}`);
       break;
+    }
+  }
+
+  // 3. OPD di narasi harus subset evidence (cegah halusinasi "Badan Perencanaan Pembangunan Daerah")
+  if (reasons.length === 0) {
+    const lowerText = text.toLowerCase();
+    // Daftar OPD yang sering dihalusinasikan model — jika muncul tapi tidak di evidence, tolak
+    const haluOpdPatterns = [
+      'badan perencanaan pembangunan daerah',
+      'bappeda',
+      'badan kepegawaian',
+      'inspektorat',
+      'sekretariat daerah',
+      'dinas perhubungan',
+      'dinas sosial',
+    ];
+    for (const pat of haluOpdPatterns) {
+      if (lowerText.includes(pat) && !allowedOpds.has(pat)) {
+        // Cek apakah ada OPD di evidence yang mengandung pat ini; jika tidak ada, ini halu
+        const hasMatchingOpd = [...allowedOpds].some((o) => o.includes(pat) || pat.includes(o));
+        if (!hasMatchingOpd) {
+          reasons.push(`opd halu: ${pat}`);
+          break;
+        }
+      }
     }
   }
 
