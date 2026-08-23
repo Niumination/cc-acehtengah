@@ -24,6 +24,11 @@ import {
 } from '@/lib/sapa-client';
 import { detectMetaQuery, buildMetaResponse } from './meta-query';
 import {
+  publicDeflectionKind,
+  buildPublicDeflectionNarasi,
+  PUBLIC_DEFLECTION_REKOMENDASI,
+} from './dtsen-planner';
+import {
   isTrendQuery,
   findTrendCandidate,
   buildTrendResponse,
@@ -363,6 +368,54 @@ async function tryMetaQuery(
   return result;
 }
 
+/**
+ * PR-4c (desain §8): defleksi DTSEN di pipeline publik — deterministik, tanpa
+ * LLM, tanpa fetch SAPA. Hanya untuk NIK, konsep tanpa padanan di SAPA
+ * (dtsen/desil/bpnt/pbi), atau niat per-orang; pertanyaan agregat program
+ * (pkh/bansos/kemiskinan) TETAP ke SAPA (46 indikator nyata — jangan dirusak).
+ * Provenance metadata: dataOrigin 'dtsen' — jawaban DTSEN tak pernah menyaru
+ * sebagai jawaban SAPA.
+ */
+async function tryDtsenDeflection(
+  query: string,
+  startedAt: number,
+  steps: Record<string, number>,
+  streamed: boolean,
+): Promise<HybridResponse | null> {
+  const kind = publicDeflectionKind(query);
+  if (!kind) return null;
+  steps.dtsenDefleksi = Date.now() - startedAt;
+  const result: HybridResponse = {
+    narasi: buildPublicDeflectionNarasi(kind),
+    visualisasi: { tipe: 'none', konfigurasi: {} },
+    rekomendasi: [...PUBLIC_DEFLECTION_REKOMENDASI],
+    dataSource: 'DTSEN (terbatas) — dialihkan dari jalur publik SAPA',
+    timestamp: new Date().toISOString(),
+  };
+  const metadata = {
+    ...buildObservabilityMeta({
+      opdFilter: null,
+      filterDipakai: `dtsen-defleksi:${kind.toLowerCase()}`,
+      evidence: [],
+      grounding: 'pass',
+      totalData: 0,
+      filteredCount: 0,
+      latencyMs: Date.now() - startedAt,
+      stepsMs: steps,
+      model: null,
+      finishReason: null,
+      dataOrigin: 'splp',
+      streamed,
+    }),
+    dataOrigin: 'dtsen',
+    dataSource: 'DTSEN (terbatas) — dialihkan',
+    dtsenDefleksi: kind,
+  };
+  await saveChatSession({ query, intent: 'dtsen-defleksi', result, metadata });
+  setCache(query, result);
+  return result;
+}
+
 /** Statistik resmi yang juga disuplai ke prompt — grounding tidak boleh menghukumnya. */
 interface OfficialStats {
   total_data?: number;
@@ -476,6 +529,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // PR Lapis 1: meta-query portal → deterministik, tanpa LLM
     const meta = await tryMetaQuery(query, startedAt, steps, false);
     if (meta) return meta;
+
+    // PR-4c: defleksi DTSEN (NIK/desil/per-orang) — sebelum retrieval SAPA
+    const deflected = await tryDtsenDeflection(query, startedAt, steps, false);
+    if (deflected) return deflected;
 
     // Step 1-3: intent + fetch + filter (context build)
     const ctx = await buildContext(query);
@@ -596,6 +653,12 @@ export async function processAIQueryStreaming(
     onStatus('Menganalisis pertanyaan...');
     const meta = await tryMetaQuery(query, startedAt, steps, true);
     if (meta) return meta;
+
+    // PR-4c: defleksi DTSEN (NIK/desil/per-orang) — konvensi jalur deterministik:
+    // tidak memakai onChunk (onChunk route mengharapkan fragmen JSON LLM);
+    // narasi utuh dikirim lewat event 'result' oleh route.
+    const deflected = await tryDtsenDeflection(query, startedAt, steps, true);
+    if (deflected) return deflected;
 
     // Step 1: Deteksi intent & ambil data
     const ctx = await buildContext(query);
