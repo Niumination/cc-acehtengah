@@ -1,6 +1,7 @@
 // ─── Auto-migration: ensures ChatSession table exists ───
 
 import { prisma } from '@/lib/prisma';
+import { DATA_SOURCE_SEEDS } from '@/lib/data-gate';
 
 let tableReady = false;
 
@@ -34,7 +35,122 @@ export async function ensureChatSessionTable(): Promise<boolean> {
   }
 }
 
-// ─── Warehouse SAPA + rantai EWS (PR Lapis 2) ───
+// ─── Fondasi multi-sumber & DTSEN (PR-4a / Lapis 3) ───
+// Tabel registry + warehouse DTSEN + audit akses. Pemisahan fisik dari pipeline
+// publik (desain §4): route /api/query tidak pernah membaca tabel-tabel ini.
+// Idempotent; enum→TEXT; tanpa FK fisik — pola sama seperti warehouse SAPA.
+
+let dtsenReady = false;
+
+export async function ensureDtsenTables(): Promise<boolean> {
+  if (dtsenReady) return true;
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DataSource" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "slug" TEXT NOT NULL,
+        "nama" TEXT NOT NULL,
+        "sensitivity" TEXT NOT NULL,
+        "provenanceLabel" TEXT NOT NULL,
+        "ownerInstansi" TEXT,
+        "isActive" BOOLEAN NOT NULL DEFAULT true,
+        "config" JSONB,
+        "lastSync" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "DataSource_slug_key" ON "DataSource"("slug");`);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DtsenRelease" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "sourceId" TEXT NOT NULL,
+        "versi" TEXT NOT NULL,
+        "wilayahIso" TEXT NOT NULL DEFAULT '11.03',
+        "jalur" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'STAGING',
+        "totalBaris" INTEGER NOT NULL DEFAULT 0,
+        "ditolak" INTEGER NOT NULL DEFAULT 0,
+        "checksum" TEXT,
+        "uploadedBy" TEXT,
+        "publishedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DtsenRelease_status_createdAt_idx" ON "DtsenRelease"("status", "createdAt" DESC);`);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DtsenIndividu" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "releaseId" TEXT NOT NULL,
+        "nikHash" TEXT NOT NULL,
+        "namaMasked" TEXT NOT NULL,
+        "keluargaId" TEXT,
+        "kecamatan" TEXT NOT NULL,
+        "desa" TEXT NOT NULL,
+        "desil" INTEGER,
+        "statusBansos" JSONB
+      );
+    `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DtsenIndividu_release_wilayah_idx" ON "DtsenIndividu"("releaseId", "kecamatan", "desa");`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DtsenIndividu_release_nik_idx" ON "DtsenIndividu"("releaseId", "nikHash");`);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DtsenAgregatWilayah" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "releaseId" TEXT NOT NULL,
+        "kecamatan" TEXT NOT NULL,
+        "desa" TEXT NOT NULL,
+        "desil" INTEGER NOT NULL,
+        "jumlahJiwa" INTEGER NOT NULL,
+        "jumlahKeluarga" INTEGER NOT NULL
+      );
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "DtsenAgregatWilayah_key" ON "DtsenAgregatWilayah"("releaseId", "kecamatan", "desa", "desil");`,
+    );
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DtsenAgregatWilayah_kec_idx" ON "DtsenAgregatWilayah"("releaseId", "kecamatan");`);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "DataAccessAudit" (
+        "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        "adminId" TEXT NOT NULL,
+        "adminNama" TEXT NOT NULL,
+        "aksi" TEXT NOT NULL,
+        "detail" TEXT NOT NULL DEFAULT '',
+        "rowCount" INTEGER NOT NULL DEFAULT 0,
+        "ip" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DataAccessAudit_admin_createdAt_idx" ON "DataAccessAudit"("adminId", "createdAt" DESC);`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DataAccessAudit_createdAt_idx" ON "DataAccessAudit"("createdAt" DESC);`);
+
+    // Seed registry (idempotent — slug sudah ada → tidak ditimpa)
+    for (const seed of DATA_SOURCE_SEEDS) {
+      await prisma.dataSource.upsert({
+        where: { slug: seed.slug },
+        update: {}, // jangan timpa label provenance yang sudah dirawat admin
+        create: {
+          slug: seed.slug,
+          nama: seed.nama,
+          sensitivity: seed.sensitivity,
+          provenanceLabel: seed.provenanceLabel,
+          ownerInstansi: seed.ownerInstansi,
+        },
+      });
+    }
+
+    dtsenReady = true;
+    console.log('[db] Multi-source/DTSEN foundation tables ensured');
+    return true;
+  } catch (err) {
+    console.error('[db] DTSEN foundation migration failed:', err);
+    return false;
+  }
+}
+
 // Membuat tabel warehouse (SapaSnapshot/SapaIndicatorValue) DAN rantai yang
 // selama ini putus untuk EWS (Skpd → Dataset → DatasetRecord → Indicator →
 // EwsAlert). Semuanya idempotent (IF NOT EXISTS) — aman dipanggil berulang.

@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 23, 2026 — PR-3: Laporan Eksekutif (generator naratif deterministik, tab baru di /dashboard/laporan + cetak PDF) & log chat di-await; sebelumnya PR Lapis 0 (keamanan), Lapis 1 (retrieval v2), Lapis 2 (warehouse + KPI + EWS + tren/perbandingan)
+> **Last update:** Aug 23, 2026 — PR-4a: fondasi multi-sumber/DTSEN (registry DataSource, role DTSEN_ANALYST/DTSEN_LOOKUP, gerbang fail-closed + DataAccessAudit, `/api/dtsen/query` kerangka); sebelumnya PR-3 Laporan Eksekutif, PR Lapis 0–2
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -51,6 +51,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Early Warning System | ✅ | `/api/ews` (ditulis oleh cron warehouse) |
 | **KPI Pimpinan** | ✅ | `/api/kpi` (deterministik, cache 10 mnt) |
 | **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
+| **Fondasi DTSEN (role-gated)** | ✅ | `POST /api/dtsen/query` — 401/403 fail-closed + audit (data via PR-4b/4d) |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
 
@@ -80,6 +81,7 @@ src/
 │   │   ├── kpi/route.ts          # GET /api/kpi — KPI pimpinan
 │   │   ├── report/route.ts       # GET /api/report — Laporan Eksekutif
 │   │   ├── cron/sync-sapa/       # GET/POST — sinkronisasi warehouse harian
+│   │   ├── dtsen/query/          # POST — gerbang data restricted (role + audit)
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
 │   │   └── setup/
@@ -104,6 +106,7 @@ src/
 │   └── QueryBar.tsx              # Query input
 ├── lib/
 │   ├── auth.ts                   # JWT + bcrypt helpers
+│   ├── data-gate.ts              # Gerbang multi-sumber (role+audit), murni
 │   ├── prisma.ts                 # Prisma client singleton
 │   ├── sapa-client.ts            # SAPA API client (public)
 │   └── db-migration.ts           # Auto-migration utility
@@ -133,6 +136,11 @@ src/
 | `Indicator` | Indikator kunci (unik per dataset+nama+satuan) |
 | `SapaSnapshot` | Snapshot publikasi SAPA (checksum, append-only) |
 | `SapaIndicatorValue` | Nilai indikator per tahun per snapshot (deret histori) |
+| `DataSource` | Registry multi-sumber + klasifikasi `sensitivity` (Lapis 3) |
+| `DtsenRelease` | Rilis DTSEN append-only (STAGING→PUBLISHED→SUPERSEDED) |
+| `DtsenIndividu` | Data by-name — HMAC-hash NIK + nama masked saja |
+| `DtsenAgregatWilayah` | Agregat desil per kecamatan/desa (k≥5 saja) |
+| `DataAccessAudit` | Audit akses data restricted (UU PDP) |
 | `ChatSession` | **AI query log** (auto-save) |
 | `EwsAlert` | Early warning alerts |
 | `Admin` | **Admin auth** (bcrypt password) |
