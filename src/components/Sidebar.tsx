@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LogoMark } from '@/components/brand/Logo';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA' },
@@ -41,9 +42,12 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
             </svg>
           </button>
           {!collapsed && (
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-              <p className="text-[10px] text-[var(--text-muted)] font-medium">SAPA Smart AI</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <LogoMark size={30} className="flex-shrink-0 rounded-lg" />
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
+                <p className="text-[10px] text-[var(--text-muted)] font-medium">SAPA Smart AI</p>
+              </div>
             </div>
           )}
         </div>
