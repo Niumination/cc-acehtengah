@@ -108,7 +108,7 @@ export default function DashboardPage() {
           narasi: liveNarasiRef.current,
           visualisasi: { tipe: 'none', konfigurasi: {} },
           rekomendasi: [],
-          dataSource: 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
+          dataSource: 'SAPA Aceh Tengah',
           timestamp: new Date().toISOString(),
         });
       } else {

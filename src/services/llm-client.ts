@@ -9,15 +9,14 @@ interface LLMInput {
 }
 
 function getConfig() {
-  const envModel = process.env.AI_MODEL;
-  // Migration: nemotron-3-ultra-free sering lambat & output terpotong (reasoning model).
-  // Fallback ke Ox Alpha Free (rank #6, cepat, output maksimal) — model ID resmi: x-preview-f-free.
-  const model =
-    envModel && envModel !== 'nemotron-3-ultra-free' ? envModel : 'x-preview-f-free';
+  // PR Lapis 1: tidak ada lagi pemetaan tersembunyi antar-model di kode —
+  // model yang dipakai PERSIS = AI_MODEL; default hanya bila env kosong.
+  // (Sebelumnya 'nemotron-3-ultra-free' diam-diam dipetakan ke 'x-preview-f-free',
+  // sehingga konfigurasi tidak bisa dipercaya dari luar.)
   return {
     baseUrl: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
     apiKey: process.env.AI_API_KEY ?? '',
-    model,
+    model: process.env.AI_MODEL ?? 'x-preview-f-free',
   };
 }
 

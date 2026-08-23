@@ -58,9 +58,15 @@ describe('Fase C — grounding SoT', () => {
     expect(grounding).toBe('pass');
     expect(response.narasi).toBe(p.narasi);
   });
-  it('buildVizFromEvidence: 1→metric, 2→chart, >8→table', () => {
+  it('buildVizFromEvidence: 1→metric, 2 satuan seragam→chart, satuan campur→table, >8→table (kontrak Lapis 1)', () => {
     expect(buildVizFromEvidence(ev.slice(0, 1)).tipe).toBe('metric');
-    expect(buildVizFromEvidence(ev).tipe).toBe('chart');
+    const seragam: EvidenceItem[] = [
+      { ...ev[0], id: 301, indikator: 'Ind A', satuan: 'orang' },
+      { ...ev[0], id: 302, indikator: 'Ind B', satuan: 'orang' },
+    ];
+    expect(buildVizFromEvidence(seragam).tipe).toBe('chart');
+    // PR Lapis 1: fixture ev satuan campur (orang + persen) → tabel, bukan chart menyesatkan
+    expect(buildVizFromEvidence(ev).tipe).toBe('table');
     const many: EvidenceItem[] = Array.from({ length: 10 }, (_, i) => ({ ...ev[0], id: 200 + i, indikator: `Ind ${i}` }));
     expect(buildVizFromEvidence(many).tipe).toBe('table');
   });

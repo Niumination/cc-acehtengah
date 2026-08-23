@@ -9,16 +9,20 @@ import {
   fetchSapaData,
   dataSourceLabel,
   filterByOpd,
-  filterByAnyKeyword,
-  filterByAllKeywords,
   getUniqueOpd,
   getUniqueIndicators,
   aggregateByIndicator,
   normalizeText,
   tokenizeQuery,
+  buildMatchGroups,
+  scoreRecord,
+  stemId,
+  extractYears,
+  type MatchGroup,
   type SapaRecord,
   type SapaDataOrigin,
 } from '@/lib/sapa-client';
+import { detectMetaQuery, buildMetaResponse } from './meta-query';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
@@ -68,85 +72,119 @@ async function buildContext(query: string) {
 
   const tokens = tokenizeQuery(query);
 
-  // Hierarchical selection: byOpd∩AND → AND → byOpd∩OR → OR → byOpd → kosong
+  // ─── Retrieval v2 (PR Lapis 1) ───
+  // Substring matching lama digantikan skor relevansi kata-utuh + stemming
+  // + sinonim. Gerbang kepercayaan: tanpa kata query yang cocok di NAMA
+  // INDIKATOR → tidak ada evidence (jawab "tidak ditemukan", jangan mengarang).
   let filteredData: SapaRecord[] = [];
   let matchedRecords: SapaRecord[] = [];
   let filterDipakai: string = 'none';
+  const yearsRequested = extractYears(query);
+  let availableYears: string[] = [];
+  /** Skor relevansi per id_kode_indikator (untuk urutan evidence). */
+  const relevanceScore = new Map<number, number>();
 
   const byOpd = opdFilter ? filterByOpd(normalizedRecords, opdFilter) : [];
-  const byAnd = tokens.length > 0 ? filterByAllKeywords(normalizedRecords, tokens) : [];
-  const byOr = tokens.length > 0 ? filterByAnyKeyword(normalizedRecords, tokens) : [];
 
-  if (opdFilter && tokens.length > 0) {
-    const opdAnd = byOpd.filter((r) =>
-      tokens.every((t) => normalizeText(r.kode_indikator_nama_indikator).includes(normalizeText(t))),
-    );
-    if (opdAnd.length > 0) {
-      filteredData = opdAnd;
-      filterDipakai = 'opd+AND';
-    } else if (byAnd.length > 0) {
-      filteredData = byAnd;
-      filterDipakai = 'AND';
-    } else {
-      const opdOr = byOpd.filter((r) =>
-        tokens.some((t) => normalizeText(r.kode_indikator_nama_indikator).includes(normalizeText(t))),
-      );
-      if (opdOr.length > 0) {
-        filteredData = opdOr;
-        filterDipakai = 'opd+OR';
-      } else if (byOr.length > 0) {
-        filteredData = byOr;
-        filterDipakai = 'OR';
-      } else if (byOpd.length > 0) {
-        filteredData = byOpd;
-        filterDipakai = 'opd';
-      } else {
-        filteredData = [];
-        filterDipakai = 'none';
-      }
-    }
-  } else if (opdFilter) {
-    filteredData = byOpd;
-    filterDipakai = byOpd.length > 0 ? 'opd' : 'none';
-  } else if (tokens.length > 0) {
-    if (byAnd.length > 0) {
-      filteredData = byAnd;
-      filterDipakai = 'AND';
-    } else if (byOr.length > 0) {
-      filteredData = byOr;
-      filterDipakai = 'OR';
-    } else {
-      filteredData = [];
-      filterDipakai = 'none';
+  // Grup token yang hanya mengulang nama OPD (mis. "kesehatan" saat opdFilter
+  // = Dinas Kesehatan) bukan topik substantif — itu permintaan ringkasan OPD.
+  const groupsAll = buildMatchGroups(tokens);
+  const opdWords = new Set(
+    normalizeText(opdFilter ?? '').split(' ').filter(Boolean).flatMap((w) => [w, stemId(w)]),
+  );
+  const groups: MatchGroup[] = opdFilter
+    ? groupsAll.filter(
+        (g) =>
+          !g.alternatives.every((alt) => alt.every((w) => opdWords.has(w) || opdWords.has(stemId(w)))),
+      )
+    : groupsAll;
+
+  const rank = (scored: { record: SapaRecord; score: number; indHits: number }[]) => {
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 80).map((s) => {
+      const key = s.record.id_kode_indikator;
+      relevanceScore.set(key, Math.max(relevanceScore.get(key) ?? 0, s.score));
+      return s.record;
+    });
+  };
+
+  if (groups.length === 0) {
+    // Tanpa kata substantif: hanya ringkasan OPD yang masuk akal.
+    if (opdFilter && byOpd.length > 0) {
+      filteredData = byOpd;
+      filterDipakai = 'opd';
     }
   } else {
-    filteredData = [];
-    filterDipakai = 'none';
+    // Samakan dengan ambang retrieveRelevant: ≥3 kata topik → minimal 2 grup cocok.
+    const minIndHits = groups.length >= 3 ? 2 : 1;
+    const scoreAgainst = (pool: SapaRecord[]) =>
+      pool.map((r) => scoreRecord(r, groups)).filter((s) => s.indHits >= minIndHits);
+    if (opdFilter) {
+      const scoped = scoreAgainst(byOpd);
+      if (scoped.length > 0) {
+        filteredData = rank(scoped);
+        filterDipakai = 'opd+relevansi';
+      }
+    }
+    if (filteredData.length === 0) {
+      const global = scoreAgainst(normalizedRecords);
+      if (global.length > 0) {
+        filteredData = rank(global);
+        filterDipakai = 'relevansi';
+      } else if (opdFilter && byOpd.length > 0) {
+        // OPD jelas tapi topik tak ditemukan di katalog → ringkasan OPD
+        // (lebih jujur daripada memaksa jawaban salah topik).
+        filteredData = byOpd;
+        filterDipakai = 'opd-fallback';
+      }
+    }
+  }
+
+  // Filter tahun eksplisit ("produksi kopi 2024"): jika tak ada data tahun itu,
+  // kosongkan evidence (jujur) dan catat tahun yang memang tersedia.
+  if (yearsRequested.length > 0 && filteredData.length > 0) {
+    const yr = new Set(yearsRequested);
+    const byYear = filteredData.filter((r) => yr.has((r.tahun ?? '').trim()));
+    if (byYear.length > 0) {
+      filteredData = byYear;
+      filterDipakai += '+tahun';
+    } else {
+      availableYears = [
+        ...new Set(
+          filteredData
+            .map((r) => (r.tahun ?? '').trim())
+            .filter((t) => /^\d{4}$/.test(t)),
+        ),
+      ].sort();
+      filteredData = [];
+      filterDipakai += '+tahun:kosong';
+    }
   }
 
   matchedRecords = filteredData;
 
   const allOpds = getUniqueOpd(normalizedRecords);
   const allIndicators = getUniqueIndicators(normalizedRecords);
-  const filteredOpds = getUniqueOpd(filteredData);
-  const filteredIndicators = getUniqueIndicators(filteredData);
 
-  // AGGREGASI per indikator
+  // AGGREGASI per indikator (tahun maks per id), urut: skor relevansi → nilai
   const aggregated = aggregateByIndicator(filteredData);
-  const aggregatedAll = aggregateByIndicator(normalizedRecords);
+  aggregated.sort((a, b) => {
+    const ra = relevanceScore.get(a.id) ?? 0;
+    const rb = relevanceScore.get(b.id) ?? 0;
+    if (rb !== ra) return rb - ra;
+    return b.nilaiNumber - a.nilaiNumber;
+  });
 
-  // Prioritaskan indikator match token di depan payload
-  const tokenNorm = tokens.map(normalizeText);
-  const prioritized: typeof aggregated = [];
-  const rest: typeof aggregated = [];
-  for (const a of aggregated) {
-    const namaNorm = normalizeText(a.nama);
-    const hit = tokenNorm.some((t) => namaNorm.includes(t));
-    (hit ? prioritized : rest).push(a);
-  }
-  const ordered = [...prioritized, ...rest];
+  // Dedupe nama+tahun identik (katalog SAPA kadang berisi entri ganda)
+  const seenKeys = new Set<string>();
+  const ordered = aggregated.filter((a) => {
+    const key = `${normalizeText(a.nama)}|${a.tahun ?? ''}`;
+    if (seenKeys.has(key)) return false;
+    seenKeys.add(key);
+    return true;
+  });
 
-  // Evidence cap 30 compact (bukan 150 pretty) — untuk grounding SoT
+  // Evidence cap 30 compact — untuk grounding SoT
   const evidence: EvidenceItem[] = ordered.slice(0, 30).map((a) => ({
     opd: a.opd,
     indikator: a.nama,
@@ -156,21 +194,30 @@ async function buildContext(query: string) {
     id: a.id,
   }));
 
-  // SoT Fase C: payload ringkas — HANYA evidence (bukan pretty ringkasan 150 baris)
-  // Untuk >8 evidence (query generik "bantuan"), kirim hanya top 3 ke LLM untuk narasi cepat;
-  // visualisasi tetap 12-30 baris dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
-  const evidenceForLLM = evidence.length > 8 ? evidence.slice(0, 3) : evidence;
+  // Payload LLM ringkas: top-5 saat evidence besar; visualisasi penuh tetap
+  // dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
+  const evidenceForLLM = evidence.length > 8 ? evidence.slice(0, 5) : evidence;
   const dataForLLM = {
     query,
     intent: intent.kategori,
     filterDipakai,
     evidence: evidenceForLLM,
     evidenceCount: evidence.length,
-    total_data: normalizedRecords.length,
+    statistik_resmi: {
+      total_data: normalizedRecords.length,
+      total_opd: allOpds.length,
+      total_indikator: allIndicators.length,
+      ...(yearsRequested.length > 0 ? { tahun_diminta: yearsRequested } : {}),
+    },
   };
 
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
-  const systemPrompt = buildSystemPrompt(allOpds.length, allIndicators.length);
+  const systemPrompt = buildSystemPrompt({
+    totalOpd: allOpds.length,
+    totalIndicators: allIndicators.length,
+    totalData: normalizedRecords.length,
+    evidenceCount: evidence.length,
+  });
 
   return {
     intent,
@@ -184,7 +231,30 @@ async function buildContext(query: string) {
     dataForLLM,
     konteksRegulasi,
     systemPrompt,
+    yearsRequested,
+    availableYears,
   };
+}
+
+// ─── PR Lapis 1: guard output — placeholder/kekosongan model ───
+// Model lemah kadang menyalin literal placeholder format ("...", "…") atau
+// mengembalikan narasi nyaris kosong. Grounding angka tidak menangkap itu.
+export function isPlaceholderText(s: string): boolean {
+  const t = (s ?? '').trim();
+  if (!t) return true;
+  if (/^[\s.…"'\-–—_*`~:;!?]*$/.test(t)) return true;
+  const alpha = (t.match(/[A-Za-zÀ-ɏ]/g) ?? []).length;
+  return alpha < 3;
+}
+
+/** Narasi "tidak ditemukan" — jujur, plus catatan tahun bila relevan. */
+export function buildNotFoundNarasi(yearsRequested: string[], availableYears: string[]): string {
+  const base = 'Data untuk pertanyaan ini tidak ditemukan di SAPA.';
+  if (yearsRequested.length > 0) {
+    const tersedia = availableYears.length > 0 ? ` Data terkait tersedia untuk tahun: ${availableYears.join(', ')}.` : '';
+    return `Data untuk pertanyaan ini tidak ditemukan di SAPA untuk tahun ${yearsRequested.join(', ')}.${tersedia}`;
+  }
+  return base;
 }
 
 // ─── Non-blocking DB save with latency metadata ───
@@ -248,6 +318,69 @@ export function buildObservabilityMeta(input: {
   };
 }
 
+/** Jalur meta (daftar OPD / statistik portal / sebaran tahun) — deterministik, tanpa LLM. */
+async function tryMetaQuery(
+  query: string,
+  startedAt: number,
+  steps: Record<string, number>,
+  streamed: boolean,
+): Promise<HybridResponse | null> {
+  const metaKind = detectMetaQuery(query);
+  if (!metaKind) return null;
+  const { records, origin } = await getCachedSapaData();
+  const result = buildMetaResponse(metaKind, records, origin);
+  steps.meta = Date.now() - startedAt;
+  const metadata = buildObservabilityMeta({
+    opdFilter: null,
+    filterDipakai: `meta:${metaKind}`,
+    evidence: [],
+    grounding: 'pass',
+    totalData: records.length,
+    filteredCount: 0,
+    latencyMs: Date.now() - startedAt,
+    stepsMs: steps,
+    model: null,
+    finishReason: null,
+    dataOrigin: origin,
+    streamed,
+  });
+  void saveChatSession({ query, intent: 'meta', result, metadata });
+  setCache(query, result);
+  return result;
+}
+
+/** Statistik resmi yang juga disuplai ke prompt — grounding tidak boleh menghukumnya. */
+interface OfficialStats {
+  total_data?: number;
+  total_opd?: number;
+  total_indikator?: number;
+}
+function groundingExtras(ctx: { evidence: EvidenceItem[]; dataForLLM: { statistik_resmi?: OfficialStats } }) {
+  const s = ctx.dataForLLM?.statistik_resmi ?? {};
+  return {
+    extraAllowedNumbers: [
+      s.total_data ?? 0,
+      s.total_opd ?? 0,
+      s.total_indikator ?? 0,
+      ctx.evidence.length,
+    ].filter((n) => Number.isFinite(Number(n)) && Number(n) > 0),
+  };
+}
+
+/** Guard Lapis 1: narasi placeholder / format gagal → template deterministik; rekomendasi bersih. */
+function sanitizeParsed(parsed: HybridResponse, evidence: EvidenceItem[], query: string): HybridResponse {
+  let narasi = parsed.narasi;
+  if (
+    isPlaceholderText(narasi) ||
+    narasi.startsWith('Maaf, AI gagal') ||
+    narasi.startsWith('Maaf, AI tidak memberikan')
+  ) {
+    narasi = buildDeterministicNarasi(evidence, query);
+  }
+  const rekomendasi = (parsed.rekomendasi ?? []).filter((r) => !isPlaceholderText(r)).slice(0, 3);
+  return { ...parsed, narasi, rekomendasi };
+}
+
 export async function processAIQuery(query: string): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
@@ -256,6 +389,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
   const steps: Record<string, number> = {};
 
   try {
+    // PR Lapis 1: meta-query portal → deterministik, tanpa LLM
+    const meta = await tryMetaQuery(query, startedAt, steps, false);
+    if (meta) return meta;
+
     // Step 1-3: intent + fetch + filter (context build)
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
@@ -263,7 +400,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // SoT Fase C: jika evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {
       const empty: HybridResponse = {
-        narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
+        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears),
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
         dataSource: dataSourceLabel(ctx.dataOrigin),
@@ -297,13 +434,9 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     });
     steps.llm = Date.now() - llmStarted;
 
-    // Step 5: Parse + grounding SoT
-    const parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
-    // Jika model JSON terpotong (evidence besar) → parseHybridResponse fallback "Maaf, AI gagal..." — ganti deterministik agar tidak tampil error di atas tabel
-    if (parsed.narasi.startsWith('Maaf, AI gagal') || parsed.narasi.startsWith('Maaf, AI tidak memberikan')) {
-      parsed.narasi = buildDeterministicNarasi(ctx.evidence, query);
-    }
-    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
+    // Step 5: Parse + guard + grounding SoT (dengan statistik resmi yang diizinkan)
+    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin), ctx.evidence, query);
+    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query, groundingExtras(ctx));
     let result = grounded;
     // Viz dari evidence jika model tidak kasih atau grounding mengganti
     if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
@@ -371,15 +504,19 @@ export async function processAIQueryStreaming(
   const steps: Record<string, number> = {};
 
   try {
-    // Step 1: Deteksi intent & ambil data
+    // PR Lapis 1: meta-query portal → deterministik, tanpa LLM
     onStatus('Menganalisis pertanyaan...');
+    const meta = await tryMetaQuery(query, startedAt, steps, true);
+    if (meta) return meta;
+
+    // Step 1: Deteksi intent & ambil data
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
 
     // SoT: evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {
       const empty: HybridResponse = {
-        narasi: 'Data untuk pertanyaan ini tidak ditemukan di SAPA.',
+        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears),
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
         dataSource: dataSourceLabel(ctx.dataOrigin),
@@ -410,12 +547,9 @@ export async function processAIQueryStreaming(
     const llmRes = await streamLLM(ctx.systemPrompt, { query, data: ctx.dataForLLM, konteks: ctx.konteksRegulasi }, onChunk);
     steps.llm = Date.now() - llmStarted;
 
-    // Step 3: Parse + grounding SoT
-    let parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
-    if (parsed.narasi.startsWith('Maaf, AI gagal') || parsed.narasi.startsWith('Maaf, AI tidak memberikan')) {
-      parsed = { ...parsed, narasi: buildDeterministicNarasi(ctx.evidence, query) };
-    }
-    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
+    // Step 3: Parse + guard + grounding SoT (dengan statistik resmi yang diizinkan)
+    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin), ctx.evidence, query);
+    const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query, groundingExtras(ctx));
     let result = grounded;
     if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
       result = { ...result, visualisasi: buildVizFromEvidence(ctx.evidence) };
@@ -468,29 +602,33 @@ export async function processAIQueryStreaming(
 /** Extract progressive narasi from accumulated LLM stream (for live rendering). */
 export { extractNarasiPartial };
 
-function buildSystemPrompt(totalOpd: number, totalIndicators: number): string {
+function buildSystemPrompt(stats: {
+  totalOpd: number;
+  totalIndicators: number;
+  totalData: number;
+  evidenceCount: number;
+}): string {
   return `Anda adalah SAPA Smart AI Pemerintah Kabupaten Aceh Tengah.
 Tugas: Merumuskan data dalam field "evidence" menjadi narasi Bahasa Indonesia yang akurat.
 
-STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
+STATISTIK RESMI (BOLEH dikutip apa adanya): total ${stats.totalData} data indikator, ${stats.totalOpd} OPD, ${stats.totalIndicators} jenis indikator, ${stats.evidenceCount} evidence terkait pertanyaan ini. Sumber: sapa.acehtengahkab.go.id / api-splp.layanan.go.id.
 
 ATURAN WAJIB:
-1. HANYA gunakan angka, tahun, nama OPD, dan nama indikator yang ada di "evidence". Jangan menambah angka baru atau menyebut OPD yang tidak ada di evidence.
-2. Jika "evidence" kosong: jawab "Data untuk pertanyaan ini tidak ditemukan di SAPA." — jangan mengarang.
+1. HANYA gunakan angka, tahun, nama OPD, dan nama indikator yang ada di "evidence" atau STATISTIK RESMI di atas. DILARANG angka lain.
+2. Jika "evidence" tidak menjawab pertanyaan secara spesifik: katakan data spesifik itu tidak tersedia, lalu sebut data terkait yang ADA di evidence — tanpa mengarang.
 3. Tahun: gunakan nilai "tahun" dari evidence. Jika null/kosong → tulis "tahun tidak tercantum di SAPA".
-4. Selalu sebutkan OPD dan satuan dari evidence. Jangan menyebut OPD lain (contoh: Bappeda/Badan Perencanaan) jika tidak ada di evidence.
-5. Bahasa Indonesia formal, lugas, actionable. Narasi = interpretasi evidence, bukan membaca ulang mentah. Maksimal 3 kalimat agar tidak terpotong timeout.
+4. Selalu sebutkan OPD dan satuan dari evidence. Jangan menyebut OPD lain jika tidak ada di evidence.
+5. Bahasa Indonesia formal, lugas. Narasi = interpretasi evidence, bukan membaca ulang mentah. Maksimal 3 kalimat. DILARANG menulis literal "..." atau placeholder kosong.
 6. "rekomendasi": 0-3 kalimat TANPA angka baru. Jika tidak relevan, kosongkan ([]).
 7. "visualisasi" HANYA dari evidence:
    - 1 item → "metric" {metrics:[{label, value, unit}]}
-   - 2-8 item → "chart" bar {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
-   - >8 item → "table" {columns:["Indikator","Nilai","Satuan","OPD","Tahun"], rows} — jika rows banyak (>12), sertakan minimal 5 baris teratas di narasi ringkasan juga.
+   - 2-8 item SATUAN SERAGAM → "chart" bar {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
+   - >8 item ATAU satuan campur → "table" {columns:["Indikator","Nilai","Satuan","OPD","Tahun"], rows} — jika rows banyak (>12), sertakan minimal 5 baris teratas di narasi ringkasan juga.
    - kosong → "none"
 8. Jangan menambah detail di luar evidence (contoh: pecahan PNS/PPPK, jumlah pegawai turunan, dsb).
 
-FORMAT JSON UTAMA (wajib valid, satu object):
-{"narasi":"...","visualisasi":{"tipe":"metric|table|chart|none","konfigurasi":{}},"rekomendasi":["..."]}
-FORMAT ALTERNATIF SDI (jika diminta mode dashboard): {"type":"data_dashboard","title":"...","summary":"...","metrics":[...],"table":{"headers":[...],"rows":[...]},"metadata":{"sumber":"...","tanggal_akses":"...","status":"Terverifikasi SDI"}} — akan di-mapping otomatis ke format utama.`;
+FORMAT OUTPUT: tepat SATU object JSON valid, tanpa teks lain sebelum/sesudah:
+{"narasi":"...","visualisasi":{"tipe":"metric|table|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
 }
 
 /**
