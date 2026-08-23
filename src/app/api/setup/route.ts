@@ -2,7 +2,7 @@
 // PR Lapis-0: TERKUNCI — wajib ADMIN_SETUP_TOKEN + header x-setup-token.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureChatSessionTable } from '@/lib/db-migration';
+import { ensureChatSessionTable, ensureWarehouseTables } from '@/lib/db-migration';
 import { isSetupAuthorized } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -14,17 +14,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const ok = await ensureChatSessionTable();
-    if (ok) {
+    const chatOk = await ensureChatSessionTable();
+    const warehouseOk = await ensureWarehouseTables();
+    if (chatOk && warehouseOk) {
       return NextResponse.json({
         success: true,
-        message: 'ChatSession table created/verified successfully',
+        message: 'ChatSession + Warehouse (SapaSnapshot/SapaIndicatorValue + rantai EWS) ensured',
       });
     }
     return NextResponse.json(
       {
         success: false,
-        message: 'Failed to create ChatSession table — check Supabase permissions',
+        message: `Gagal memastikan tabel (chat=${chatOk}, warehouse=${warehouseOk}) — cek Supabase permissions`,
       },
       { status: 500 },
     );

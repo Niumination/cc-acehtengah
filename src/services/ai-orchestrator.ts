@@ -23,6 +23,16 @@ import {
   type SapaDataOrigin,
 } from '@/lib/sapa-client';
 import { detectMetaQuery, buildMetaResponse } from './meta-query';
+import {
+  isTrendQuery,
+  findTrendCandidate,
+  buildTrendResponse,
+  buildTrendUnavailableResponse,
+  isComparisonQuery,
+  detectOpdsInQuery,
+  buildOpdComparisonRows,
+  buildComparisonResponse,
+} from './trend-analysis';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
@@ -367,6 +377,76 @@ function groundingExtras(ctx: { evidence: EvidenceItem[]; dataForLLM: { statisti
   };
 }
 
+/**
+ * PR Lapis 2: jawaban tren & perbandingan secara deterministik dari data —
+ * TANPA LLM. Tren dibangun dari baris multi-tahun SAPA yang dulu dibuang
+ * agregasi; perbandingan dari deteksi ≥2 nama OPD nyata di query.
+ */
+async function tryDeterministicDomainQuery(
+  query: string,
+  ctx: Awaited<ReturnType<typeof buildContext>>,
+  startedAt: number,
+  steps: Record<string, number>,
+  streamed: boolean,
+): Promise<HybridResponse | null> {
+  let result: HybridResponse | null = null;
+  let filterDipakai = '';
+
+  if (isTrendQuery(query)) {
+    const cand = findTrendCandidate(ctx.filteredData);
+    if (cand) {
+      result = buildTrendResponse(query, cand, ctx.dataOrigin);
+      filterDipakai = 'tren-deterministik';
+    } else {
+      // Kata "tren" TANPA data multi-tahun jangan sampai lolos ke LLM
+      // (undangan halusinasi) — jawab keterbatasannya secara jujur.
+      const unavailable = buildTrendUnavailableResponse(ctx.filteredData, ctx.dataOrigin);
+      if (unavailable) {
+        result = unavailable;
+        filterDipakai = 'tren-tidak-tersedia';
+      }
+    }
+  }
+
+  if (!result && isComparisonQuery(query)) {
+    const opdNames = getUniqueOpd(ctx.allRecords).map((o) => o.nama);
+    const matches = detectOpdsInQuery(query, opdNames);
+    if (matches.length >= 2) {
+      const rows = buildOpdComparisonRows(matches, ctx.allRecords);
+      result = buildComparisonResponse(matches, rows, ctx.dataOrigin);
+      filterDipakai = `perbandingan-deterministik:${matches.length}-opd`;
+    }
+  }
+
+  if (!result) return null;
+
+  steps.deterministic = Date.now() - startedAt;
+  const isTrend = filterDipakai.startsWith('tren');
+  const metadata = buildObservabilityMeta({
+    opdFilter: ctx.opdFilter ?? null,
+    filterDipakai,
+    evidence: ctx.evidence,
+    grounding: 'pass',
+    totalData: ctx.allRecords.length,
+    filteredCount: ctx.filteredData.length,
+    matchedCount: ctx.matchedRecords.length,
+    latencyMs: Date.now() - startedAt,
+    stepsMs: steps,
+    model: null,
+    finishReason: null,
+    dataOrigin: ctx.dataOrigin,
+    streamed,
+  });
+  void saveChatSession({
+    query,
+    intent: isTrend ? 'tren' : 'perbandingan',
+    result,
+    metadata,
+  });
+  setCache(query, result);
+  return result;
+}
+
 /** Guard Lapis 1: narasi placeholder / format gagal → template deterministik; rekomendasi bersih. */
 function sanitizeParsed(parsed: HybridResponse, evidence: EvidenceItem[], query: string): HybridResponse {
   let narasi = parsed.narasi;
@@ -396,6 +476,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // Step 1-3: intent + fetch + filter (context build)
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
+
+    // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM
+    const deterministic = await tryDeterministicDomainQuery(query, ctx, startedAt, steps, false);
+    if (deterministic) return deterministic;
 
     // SoT Fase C: jika evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {
@@ -512,6 +596,13 @@ export async function processAIQueryStreaming(
     // Step 1: Deteksi intent & ambil data
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
+
+    // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM.
+    // Konvensi sama seperti meta-query: jalur deterministik tidak men-stream
+    // narasi via onChunk (onChunk route mengharapkan fragmen JSON LLM);
+    // narasi utuh dikirim lewat event 'result' oleh route.
+    const deterministic = await tryDeterministicDomainQuery(query, ctx, startedAt, steps, true);
+    if (deterministic) return deterministic;
 
     // SoT: evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {

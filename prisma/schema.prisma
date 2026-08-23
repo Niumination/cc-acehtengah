@@ -69,6 +69,9 @@ model Indicator {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   alerts      EwsAlert[]
+
+  // PR Lapis 2: identitas katalog yang stabil untuk upsert (EWS menaut ke sini)
+  @@unique([datasetId, nama, satuan])
 }
 
 enum Direction {
@@ -101,6 +104,42 @@ model Admin {
 enum AdminRole {
   ADMIN
   SUPERADMIN
+}
+
+// ─── Data Warehouse SAPA (PR Lapis 2) ───
+// Snapshot append-only dari payload SAPA: satu baris SapaSnapshot per sinkronisasi
+// yang BERUBAH (checksum), plus satu baris SapaIndicatorValue per record.
+// Inilah fondasi tren historis, EWS, dan (Lapis 3) provenance multi-sumber.
+model SapaSnapshot {
+  id           String              @id @default(cuid())
+  origin       String // 'direct' | 'splp'
+  totalRecords Int
+  checksum     String
+  createdAt    DateTime            @default(now())
+  values       SapaIndicatorValue[]
+
+  @@index([createdAt])
+}
+
+model SapaIndicatorValue {
+  id                 String       @id @default(cuid())
+  snapshotId         String
+  snapshot           SapaSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  idKodeIndikator    Int
+  kodeIndikator      String?
+  indikator          String
+  opd                String
+  idOpd              Int
+  nilai              String
+  nilaiNumber        Float?
+  satuan             String
+  tahun              String?
+  tahunNumber        Int?
+  jadwalPemutakhiran String?
+
+  @@index([snapshotId])
+  @@index([idKodeIndikator, snapshotId])
+  @@index([opd])
 }
 
 model EwsAlert {
