@@ -12,6 +12,7 @@ import {
   type IndicatorPoint,
   type EwsThresholds,
 } from './ews-engine';
+import type { WarehouseMeta } from './report-generator';
 
 const SKPD_KODE = 'SAPA-AT';
 const DATASET_SLUG = 'sapa';
@@ -120,6 +121,58 @@ export interface WarehouseSyncResult {
   checksum: string;
   alertsCreated: number;
   indicatorsInCatalog: number;
+}
+
+/**
+ * Meta warehouse untuk Laporan Eksekutif (PR-3): jumlah snapshot, snapshot
+ * terakhir, dan hitungan perubahan vs snapshot sebelumnya (memakai ambang sangat
+ * rendah agar SEMUA perubahan terhitung — bukan hanya yang lolos ambang EWS).
+ * null bila tabel warehouse belum ada (setup belum dijalankan) / query gagal.
+ */
+export async function getWarehouseReportMeta(): Promise<WarehouseMeta | null> {
+  try {
+    const snapshotCount = await prisma.sapaSnapshot.count();
+    const latest = await prisma.sapaSnapshot.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true },
+    });
+    if (!latest) return { snapshotCount, lastSync: new Date(0).toISOString(), diffVsPrev: null };
+
+    const prev = await prisma.sapaSnapshot.findFirst({
+      orderBy: { createdAt: 'desc' },
+      skip: 1,
+      select: { id: true },
+    });
+    if (!prev) {
+      return { snapshotCount, lastSync: latest.createdAt.toISOString(), diffVsPrev: null };
+    }
+
+    const rowsOf = (snapshotId: string) =>
+      prisma.sapaIndicatorValue.findMany({
+        where: { snapshotId },
+        select: { idKodeIndikator: true, indikator: true, satuan: true, opd: true, nilaiNumber: true, tahun: true },
+      });
+    const [prevRows, currRows] = await Promise.all([rowsOf(prev.id), rowsOf(latest.id)]);
+    const prevPts = prevRows.map(toPoint).filter((p): p is IndicatorPoint => p !== null);
+    const currPts = currRows.map(toPoint).filter((p): p is IndicatorPoint => p !== null);
+    const decisions = evaluateEws(prevPts, currPts, {
+      info: 0.0001, // hitung semua perubahan, sekecil apa pun
+      warning: 1,
+      critical: 2,
+      maxAlerts: 1_000_000,
+    });
+    return {
+      snapshotCount,
+      lastSync: latest.createdAt.toISOString(),
+      diffVsPrev: {
+        changed: decisions.filter((d) => d.kind === 'change').length,
+        baru: decisions.filter((d) => d.kind === 'new').length,
+        hilang: decisions.filter((d) => d.kind === 'missing').length,
+      },
+    };
+  } catch {
+    return null; // tabel belum ada / DB bermasalah → seksi laporan jujur menjelaskan
+  }
 }
 
 /**

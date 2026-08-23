@@ -192,3 +192,20 @@ body {
   color: #1E2420 !important;
   font-size: 12px !important;
 }
+
+/* ─── Cetak Laporan Eksekutif (PR-3) ───
+   Saat window.print(): sidebar/header dashboard disembunyikan (print:hidden),
+   kontainer scroll dibuka supaya seluruh halaman laporan tercetak multi-halaman. */
+@media print {
+  body,
+  body * {
+    overflow: visible !important;
+  }
+  html,
+  body,
+  main {
+    height: auto !important;
+    max-height: none !important;
+    background: #ffffff !important;
+  }
+}

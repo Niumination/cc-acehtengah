@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import ExecutiveReport from '@/components/ExecutiveReport';
 
 interface LogEntry {
   id: string;
@@ -39,6 +40,9 @@ const INTENT_LABELS: Record<string, string> = {
 };
 
 export default function LaporanPage() {
+  // PR-3: halaman ini kini punya dua tab — Laporan Eksekutif (generator naratif
+  // deterministik, fitur inti yang selama ini belum ada) + Riwayat Query (log).
+  const [tab, setTab] = useState<'laporan' | 'riwayat'>('laporan');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [stats, setStats] = useState<StatsEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -119,22 +123,25 @@ export default function LaporanPage() {
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-out' }}>
       {/* Header */}
-      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="print:hidden" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8A6E1D', marginBottom: '4px' }}>
             📋 Laporan & Monitoring
           </div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1E2420', margin: '0 0 6px' }}>
-            Riwayat AI Query
+            {tab === 'laporan' ? 'Laporan Eksekutif' : 'Riwayat AI Query'}
           </h1>
           <p style={{ color: '#767D6F', fontSize: '0.9rem', lineHeight: 1.5 }}>
-            Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.
+            {tab === 'laporan'
+              ? 'Ringkasan naratif kondisi data daerah, disusun deterministik dari sumber — siap cetak untuk pimpinan.'
+              : 'Setiap pertanyaan dan respon AI terekam otomatis. Filter, cari, dan export untuk bahan evaluasi.'}
           </p>
         </div>
         <button
           onClick={fetchLogs}
           disabled={loading}
-          style={{ padding: '8px 16px', borderRadius: '8px', background: '#1B4332', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          className="print:hidden"
+          style={{ padding: '8px 16px', borderRadius: '8px', background: '#1B4332', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', display: tab === 'riwayat' ? undefined : 'none' }}
         >
           🔄 Segarkan
         </button>
@@ -143,11 +150,41 @@ export default function LaporanPage() {
             await fetch('/api/auth/logout', { method: 'POST' });
             window.location.href = '/login';
           }}
+          className="print:hidden"
           style={{ padding: '8px 16px', borderRadius: '8px', background: '#B3261E', color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', marginTop: '4px' }}
         >
           🚪 Logout
         </button>
       </div>
+
+      {/* Tab bar — PR-3 */}
+      <div className="print:hidden" style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+        {([
+          { id: 'laporan', label: '📄 Laporan Eksekutif' },
+          { id: 'riwayat', label: '🗂️ Riwayat Query AI' },
+        ] as const).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+              fontWeight: 600, fontSize: '0.82rem',
+              background: tab === t.id ? '#1B4332' : '#E9E6DA',
+              color: tab === t.id ? '#FFFFFF' : '#4B5249',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Laporan Eksekutif (generator naratif deterministik) */}
+      <div style={{ display: tab === 'laporan' ? 'block' : 'none' }}>
+        <ExecutiveReport />
+      </div>
+
+      {/* Tab: Riwayat Query (konten lama, tidak berubah) */}
+      <div style={{ display: tab === 'riwayat' ? 'block' : 'none' }}>
 
       {/* Stats bar */}
       {stats.length > 0 && (
@@ -327,6 +364,8 @@ export default function LaporanPage() {
           })}
         </div>
       )}
+
+      </div>{/* end tab riwayat */}
     </div>
   );
 }

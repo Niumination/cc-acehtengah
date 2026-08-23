@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 23, 2026 — PR Lapis 0 (keamanan fail-closed), Lapis 1 (retrieval v2 + meta-query), Lapis 2 (warehouse SAPA + KPI pimpinan + EWS aktif + tren/perbandingan OPD deterministik); sebelumnya: rebrand KOMANDO AT→SAPA Smart AI, model Ox Alpha (`x-preview-f-free`)
+> **Last update:** Aug 23, 2026 — PR-3: Laporan Eksekutif (generator naratif deterministik, tab baru di /dashboard/laporan + cetak PDF) & log chat di-await; sebelumnya PR Lapis 0 (keamanan), Lapis 1 (retrieval v2), Lapis 2 (warehouse + KPI + EWS + tren/perbandingan)
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -46,7 +46,8 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | AI Smart Query | ✅ | `POST /api/query` |
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
-| **Laporan AI (Auth)** | ✅ | `/dashboard/laporan` |
+| **Laporan Eksekutif (Auth)** | ✅ | `/dashboard/laporan` — generator naratif deterministik (bukan lagi sekadar log viewer) + `/api/report` |
+| Riwayat Query AI (Auth) | ✅ | `/api/chat-logs` (log kini di-await saat simpan — tidak hilang di serverless) |
 | Early Warning System | ✅ | `/api/ews` (ditulis oleh cron warehouse) |
 | **KPI Pimpinan** | ✅ | `/api/kpi` (deterministik, cache 10 mnt) |
 | **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
@@ -77,6 +78,7 @@ src/
 │   │   ├── datasets/             # Dataset CRUD
 │   │   ├── ews/route.ts          # Early Warning System
 │   │   ├── kpi/route.ts          # GET /api/kpi — KPI pimpinan
+│   │   ├── report/route.ts       # GET /api/report — Laporan Eksekutif
 │   │   ├── cron/sync-sapa/       # GET/POST — sinkronisasi warehouse harian
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
@@ -95,6 +97,7 @@ src/
 ├── components/
 │   ├── Sidebar.tsx               # Navigation + hamburger toggle
 │   ├── AIResponseRenderer.tsx    # Render AI responses
+│   ├── ExecutiveReport.tsx       # Laporan Eksekutif (fetch /api/report, cetak)
 │   ├── EwsPanel.tsx              # Early Warning panel
 │   ├── KpiPanel.tsx              # KPI pimpinan (fetch /api/kpi)
 │   ├── SapaStats.tsx             # SAPA stats + charts
@@ -112,6 +115,7 @@ src/
     ├── rag-retriever.ts          # Qdrant RAG (graceful fallback)
     ├── data-sync.ts              # SPLP sync scheduler
     ├── warehouse-sync.ts         # Sinkronisasi snapshot SAPA → warehouse
+    ├── report-generator.ts       # Laporan Eksekutif naratif (murni, tanpa LLM)
     ├── ews-engine.ts             # Evaluasi perubahan → EwsAlert
     ├── trend-analysis.ts         # Tren & perbandingan OPD deterministik
     ├── kpi.ts                    # KPI pimpinan terkurasi

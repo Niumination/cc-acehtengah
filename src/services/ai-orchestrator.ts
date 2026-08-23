@@ -268,6 +268,10 @@ export function buildNotFoundNarasi(yearsRequested: string[], availableYears: st
 }
 
 // ─── Non-blocking DB save with latency metadata ───
+// PR-3: pemanggil WAJIB await — sebelumnya fire-and-forget (`void`), yang di
+// serverless (Vercel) berisiko log hilang karena fungsi dibekukan begitu
+// response terkirim (temuan audit §6). Satu INSERT ini hanya ~puluhan ms,
+// jauh di bawah latensi LLM; error DB tetap tidak menggagalkan response.
 async function saveChatSession(params: {
   query: string;
   intent: string;
@@ -354,7 +358,7 @@ async function tryMetaQuery(
     dataOrigin: origin,
     streamed,
   });
-  void saveChatSession({ query, intent: 'meta', result, metadata });
+  await saveChatSession({ query, intent: 'meta', result, metadata });
   setCache(query, result);
   return result;
 }
@@ -437,7 +441,7 @@ async function tryDeterministicDomainQuery(
     dataOrigin: ctx.dataOrigin,
     streamed,
   });
-  void saveChatSession({
+  await saveChatSession({
     query,
     intent: isTrend ? 'tren' : 'perbandingan',
     result,
@@ -504,7 +508,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
         dataOrigin: ctx.dataOrigin,
         streamed: false,
       });
-      void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
+      await saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
       setCache(query, empty);
       return empty;
     }
@@ -547,7 +551,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       dataOrigin: ctx.dataOrigin,
       streamed: false,
     });
-    void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
+    await saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
     setCache(query, result);
     return result;
@@ -561,7 +565,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       timestamp: new Date().toISOString(),
     };
 
-    void saveChatSession({
+    await saveChatSession({
       query,
       intent: 'error',
       result: errorResult,
@@ -627,7 +631,7 @@ export async function processAIQueryStreaming(
         dataOrigin: ctx.dataOrigin,
         streamed: true,
       });
-      void saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
+      await saveChatSession({ query, intent: ctx.intent.kategori, result: empty, metadata });
       setCache(query, empty);
       return empty;
     }
@@ -665,7 +669,7 @@ export async function processAIQueryStreaming(
       dataOrigin: ctx.dataOrigin,
       streamed: true,
     });
-    void saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
+    await saveChatSession({ query, intent: ctx.intent.kategori, result, metadata });
 
     setCache(query, result);
     return result;
@@ -679,7 +683,7 @@ export async function processAIQueryStreaming(
       timestamp: new Date().toISOString(),
     };
 
-    void saveChatSession({
+    await saveChatSession({
       query,
       intent: 'error',
       result: errorResult,
