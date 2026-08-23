@@ -7,7 +7,8 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA' },
   { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & Analitik' },
   { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif' },
-  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Riwayat Query AI' },
+  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Laporan & Riwayat' },
+  { href: '/dashboard/admin/dtsen', label: 'Admin DTSEN', icon: '🔐', desc: 'Rilis data terbatas' },
 ];
 
 interface SidebarProps {
