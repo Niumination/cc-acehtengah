@@ -135,9 +135,10 @@ export function normalizeText(s: string | null | undefined): string {
     .trim();
 }
 
-/** Token set dari query — hapus stopwords umum. */
+/** Token set dari query — hapus stopwords umum + stopword domain (PR Lapis 1). */
 export function tokenizeQuery(query: string): string[] {
   const stopWords = new Set([
+    // umum
     'bagaimana', 'tentang', 'berapa', 'data', 'status', 'informasi',
     'untuk', 'dari', 'dengan', 'apa', 'siapa', 'dimana', 'kapan',
     'mengapa', 'adalah', 'ada', 'yang', 'di', 'dan', 'atau', 'ini',
@@ -145,10 +146,158 @@ export function tokenizeQuery(query: string): string[] {
     'daftar', 'list', 'show', 'opd', 'sapa', 'kabupaten', 'aceh',
     'tengah', 'saja', 'saya', 'mau', 'ingin', 'tolong', 'hitung',
     'jumlah', 'total', 'berapa', 'banyak', 'sebutkan', 'jelaskan',
+    // domain (Lapis 1): kata-kata ini cocok ke ribuan indikator dan
+    // merusak relevansi — mis. "angka" ⊂ "Angkat", "tahun" ⊂ "...tahun lalu"
+    'angka', 'tahun', 'hari', 'dinas', 'badan', 'sekretariat', 'kantor',
+    'perangkat', 'indikator', 'persentase', 'persen', 'tingkat', 'capaian',
+    'tren', 'perkembangan', 'perbandingan', 'bandingkan', 'dibandingkan',
+    'banding', 'versus', 'vs', 'per', 'terkini', 'terbaru', 'kondisi',
+    'profil', 'gambaran', 'statistik', 'periode', 'wilayah', 'daerah',
+    'nilai', 'satuan', 'kategori', 'sektor',
   ]);
   return normalizeText(query)
     .split(' ')
     .filter((w) => w.length >= 3 && !stopWords.has(w) && !/^\d+$/.test(w));
+}
+
+// ─── Retrieval v2 (PR Lapis 1): word-boundary + stemming ringan + sinonim ───
+// Menggantikan substring matching mentah yang membuat "angka" cocok ke
+// "Angkat Berat" dan "tren" cocok ke "Koppontren/Pesantren".
+
+/**
+ * Stemmer Bahasa Indonesia yang SENGAJA naif & konservatif: hanya memotong
+ * afiksia umum jika sisa kata ≥ 4 huruf. Yang penting kedua sisi (query dan
+ * dokumen) diproses identik sehingga "kemiskinan" ↔ "miskin" tetap bertemu,
+ * sedangkan "sehat" tidak terpotong jadi "hat" (sisa < 4 → tidak dipotong).
+ */
+export function stemId(word: string): string {
+  let w = word;
+  // sufiks (urutan panjang dulu): -kan, -an, -i, -nya
+  for (const suf of ['kan', 'nya', 'an', 'i']) {
+    if (w.endsWith(suf) && w.length - suf.length >= 4) {
+      w = w.slice(0, w.length - suf.length);
+      break;
+    }
+  }
+  // prefiks: me-*, pe-*, ber-, ter-, di-, ke-, se-
+  for (const pre of ['memper', 'meny', 'meng', 'mem', 'men', 'peng', 'peny', 'pem', 'pen', 'per', 'ber', 'ter', 'me', 'pe', 'di', 'ke', 'se']) {
+    if (w.startsWith(pre) && w.length - pre.length >= 4) {
+      w = w.slice(pre.length);
+      break;
+    }
+  }
+  return w;
+}
+
+function stemSet(text: string | null | undefined): Set<string> {
+  return new Set(
+    normalizeText(text)
+      .split(' ')
+      .filter(Boolean)
+      .flatMap((w) => [w, stemId(w)]),
+  );
+}
+
+/**
+ * Sinonim/akronim domain → alternatif pencocokan. Satu "grup" per token query;
+ * grup dianggap cocok jika SALAH SATU alternatif (semua kata alternatif) hadir.
+ * Akronim seperti IPM hanya cocok jika frasa lengkapnya hadir — mencegah
+ * "indeks" saja menyeret ratusan indikator tak relevan.
+ */
+const SYNONYM_ALTERNATIVES: Record<string, string[][]> = {
+  ipm: [['ipm'], ['indeks', 'pembangunan', 'manusia']],
+  bansos: [['bansos'], ['bantuan', 'sosial']],
+  blt: [['blt'], ['bantuan', 'langsung', 'tunai']],
+  asn: [['asn'], ['casn'], ['pns'], ['pppk']],
+  pariwisata: [['pariwisata'], ['wisata'], ['wisatawan']],
+  wisata: [['wisata'], ['pariwisata'], ['wisatawan']],
+  vaksinasi: [['vaksinasi'], ['vaksin'], ['imunisasi']],
+  imunisasi: [['imunisasi'], ['vaksinasi'], ['vaksin']],
+  inflasi: [['inflasi'], ['ihk']],
+  kemiskinan: [['kemiskinan'], ['miskin'], ['gakin']],
+  miskin: [['miskin'], ['kemiskinan'], ['gakin']],
+  stunting: [['stunting']],
+  kokurikuler: [['kokurikuler']],
+};
+
+export interface MatchGroup {
+  token: string;
+  /** Setiap alternatif = daftar kata yang SEMUANYA harus hadir (raw ATAU stem). */
+  alternatives: string[][];
+}
+
+/** Bangun grup pencocokan dari token query (dengan ekspansi sinonim). */
+export function buildMatchGroups(tokens: string[]): MatchGroup[] {
+  return tokens.map((token) => {
+    const extra = SYNONYM_ALTERNATIVES[token];
+    const alternatives: string[][] = extra ? extra.map((alt) => [...alt]) : [[token]];
+    if (!alternatives.some((a) => a.length === 1 && a[0] === token)) alternatives.unshift([token]);
+    return { token, alternatives };
+  });
+}
+
+function alternativeHit(alt: string[], words: Set<string>): boolean {
+  return alt.every((w) => words.has(w) || words.has(stemId(w)));
+}
+
+export interface ScoredRecord {
+  record: SapaRecord;
+  score: number;
+  indHits: number; // grup yang cocok di nama indikator (sinyal terkuat)
+  opdHits: number; // grup yang cocok di nama OPD saja
+}
+
+/**
+ * Skor satu record terhadap grup query.
+ * +3 per grup cocok di INDIKATOR, +1 per grup cocok hanya di OPD,
+ * +4 bila semua grup cocok, +2 bila semua grup cocok di indikator.
+ */
+export function scoreRecord(record: SapaRecord, groups: MatchGroup[]): ScoredRecord {
+  const indWords = stemSet(record.kode_indikator_nama_indikator);
+  const opdWords = stemSet(record.opds_nama_opd);
+  let indHits = 0;
+  let opdHits = 0;
+  for (const g of groups) {
+    const inInd = g.alternatives.some((alt) => alternativeHit(alt, indWords));
+    if (inInd) {
+      indHits++;
+      continue;
+    }
+    const inOpd = g.alternatives.some((alt) => alternativeHit(alt, opdWords));
+    if (inOpd) opdHits++;
+  }
+  let score = indHits * 3 + opdHits * 1;
+  if (groups.length > 0 && indHits + opdHits === groups.length) score += 4;
+  if (groups.length > 0 && indHits === groups.length) score += 2;
+  return { record, score, indHits, opdHits };
+}
+
+/**
+ * Ambil record relevan: minimal satu grup cocok di nama indikator.
+ * Inilah gerbang kepercayaan retrieval — tanpa satu pun kata query yang cocok
+ * di NAMA INDIKATOR, sistem lebih baik menjawab "tidak ditemukan" daripada
+ * menyajikan data salah topik (kasus nyata: "saham" → data bayi).
+ */
+export function retrieveRelevant(records: SapaRecord[], query: string, cap = 80): ScoredRecord[] {
+  const tokens = tokenizeQuery(query);
+  if (tokens.length === 0) return [];
+  const groups = buildMatchGroups(tokens);
+  // Precisi untuk query panjang: ≥3 kata topik menuntut minimal 2 grup cocok,
+  // supaya 1 kata umum (mis. "harga" pada pertanyaan "saham") tidak menyeret
+  // data tak relevan. Query 1–2 kata cukup 1 grup.
+  const minIndHits = groups.length >= 3 ? 2 : 1;
+  return records
+    .map((r) => scoreRecord(r, groups))
+    .filter((s) => s.indHits >= minIndHits)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, cap);
+}
+
+/** Ekstrak tahun eksplisit dari query (mis. "produksi kopi 2024"). */
+export function extractYears(query: string): string[] {
+  return (normalizeText(query).match(/\b(19|20)\d{2}\b/g) ?? []).filter(
+    (y, i, arr) => arr.indexOf(y) === i,
+  );
 }
 
 /** Unique OPD list from records */

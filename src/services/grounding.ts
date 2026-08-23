@@ -73,7 +73,21 @@ function collectTextForGrounding(parsed: HybridResponse): string {
   return parts.join(' ');
 }
 
-export function isGrounded(parsed: HybridResponse, evidence: EvidenceItem[]): { ok: boolean; reasons: string[] } {
+export interface GroundingOptions {
+  /**
+   * Angka resmi yang BOLEH dikutip model walau bukan nilai evidence
+   * (mis. total record, jumlah OPD, jumlah indikator, evidenceCount) —
+   * angka-angka ini diberikan sistem di prompt, jadi menghukumnya sebagai
+   * "halu" itu inkonsisten (PR Lapis 1).
+   */
+  extraAllowedNumbers?: (string | number)[];
+}
+
+export function isGrounded(
+  parsed: HybridResponse,
+  evidence: EvidenceItem[],
+  options: GroundingOptions = {},
+): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
   if (evidence.length === 0) {
     // Jika tidak ada evidence, model seharusnya bilang tidak tersedia. Anggap gagal jika narasi mengandung angka >=10.
@@ -91,6 +105,11 @@ export function isGrounded(parsed: HybridResponse, evidence: EvidenceItem[]): { 
   const allowedNumbers = buildAllowedNumbers(evidence);
   const allowedYears = buildAllowedYears(evidence);
   const allowedOpds = buildAllowedOpds(evidence);
+  // PR Lapis 1: izinkan statistik resmi yang memang disuplai ke prompt
+  for (const extra of options.extraAllowedNumbers ?? []) {
+    const norm = normalizeNumber(String(extra));
+    if (/^\d+$/.test(norm) && norm.length > 0) allowedNumbers.add(norm);
+  }
   const text = collectTextForGrounding(parsed);
 
   // 1. Tahun plausibel (1900-2100) harus subset evidence; nilai 4-digit seperti 9610 bukan tahun
@@ -165,6 +184,14 @@ export function buildDeterministicNarasi(evidence: EvidenceItem[], query: string
   return `Berdasarkan data SAPA untuk "${q}", ditemukan ${evidence.length} indikator terkait: ${parts.join('; ')}.`;
 }
 
+function distinctUnits(evidence: EvidenceItem[]): string[] {
+  return [
+    ...new Set(
+      evidence.map((e) => (e.satuan ?? '').trim().toLowerCase()).filter(Boolean),
+    ),
+  ];
+}
+
 export function buildVizFromEvidence(evidence: EvidenceItem[]): HybridResponse['visualisasi'] {
   if (evidence.length === 0) return { tipe: 'none', konfigurasi: {} };
   if (evidence.length === 1) {
@@ -174,7 +201,10 @@ export function buildVizFromEvidence(evidence: EvidenceItem[]): HybridResponse['
       konfigurasi: { metrics: [{ label: e.indikator, value: e.nilai, unit: e.satuan ?? '' }] },
     };
   }
-  if (evidence.length > 8) {
+  // PR Lapis 1: bar chart dengan satuan campur (orang + persen + indeks)
+  // menyesatkan secara visual — jika satuan tidak seragam, sajikan tabel.
+  const mixedUnits = distinctUnits(evidence).length > 1;
+  if (evidence.length > 8 || mixedUnits) {
     return {
       tipe: 'table',
       konfigurasi: {
@@ -202,8 +232,9 @@ export function groundOutput(
   parsed: HybridResponse,
   evidence: EvidenceItem[],
   query: string,
+  options: GroundingOptions = {},
 ): { response: HybridResponse; grounding: 'pass' | 'replaced'; reason?: string } {
-  const check = isGrounded(parsed, evidence);
+  const check = isGrounded(parsed, evidence, options);
   if (check.ok) return { response: parsed, grounding: 'pass' };
 
   const reason = check.reasons.join('; ');

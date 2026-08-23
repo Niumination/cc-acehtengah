@@ -60,9 +60,12 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     services,
     config: {
-      sapa: 'https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data',
+      // PR Lapis 1: label mencerminkan konfigurasi AKTUAL (direct vs hanya SPLP)
+      sapa: process.env.SAPA_CLIENT_SECRET
+        ? 'direct: https://sapa.acehtengahkab.go.id/api/daftar_data (fallback SPLP)'
+        : 'splp-only: https://api-splp.layanan.go.id/sapa/1.0/api/daftar_data',
       ai: process.env.AI_BASE_URL ?? 'https://api.openai.com/v1',
-      aiModel: process.env.AI_MODEL ?? 'gpt-4o-mini',
+      aiModel: process.env.AI_MODEL ?? 'x-preview-f-free (default)',
       qdrant: process.env.QDRANT_URL ?? '(not configured)',
     },
   });
