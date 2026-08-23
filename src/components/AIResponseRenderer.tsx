@@ -5,6 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { HybridResponse } from '@/types';
+import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
 
 const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
@@ -14,6 +15,8 @@ interface Props {
 
 export default function AIResponseRenderer({ response }: Props) {
   const { narasi, visualisasi, rekomendasi } = response;
+  const sdiPayload = visualisasi && visualisasi.tipe !== 'none' ? toAIDataPayload(response) : null;
+  const useSdi = !!sdiPayload && sdiPayload.table.rows.length > 0;
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -30,14 +33,16 @@ export default function AIResponseRenderer({ response }: Props) {
         </div>
       </div>
 
-      {/* Dynamic Visualization */}
-      {visualisasi && visualisasi.tipe !== 'none' && (
+      {/* Dynamic Visualization — SDI widget for table, else metric/chart */}
+      {useSdi && sdiPayload ? (
+        <AIDataWidget data={sdiPayload} />
+      ) : visualisasi && visualisasi.tipe !== 'none' ? (
         <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl p-5">
           {visualisasi.tipe === 'metric' && <MetricRenderer config={visualisasi.konfigurasi} />}
           {visualisasi.tipe === 'table' && <TableRenderer config={visualisasi.konfigurasi} />}
           {visualisasi.tipe === 'chart' && <ChartRenderer config={visualisasi.konfigurasi} />}
         </div>
-      )}
+      ) : null}
 
       {/* Narasi */}
       {narasi && (
