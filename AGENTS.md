@@ -4,17 +4,18 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 22, 2026 — rebrand KOMANDO AT→SAPA Smart AI, sidebar AI/EWS dihapus, layout QueryBar center, laporan refresh saat tab visible, model AI Ox Alpha (`x-preview-f-free`), robust JSON parse (no raw JSON leak), timeout 45s→90s + retry, spinner rapi
+> **Last update:** Aug 23, 2026 — PR Lapis 0 (keamanan fail-closed), Lapis 1 (retrieval v2 + meta-query), Lapis 2 (warehouse SAPA + KPI pimpinan + EWS aktif + tren/perbandingan OPD deterministik); sebelumnya: rebrand KOMANDO AT→SAPA Smart AI, model Ox Alpha (`x-preview-f-free`)
 > **Backlog priority:** P2
 
-> **⚠️ EWS (Early Warning System) BELUM FUNGSIONAL — MASUK BACKLOG:**
-> Endpoint `/api/ews` & panel UI ada, tapi tidak ada kode yang membuat `EwsAlert`.
-> Rantai putus: `EwsAlert` → butuh `Indicator` → butuh `Dataset`, sedangkan `Dataset`
-> tak pernah terisi (data SAPA diambil langsung, tidak disimpan). Panel selalu
-> "normal". **Butuh R1 (data warehouse SAPA)** sebelum EWS bisa nyala.
-> Lihat `LAPORAN_AUDIT_PRODUCTION_READINESS.md` §P1-10 + roadmap R1–R2.
+> **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
+> Warehouse SAPA kini diisi lewat `src/services/warehouse-sync.ts` — dipicu
+> Vercel Cron harian `/api/cron/sync-sapa` (22:00 UTC, butuh env `CRON_SECRET`)
+> atau manual oleh admin. Mesin `src/services/ews-engine.ts` membandingkan
+> snapshot terakhir vs sebelumnya dan menulis `EwsAlert` (INFO/WARNING/CRITICAL).
+> **Wajib sekali setelah deploy:** `POST /api/setup` dengan header `x-setup-token`
+> untuk membuat tabel warehouse; tanpa itu cron menjawab 409.
 
-> **🤖 AI Source-of-Truth SAPA:** `docs/ai/RENCANA_AI_SOURCE_OF_TRUTH.md` (kontrak 5 fase) · `docs/ai/AGENT_BRIEF_PR_AI_SOT.md` (brief + matriks R1–R12) · `docs/ai/AUDIT_AI_SISTEM.md` + `AUDIT_AI_794b80a.md` (audit HEAD vs baseline `794b80a`). PR #16 merged — next: Fase A tes → Fase B retrieval.
+> **🤖 AI Source-of-Truth SAPA:** `docs/ai/RENCANA_AI_SOURCE_OF_TRUTH.md` (kontrak 5 fase) · `docs/ai/AGENT_BRIEF_PR_AI_SOT.md` (brief + matriks R1–R12) · `docs/ai/AUDIT_AI_SISTEM.md` + `AUDIT_AI_794b80a.md` (audit HEAD vs baseline `794b80a`). Fase A–E selesai; **PR Lapis 0+1** (keamanan fail-closed + retrieval v2/meta-query) dan **PR Lapis 2** (warehouse, KPI, EWS, tren/perbandingan deterministik) sudah di branch ini.
 
 ## Arsitektur
 
@@ -46,7 +47,9 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan AI (Auth)** | ✅ | `/dashboard/laporan` |
-| Early Warning System | ✅ | `/api/ews` |
+| Early Warning System | ✅ | `/api/ews` (ditulis oleh cron warehouse) |
+| **KPI Pimpinan** | ✅ | `/api/kpi` (deterministik, cache 10 mnt) |
+| **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
 
@@ -73,13 +76,16 @@ src/
 │   │   ├── analytics/route.ts    # GET /api/analytics
 │   │   ├── datasets/             # Dataset CRUD
 │   │   ├── ews/route.ts          # Early Warning System
+│   │   ├── kpi/route.ts          # GET /api/kpi — KPI pimpinan
+│   │   ├── cron/sync-sapa/       # GET/POST — sinkronisasi warehouse harian
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
 │   │   └── setup/
-│   │       └── admin/route.ts    # POST /api/setup/admin — auto-create table
+│   │       ├── route.ts          # POST /api/setup — migrasi tabel (terkunci)
+│   │       └── admin/route.ts    # POST /api/setup/admin — bootstrap admin (terkunci)
 │   ├── dashboard/
-│   │   ├── layout.tsx            # Sidebar + header + EWS panel
-│   │   ├── page.tsx              # Main dashboard
+│   │   ├── layout.tsx            # Sidebar + header
+│   │   ├── page.tsx              # Main dashboard + KPI panel + EWS panel
 │   │   ├── analytics/page.tsx    # Analytics
 │   │   ├── gis/page.tsx          # Peta GIS
 │   │   └── laporan/page.tsx      # Laporan AI (auth protected)
@@ -88,9 +94,9 @@ src/
 │       └── page.tsx              # Login form
 ├── components/
 │   ├── Sidebar.tsx               # Navigation + hamburger toggle
-│   ├── AiChatPanel.tsx           # AI chat interface
 │   ├── AIResponseRenderer.tsx    # Render AI responses
 │   ├── EwsPanel.tsx              # Early Warning panel
+│   ├── KpiPanel.tsx              # KPI pimpinan (fetch /api/kpi)
 │   ├── SapaStats.tsx             # SAPA stats + charts
 │   └── QueryBar.tsx              # Query input
 ├── lib/
@@ -104,7 +110,13 @@ src/
     ├── intent-detector.ts        # NLP intent classification
     ├── llm-client.ts             # OpenAI-compatible client
     ├── rag-retriever.ts          # Qdrant RAG (graceful fallback)
-    └── data-sync.ts              # SPLP sync scheduler
+    ├── data-sync.ts              # SPLP sync scheduler
+    ├── warehouse-sync.ts         # Sinkronisasi snapshot SAPA → warehouse
+    ├── ews-engine.ts             # Evaluasi perubahan → EwsAlert
+    ├── trend-analysis.ts         # Tren & perbandingan OPD deterministik
+    ├── kpi.ts                    # KPI pimpinan terkurasi
+    ├── grounding.ts              # Validasi narasi vs evidence
+    └── meta-query.ts             # Statistik portal deterministik
 ```
 
 ## Database Schema (Prisma)
@@ -114,7 +126,9 @@ src/
 | `Skpd` | OPD/SKPK metadata |
 | `Dataset` | Dataset SAPA |
 | `DatasetRecord` | Record data |
-| `Indicator` | Indikator kunci |
+| `Indicator` | Indikator kunci (unik per dataset+nama+satuan) |
+| `SapaSnapshot` | Snapshot publikasi SAPA (checksum, append-only) |
+| `SapaIndicatorValue` | Nilai indikator per tahun per snapshot (deret histori) |
 | `ChatSession` | **AI query log** (auto-save) |
 | `EwsAlert` | Early warning alerts |
 | `Admin` | **Admin auth** (bcrypt password) |
@@ -125,8 +139,16 @@ src/
 # Push to GitHub → auto-deploy via Vercel
 git add . && git commit -m "update" && git push
 
-# Manual setup admin table (first time)
-curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
+# One-time setelah deploy (butuh ADMIN_SETUP_TOKEN):
+# 1) buat tabel (ChatSession + warehouse)
+curl -X POST https://cc-acehtengah.vercel.app/api/setup \
+  -H "x-setup-token: $ADMIN_SETUP_TOKEN"
+# 2) bootstrap admin pertama
+curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin \
+  -H "x-setup-token: $ADMIN_SETUP_TOKEN"
+# 3) isi warehouse pertama kali (atau tunggu cron harian 22:00 UTC)
+curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
+  -H "x-setup-token: $ADMIN_SETUP_TOKEN"
 ```
 
 ## Environment Variables (Vercel)
@@ -136,5 +158,7 @@ curl -X POST https://cc-acehtengah.vercel.app/api/setup/admin
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `nemotron-3-ultra-free` (di-override kode → `x-preview-f-free` Ox Alpha Free) | Vercel env = `x-preview-f-free`; di kode `llm-client.ts` nemotron-ultra dipetakan ke Ox Alpha |
-| `JWT_SECRET` | random string | Auto-generated if not set |
+| `AI_MODEL` | `x-preview-f-free` | Dipakai PERSIS dari env; default `x-preview-f-free` jika kosong (tidak ada pemetaan tersembunyi) |
+| `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
+| `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
+| `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
