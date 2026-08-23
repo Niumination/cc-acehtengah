@@ -20,14 +20,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-[#F5F3EC] text-[#1E2420]">
       {/* Sidebar */}
-      <div className="hidden md:block h-full flex-shrink-0">
+      <div className="hidden md:block h-full flex-shrink-0 print:hidden">
         <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative">
         {/* Header — dark forest, matches cc.acehtengahkab.go.id */}
-        <header className="bg-[var(--brand-deep)] border-b border-[var(--brand)] px-4 flex h-[61px] items-center justify-between flex-shrink-0">
+        <header className="bg-[var(--brand-deep)] border-b border-[var(--brand)] px-4 flex h-[61px] items-center justify-between flex-shrink-0 print:hidden">
           <div className="flex items-center gap-3">
             {/* Official Logo */}
             <img
