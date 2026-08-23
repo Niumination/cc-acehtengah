@@ -49,7 +49,7 @@ export function buildAllowedYears(evidence: EvidenceItem[]): Set<string> {
   const set = new Set<string>();
   for (const e of evidence) {
     const t = e.tahun?.trim() ?? '';
-    if (/^\d{4}$/.test(t)) set.add(t);
+    if (isFourDigitYear(t)) set.add(t);
   }
   return set;
 }
