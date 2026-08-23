@@ -1,8 +1,10 @@
 'use client';
 
-// ─── Admin DTSEN (PR-4b) — impor manual, tinjau staging, publish ───
+// ─── Admin DTSEN (PR-4b/4c) — impor manual, tinjau staging, publish, konsol query ───
 // Halaman terproteksi middleware; gate tambahan per-role di setiap API.
 // Data yang tampil selalu bentuk terminimasi (nama masked); tidak ada PII.
+// PR-4c: Konsol Query — jawaban membawa provenance 3 tempat (header narasi,
+// chip visual, metadata dataOrigin); lookup by-NIK hanya untuk DTSEN_LOOKUP.
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -36,6 +38,39 @@ const STATUS_STYLE: Record<string, string> = {
   SUPERSEDED: 'bg-[#E9E6DA] text-[#767D6F]',
 };
 
+// ─── PR-4c: tipe respons konsol query ───
+interface QueryResponse {
+  ok: boolean;
+  error?: string;
+  dataOrigin?: string;
+  provenance?: { label: string; versi?: string; jalur?: string; publishedAt?: string | null };
+  plan?: { scope?: string; kecamatan?: string | null; desa?: string | null; desil?: number[] | null; bansos?: string[] | null };
+  narasi?: string;
+  message?: string;
+  individu?: {
+    namaMasked: string;
+    kecamatan: string;
+    desa: string;
+    desil: number | null;
+    statusBansos: { pkh: boolean; bpnt: boolean; pbi: boolean } | null;
+  } | null;
+  jawaban?: {
+    scopeLabel: string;
+    totalJiwa: number;
+    totalKeluarga: number;
+    byDesil: { desil: number; jiwa: number; keluarga: number }[];
+    byWilayah: { nama: string; jiwa: number; keluarga: number }[];
+    bansos: { program: string; jiwa: number | null }[] | null;
+    sensor: string[];
+  };
+}
+
+const CONTOH_QUERY = [
+  'berapa jiwa desil 1-2 di Kecamatan Linge',
+  'sebaran desil seluruh kabupaten',
+  'berapa penerima PKH di Kecamatan Laut Tawar',
+];
+
 export default function AdminDtsenPage() {
   const [role, setRole] = useState<string | null>(null);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -44,6 +79,9 @@ export default function AdminDtsenPage() {
   const [notice, setNotice] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [rejectedOut, setRejectedOut] = useState<{ line: number; reason: string; nikAwal?: string }[]>([]);
+  const [q, setQ] = useState('');
+  const [qRes, setQRes] = useState<QueryResponse | null>(null);
+  const [qBusy, setQBusy] = useState(false);
 
   const canWrite = role === 'DTSEN_LOOKUP' || role === 'SUPERADMIN';
   const canRead = canWrite || role === 'DTSEN_ANALYST';
@@ -133,6 +171,31 @@ export default function AdminDtsenPage() {
       setError(e instanceof Error ? e.message : 'Gagal publish');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const tanyakan = async () => {
+    const query = q.trim();
+    if (query.length < 3) return;
+    setQBusy(true);
+    setQRes(null);
+    setError('');
+    try {
+      const r = await fetch('/api/dtsen/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      const d: QueryResponse = await r.json();
+      if (!r.ok) {
+        setQRes({ ok: false, error: `(${r.status}) ${d.error ?? 'Gagal'}` });
+      } else {
+        setQRes(d);
+      }
+    } catch (e) {
+      setQRes({ ok: false, error: e instanceof Error ? e.message : 'Gagal menanyakan' });
+    } finally {
+      setQBusy(false);
     }
   };
 
@@ -279,6 +342,161 @@ export default function AdminDtsenPage() {
           </div>
         </section>
       )}
+
+      {/* ─── PR-4c: Konsol Query DTSEN (audit penuh, provenance 3 tempat) ─── */}
+      <section className="bg-white border border-[#C6C3B4] rounded-2xl p-5 space-y-3">
+        <div>
+          <h2 className="text-xs font-bold text-[#1B4332] uppercase tracking-wider mb-1">💬 Konsol Query DTSEN</h2>
+          <p className="text-xs text-[#767D6F]">
+            Planner deterministik: query berisi <b>NIK 16 digit</b> → lookup per-orang (khusus DTSEN_LOOKUP);
+            lainnya → agregat agregat k-anonymity. <b>Setiap query tercatat di audit trail</b> — gunakan sewajarnya.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !qBusy && tanyakan()}
+            disabled={!canRead || qBusy}
+            placeholder="mis. berapa jiwa desil 1-2 di Kecamatan Linge — atau tempel NIK 16 digit untuk lookup"
+            className="flex-1 text-sm border border-[#C6C3B4] rounded-lg px-3 py-2 disabled:opacity-50"
+          />
+          <button
+            onClick={tanyakan}
+            disabled={!canRead || qBusy || q.trim().length < 3}
+            className="px-4 py-2 bg-[#1B4332] text-white text-xs font-bold rounded-lg hover:bg-[#2D6A4F] disabled:opacity-50"
+          >
+            {qBusy ? '…' : 'Tanyakan'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {CONTOH_QUERY.map((c) => (
+            <button
+              key={c}
+              onClick={() => setQ(c)}
+              disabled={!canRead}
+              className="text-[10px] px-2 py-1 rounded-md bg-[#F5F3EC] text-[#4B5249] hover:bg-[#E9E6DA] disabled:opacity-50"
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {qRes && (
+          <div className="border border-[#E9E6DA] rounded-xl p-4 space-y-3">
+            {!qRes.ok ? (
+              <p className="text-xs text-[#B3261E]">❌ {qRes.error}</p>
+            ) : (
+              <>
+                {/* Chip visual provenance (tempat #2) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#DCE8DE] text-[#2D6A4F]">
+                    {qRes.provenance?.label ?? 'DTSEN'}
+                  </span>
+                  {qRes.plan?.scope && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F3DCC9] text-[#A15C38]">
+                      scope {qRes.plan.scope}
+                    </span>
+                  )}
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#E9E6DA] text-[#767D6F]">
+                    dataOrigin: {qRes.dataOrigin}
+                  </span>
+                </div>
+                {/* Narasi (memuat header provenance — tempat #1) */}
+                {qRes.narasi && <p className="text-xs text-[#1E2420] whitespace-pre-line leading-relaxed">{qRes.narasi}</p>}
+                {!qRes.narasi && qRes.message && <p className="text-xs text-[#4B5249]">{qRes.message}</p>}
+
+                {/* Kartu individu (lookup by-NIK) — bentuk terminimasi */}
+                {qRes.individu && (
+                  <div className="bg-[#F5F3EC] rounded-lg p-3 text-xs grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div>
+                      <p className="text-[10px] text-[#767D6F] uppercase">Nama (termask)</p>
+                      <p className="font-bold">{qRes.individu.namaMasked}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#767D6F] uppercase">Wilayah</p>
+                      <p className="font-semibold">
+                        {qRes.individu.desa}, {qRes.individu.kecamatan}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#767D6F] uppercase">Desil</p>
+                      <p className="font-semibold">{qRes.individu.desil ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[#767D6F] uppercase">Bansos</p>
+                      <p className="font-semibold">
+                        {qRes.individu.statusBansos
+                          ? [
+                              qRes.individu.statusBansos.pkh ? 'PKH' : null,
+                              qRes.individu.statusBansos.bpnt ? 'BPNT' : null,
+                              qRes.individu.statusBansos.pbi ? 'PBI' : null,
+                            ]
+                              .filter(Boolean)
+                              .join(', ') || 'bukan penerima'
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Breakdown agregat */}
+                {qRes.jawaban && (
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {qRes.jawaban.byDesil.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#767D6F] uppercase mb-1">Per Desil — {qRes.jawaban.scopeLabel}</p>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {qRes.jawaban.byDesil.map((d) => (
+                              <tr key={d.desil} className="border-b border-[#F5F3EC]">
+                                <td className="py-1">Desil {d.desil}</td>
+                                <td className="py-1 text-right font-semibold">{d.jiwa.toLocaleString('id-ID')} jiwa</td>
+                                <td className="py-1 text-right text-[#767D6F]">{d.keluarga.toLocaleString('id-ID')} keluarga</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {qRes.jawaban.byWilayah.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#767D6F] uppercase mb-1">Per Wilayah</p>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {qRes.jawaban.byWilayah.slice(0, 10).map((w) => (
+                              <tr key={w.nama} className="border-b border-[#F5F3EC]">
+                                <td className="py-1">{w.nama}</td>
+                                <td className="py-1 text-right font-semibold">{w.jiwa.toLocaleString('id-ID')} jiwa</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {qRes.jawaban.bansos && qRes.jawaban.bansos.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-[#767D6F] uppercase mb-1">Bansos</p>
+                        <ul className="text-xs space-y-0.5">
+                          {qRes.jawaban.bansos.map((b) => (
+                            <li key={b.program} className="flex justify-between">
+                              <span className="uppercase">{b.program}</span>
+                              <span className="font-semibold">{b.jiwa === null ? 'disensor (k<5)' : `${b.jiwa.toLocaleString('id-ID')} jiwa`}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {qRes.jawaban && qRes.jawaban.sensor.length > 0 && (
+                  <p className="text-[10px] text-[#A15C38]">🛡️ Sensor k-anonymity aktif pada {qRes.jawaban.sensor.length} kelompok/program.</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { getAdminFromRequest } from '@/lib/auth';
 import { getClientIp } from '@/lib/rate-limit';
 import { decideDataAccess, buildAuditEntry } from '@/lib/data-gate';
 import { buildAgregatWilayah } from '@/services/dtsen-import';
+import { buildProvenanceLabel } from '@/services/dtsen-planner';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -68,20 +69,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     const prevIds = previousPublished.map((p) => p.id);
 
-    // Satu transaksi: agregat baru + status baru. Purge individu lama terpisah
-    // setelah transaksi berhasil (purge gagal tidak boleh menggagalkan publish,
-    // tapi dicatat keras di log).
+    // Satu transaksi: agregat baru + status baru + LABEL PROVENANCE registry
+    // diperbarui ke rilis aktif (PR-4c: jawaban selalu memberi label rilis yang
+    // benar — chip visual & header narasi membaca label yang sama).
+    // Purge individu lama terpisah setelah transaksi berhasil (purge gagal tidak
+    // boleh menggagalkan publish, tapi dicatat keras di log).
+    const publishedAt = new Date();
     await prisma.$transaction([
       prisma.dtsenAgregatWilayah.createMany({
         data: aggr.rows.map((a) => ({ releaseId: id, ...a })),
       }),
       prisma.dtsenRelease.update({
         where: { id },
-        data: { status: 'PUBLISHED', publishedAt: new Date() },
+        data: { status: 'PUBLISHED', publishedAt },
       }),
       prisma.dtsenRelease.updateMany({
         where: { id: { in: prevIds } },
         data: { status: 'SUPERSEDED' },
+      }),
+      prisma.dataSource.updateMany({
+        where: { slug: 'dtsen' },
+        data: {
+          provenanceLabel: buildProvenanceLabel({ versi: release.versi, jalur: release.jalur, publishedAt }),
+          lastSync: publishedAt,
+        },
       }),
     ]);
 
