@@ -153,7 +153,7 @@ export function isGrounded(parsed: HybridResponse, evidence: EvidenceItem[]): { 
   return { ok: reasons.length === 0, reasons };
 }
 
-function buildDeterministicNarasi(evidence: EvidenceItem[], query: string): string {
+export function buildDeterministicNarasi(evidence: EvidenceItem[], query: string): string {
   if (evidence.length === 0) return 'Data untuk pertanyaan ini tidak ditemukan di SAPA.';
   const top = evidence.slice(0, 3);
   const parts = top.map((e) => {

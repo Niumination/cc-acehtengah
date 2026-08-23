@@ -98,7 +98,7 @@ export function extractNarasiPartial(raw: string): string {
 export type LLMResult = { text: string; finishReason: string | null; model: string };
 
 /**
- * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500 (cukup untuk JSON).
+ * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 800 (narasi 3 kalimat, tabel dibangun lokal).
  * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LLMResult> {
@@ -122,7 +122,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LL
         messages,
         temperature: 0.1,
         top_p: 0.9,
-        max_tokens: 1500,
+        max_tokens: 800,
       }),
       signal: AbortSignal.timeout(60000), // 60s — sinkron dengan dashboard 65s + maxDuration 60
     });
@@ -165,7 +165,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LL
 }
 
 /**
- * Streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 1500.
+ * Streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 800.
  * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
 export async function streamLLM(
@@ -185,7 +185,7 @@ export async function streamLLM(
     messages,
     temperature: 0.1,
     top_p: 0.9,
-    max_tokens: 1500,
+    max_tokens: 800,
     stream: true,
   });
 

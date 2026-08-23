@@ -3,7 +3,7 @@
 import { detectIntent } from './intent-detector';
 import { callLLM, streamLLM, extractNarasiPartial, stripReasoningPrefix } from './llm-client';
 import { retrieveContext } from './rag-retriever';
-import { groundOutput, buildVizFromEvidence } from './grounding';
+import { groundOutput, buildVizFromEvidence, buildDeterministicNarasi } from './grounding';
 import type { EvidenceItem } from './grounding';
 import {
   fetchSapaData,
@@ -157,11 +157,14 @@ async function buildContext(query: string) {
   }));
 
   // SoT Fase C: payload ringkas — HANYA evidence (bukan pretty ringkasan 150 baris)
+  // Untuk >8 evidence (query generik "bantuan"), kirim hanya top 3 ke LLM untuk narasi cepat;
+  // visualisasi tetap 12-30 baris dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
+  const evidenceForLLM = evidence.length > 8 ? evidence.slice(0, 3) : evidence;
   const dataForLLM = {
     query,
     intent: intent.kategori,
     filterDipakai,
-    evidence,
+    evidence: evidenceForLLM,
     evidenceCount: evidence.length,
     total_data: normalizedRecords.length,
   };
@@ -296,6 +299,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
 
     // Step 5: Parse + grounding SoT
     const parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
+    // Jika model JSON terpotong (evidence besar) → parseHybridResponse fallback "Maaf, AI gagal..." — ganti deterministik agar tidak tampil error di atas tabel
+    if (parsed.narasi.startsWith('Maaf, AI gagal') || parsed.narasi.startsWith('Maaf, AI tidak memberikan')) {
+      parsed.narasi = buildDeterministicNarasi(ctx.evidence, query);
+    }
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
     let result = grounded;
     // Viz dari evidence jika model tidak kasih atau grounding mengganti
@@ -404,7 +411,10 @@ export async function processAIQueryStreaming(
     steps.llm = Date.now() - llmStarted;
 
     // Step 3: Parse + grounding SoT
-    const parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
+    let parsed = parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin);
+    if (parsed.narasi.startsWith('Maaf, AI gagal') || parsed.narasi.startsWith('Maaf, AI tidak memberikan')) {
+      parsed = { ...parsed, narasi: buildDeterministicNarasi(ctx.evidence, query) };
+    }
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query);
     let result = grounded;
     if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
