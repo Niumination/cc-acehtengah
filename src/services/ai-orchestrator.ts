@@ -465,11 +465,11 @@ Tugas: Merumuskan data dalam field "evidence" menjadi narasi Bahasa Indonesia ya
 STATISTIK: ${totalOpd} OPD, ${totalIndicators} indikator, sumber: api-splp.layanan.go.id
 
 ATURAN WAJIB:
-1. HANYA gunakan angka, tahun, nama OPD, dan nama indikator yang ada di "evidence". Jangan menambah angka baru.
+1. HANYA gunakan angka, tahun, nama OPD, dan nama indikator yang ada di "evidence". Jangan menambah angka baru atau menyebut OPD yang tidak ada di evidence.
 2. Jika "evidence" kosong: jawab "Data untuk pertanyaan ini tidak ditemukan di SAPA." — jangan mengarang.
 3. Tahun: gunakan nilai "tahun" dari evidence. Jika null/kosong → tulis "tahun tidak tercantum di SAPA".
-4. Selalu sebutkan OPD dan satuan dari evidence.
-5. Bahasa Indonesia formal, lugas, actionable. Narasi = interpretasi evidence, bukan membaca ulang mentah.
+4. Selalu sebutkan OPD dan satuan dari evidence. Jangan menyebut OPD lain (contoh: Bappeda/Badan Perencanaan) jika tidak ada di evidence.
+5. Bahasa Indonesia formal, lugas, actionable. Narasi = interpretasi evidence, bukan membaca ulang mentah. Maksimal 3 kalimat agar tidak terpotong timeout.
 6. "rekomendasi": 0-3 kalimat TANPA angka baru. Jika tidak relevan, kosongkan ([]).
 7. "visualisasi" HANYA dari evidence:
    - 1 item → "metric" {metrics:[{label, value, unit}]}
