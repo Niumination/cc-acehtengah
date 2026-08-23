@@ -1,10 +1,30 @@
 // ─── POST /api/setup/admin — Auto-create Admin table ───
+// PR Lapis-0: endpoint setup kini TERKUNCI. Wajib env ADMIN_SETUP_TOKEN (min 16
+// karakter) + header x-setup-token yang cocok. Tanpa env → nonaktif (403).
+// Seed tidak lagi memakai password default yang diketahui publik ("admin123"):
+// gunakan ADMIN_BOOTSTRAP_PASSWORD, atau password acak sekali-tampil.
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, isSetupAuthorized } from '@/lib/auth';
 
-export async function POST() {
+function randomPassword(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(18));
+  return Buffer.from(bytes).toString('base64url'); // ~24 char, entropi ~144 bit
+}
+
+export async function POST(req: NextRequest) {
+  if (!isSetupAuthorized(req)) {
+    return NextResponse.json(
+      {
+        error:
+          'Setup dinonaktifkan. Set ADMIN_SETUP_TOKEN (min 16 karakter) di server ' +
+          'dan kirim header x-setup-token untuk menjalankan setup.',
+      },
+      { status: 403 },
+    );
+  }
+
   try {
     // Check if admin table exists by trying to query
     const existing = await prisma.admin.findFirst();
@@ -12,7 +32,6 @@ export async function POST() {
       return NextResponse.json({
         success: true,
         message: 'Admin table already exists',
-        adminCount: await prisma.admin.count(),
       });
     }
   } catch {
@@ -62,10 +81,12 @@ export async function POST() {
     }
   }
 
-  // Seed admin if empty
+  // Seed admin if empty — TANPA password default yang bisa ditebak.
   const count = await prisma.admin.count();
   if (count === 0) {
-    const hash = await hashPassword('admin123');
+    const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD ?? randomPassword();
+    const fromEnv = Boolean(process.env.ADMIN_BOOTSTRAP_PASSWORD);
+    const hash = await hashPassword(bootstrapPassword);
     await prisma.admin.create({
       data: {
         username: 'admin',
@@ -76,12 +97,16 @@ export async function POST() {
     });
     return NextResponse.json({
       success: true,
-      message: 'Admin table created + seeded (admin/admin123)',
+      message: fromEnv
+        ? 'Admin table created + seeded (username: admin, password dari ADMIN_BOOTSTRAP_PASSWORD)'
+        : 'Admin table created + seeded. SIMPAN password sekali-tampil di bawah lalu SEGERA ganti setelah login.',
+      // Hanya dikirim saat tidak pakai env — pemanggil memegang ADMIN_SETUP_TOKEN (operator).
+      ...(fromEnv ? {} : { bootstrapPassword }),
     });
   }
 
   return NextResponse.json({
     success: true,
-    message: `Admin table ready, ${count} admin(s) found`,
+    message: 'Admin table ready.',
   });
 }
