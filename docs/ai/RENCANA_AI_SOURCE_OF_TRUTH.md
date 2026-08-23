@@ -183,7 +183,7 @@ Fungsi murni `groundOutput(parsed, evidence)`:
 
 Ambil hanya dari `5faa080` yang terkait query: rate-limit + store + maxDuration=60 + try/catch req.json + mock SSE berlabel. Timeout UI 65s >= LLM 60s, liveNarasi dipulihkan.
 
-### Fase E — Observabilitas — Selesai (commit berikut)
+### Fase E — Observabilitas — Selesai `a7c2281`
 
 - fetchSapaData -> {records, origin} + dataSourceLabel(origin): dataSource di UI kini benar (direct vs splp), dataOrigin di chatSession.metadata.
 - callLLM/streamLLM -> LLMResult {text, finishReason, model}: finish_reason + model tercatat.
