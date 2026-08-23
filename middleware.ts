@@ -6,8 +6,10 @@ import { verifyToken, COOKIE_NAME } from '@/lib/auth';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Only protect /dashboard/laporan and /api/chat-logs
-  const protectedPaths = ['/dashboard/laporan', '/api/chat-logs'];
+  // Only protect /dashboard/laporan, /dashboard/admin and /api/chat-logs
+  // (PR-4b: jalur restricted /api/dtsen/* sengaja TIDAK di sini — gate + audit
+  // per-role di dalam route agar lebih kaya dari sekadar "ada sesi")
+  const protectedPaths = ['/dashboard/laporan', '/dashboard/admin', '/api/chat-logs'];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (!isProtected) {
@@ -46,5 +48,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/laporan/:path*', '/api/chat-logs/:path*'],
+  matcher: ['/dashboard/laporan/:path*', '/dashboard/admin/:path*', '/api/chat-logs/:path*'],
 };

@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 23, 2026 — PR-4a: fondasi multi-sumber/DTSEN (registry DataSource, role DTSEN_ANALYST/DTSEN_LOOKUP, gerbang fail-closed + DataAccessAudit, `/api/dtsen/query` kerangka); sebelumnya PR-3 Laporan Eksekutif, PR Lapis 0–2
+> **Last update:** Aug 23, 2026 — PR-4b: jalur impor manual DTSEN (CSV→validasi→staging→publish atomik, purge rilis lama, UI admin `/dashboard/admin/dtsen`, env DTSEN_NIK_KEY); sebelumnya PR-4a fondasi, PR-3 Laporan Eksekutif, PR Lapis 0–2
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -52,6 +52,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | **KPI Pimpinan** | ✅ | `/api/kpi` (deterministik, cache 10 mnt) |
 | **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
 | **Fondasi DTSEN (role-gated)** | ✅ | `POST /api/dtsen/query` — 401/403 fail-closed + audit (data via PR-4b/4d) |
+| **Impor Manual DTSEN (role-gated)** | ✅ | `/dashboard/admin/dtsen` + `POST /api/dtsen/import`, `release/[id]/publish` |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
 
@@ -82,6 +83,9 @@ src/
 │   │   ├── report/route.ts       # GET /api/report — Laporan Eksekutif
 │   │   ├── cron/sync-sapa/       # GET/POST — sinkronisasi warehouse harian
 │   │   ├── dtsen/query/          # POST — gerbang data restricted (role + audit)
+│   │   ├── dtsen/import/         # POST — impor CSV → staging (DTSEN_LOOKUP+)
+│   │   ├── dtsen/releases/       # GET — daftar rilis (metadata saja)
+│   │   ├── dtsen/release/[id]/   # GET detail tinjau + POST publish atomik
 │   │   ├── geodata/route.ts      # GIS data
 │   │   ├── health/route.ts       # Health check
 │   │   └── setup/
@@ -92,7 +96,8 @@ src/
 │   │   ├── page.tsx              # Main dashboard + KPI panel + EWS panel
 │   │   ├── analytics/page.tsx    # Analytics
 │   │   ├── gis/page.tsx          # Peta GIS
-│   │   └── laporan/page.tsx      # Laporan AI (auth protected)
+│   │   ├── laporan/page.tsx      # Laporan Eksekutif + riwayat (auth protected)
+│   │   └── admin/dtsen/page.tsx  # Admin rilis DTSEN: impor, tinjau, publish
 │   └── login/
 │       ├── layout.tsx            # Minimal layout (no sidebar)
 │       └── page.tsx              # Login form
@@ -117,6 +122,7 @@ src/
     ├── llm-client.ts             # OpenAI-compatible client
     ├── rag-retriever.ts          # Qdrant RAG (graceful fallback)
     ├── data-sync.ts              # SPLP sync scheduler
+    ├── dtsen-import.ts           # Impor CSV DTSEN: validasi, masking, agregat k≥5 (murni)
     ├── warehouse-sync.ts         # Sinkronisasi snapshot SAPA → warehouse
     ├── report-generator.ts       # Laporan Eksekutif naratif (murni, tanpa LLM)
     ├── ews-engine.ts             # Evaluasi perubahan → EwsAlert
@@ -174,3 +180,4 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 | `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
 | `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
 | `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
+| `DTSEN_NIK_KEY` | random string ≥16 | Kunci HMAC NIK jalur DTSEN; tanpa ini impor menolak (409) |

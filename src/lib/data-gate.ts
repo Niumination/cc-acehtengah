@@ -47,7 +47,9 @@ export type AuditAction =
   | 'LOOKUP_NIK'
   | 'LOOKUP_NIK_DITOLAK'
   | 'IMPORT'
-  | 'PUBLISH';
+  | 'IMPORT_DITOLAK'
+  | 'PUBLISH'
+  | 'PUBLISH_DITOLAK';
 
 const AUDIT_DETAIL_MAX = 200;
 
