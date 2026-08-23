@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { LogoMark } from '@/components/brand/Logo';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -55,7 +56,7 @@ function LoginForm() {
       <div className="relative w-full max-w-md px-6">
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">☕</div>
+          <LogoMark size={72} className="mx-auto mb-4 drop-shadow-[0_6px_18px_rgba(212,168,83,0.25)]" />
           <h1 className="text-2xl font-bold text-[#D4A853] tracking-wide">
             SAPA SMART AI
           </h1>
