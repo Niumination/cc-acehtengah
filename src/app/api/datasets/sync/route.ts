@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncDataset, syncAllDatasets } from '@/services/data-sync';
 import { handleApiError, successResponse } from '@/lib/error-handler';
+import { getAdminFromRequest } from '@/lib/auth';
 import { z } from 'zod';
 
 const SyncRequestSchema = z.object({
@@ -9,6 +10,12 @@ const SyncRequestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // PR Lapis-0: sinkronisasi menulis penuh ke DB — wajib sesi admin.
+  const admin = await getAdminFromRequest(req);
+  if (!admin) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
     const parsed = SyncRequestSchema.parse(body);

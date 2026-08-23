@@ -54,7 +54,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 
 - **Protected pages:** `/dashboard/laporan`, `/api/chat-logs`
 - **Public pages:** `/dashboard`, `/dashboard/analytics`, `/dashboard/gis`
-- **Akun admin:** tidak ada default. Dibuat via bootstrap terkunci (`ADMIN_BOOTSTRAP_PASSWORD`), ganti password di `/dashboard/akun`
+- **Akun admin:** tidak ada default. Dibuat via bootstrap terkunci: `POST /api/setup/admin` kini wajib header `x-setup-token` cocok dengan env `ADMIN_SETUP_TOKEN` (tanpa env → 403). Seed memakai `ADMIN_BOOTSTRAP_PASSWORD` atau password acak sekali-tampil; ganti password di `/dashboard/akun`. `JWT_SECRET` wajib (fail-closed, tanpa fallback)
 - **Session:** JWT cookie (7 hari), httpOnly + secure
 
 ## Struktur

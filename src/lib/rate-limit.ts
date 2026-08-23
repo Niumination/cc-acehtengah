@@ -31,10 +31,17 @@ export async function resetRateLimit(key: string): Promise<void> {
 }
 
 export function getClientIp(req: Request): string {
+  // PR Lapis-0: ambil entri PALING KANAN x-forwarded-for, bukan paling kiri.
+  // Platform (Vercel) menambahkan IP klien asli di ujung kanan daftar; entri di
+  // kiri bisa disisipkan bebas oleh klien (spoofing untuk bypass rate limit).
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
+    const parts = forwarded
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last) return last;
   }
   return req.headers.get('x-real-ip')?.trim() || 'unknown';
 }

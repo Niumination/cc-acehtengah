@@ -9,6 +9,10 @@ interface QueryBarProps {
   isDefaultMode: boolean;
 }
 
+// PR Lapis-0/1: chip hanya berisi pertanyaan yang benar-benar bisa dijawab
+// pipeline saat ini. Chip "Tren Data" dihapus sementara — tren per indikator
+// butuh data warehouse (roadmap Lapis 2); menjanjikannya di UI = menyesatkan.
+// "Semua OPD" & "Sebaran Tahun" dijawab deterministik (meta-query, tanpa LLM).
 const KEYWORD_CHIPS = [
   { label: '🏛️ Jumlah ASN', query: 'berapa jumlah ASN di aceh tengah' },
   { label: '👶 Stunting', query: 'berapa jumlah balita stunting di aceh tengah' },
@@ -16,8 +20,9 @@ const KEYWORD_CHIPS = [
   { label: '📚 Pendidikan', query: 'bagaimana data pendidikan di aceh tengah' },
   { label: '🏥 Kesehatan', query: 'bagaimana data kesehatan di aceh tengah' },
   { label: '💼 Tenaga Kerja', query: 'berapa jumlah tenaga kerja di aceh tengah' },
+  { label: '☕ Kopi', query: 'produksi kopi di aceh tengah' },
   { label: '📊 Semua OPD', query: 'apa saja OPD yang ada di aceh tengah' },
-  { label: '📈 Tren Data', query: 'bagaimana tren data sapa di aceh tengah' },
+  { label: '📅 Sebaran Tahun', query: 'bagaimana sebaran data sapa per tahun' },
 ];
 
 export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }: QueryBarProps) {

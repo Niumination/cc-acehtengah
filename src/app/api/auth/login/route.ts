@@ -3,8 +3,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword, createToken, COOKIE_NAME } from '@/lib/auth';
+import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  // PR Lapis-0: anti brute-force — batasi percobaan login per IP.
+  const ip = getClientIp(req);
+  const perMinute = await checkRateLimit({ key: `login:m:${ip}`, limit: 10, windowMs: 60 * 1000 });
+  if (!perMinute.ok) {
+    return NextResponse.json(
+      { error: 'Terlalu banyak percobaan login. Tunggu sebentar lalu coba lagi.' },
+      { status: 429, headers: rateLimitHeaders(perMinute) },
+    );
+  }
+  const perHour = await checkRateLimit({ key: `login:h:${ip}`, limit: 30, windowMs: 60 * 60 * 1000 });
+  if (!perHour.ok) {
+    return NextResponse.json(
+      { error: 'Batas percobaan login per jam tercapai. Coba lagi nanti.' },
+      { status: 429, headers: rateLimitHeaders(perHour) },
+    );
+  }
+
   try {
     const { username, password } = await req.json();
 
