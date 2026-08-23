@@ -484,12 +484,13 @@ ATURAN WAJIB:
 7. "visualisasi" HANYA dari evidence:
    - 1 item → "metric" {metrics:[{label, value, unit}]}
    - 2-8 item → "chart" bar {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
-   - >8 item → "table" {columns:["Indikator","Nilai","Satuan","OPD","Tahun"], rows}
+   - >8 item → "table" {columns:["Indikator","Nilai","Satuan","OPD","Tahun"], rows} — jika rows banyak (>12), sertakan minimal 5 baris teratas di narasi ringkasan juga.
    - kosong → "none"
 8. Jangan menambah detail di luar evidence (contoh: pecahan PNS/PPPK, jumlah pegawai turunan, dsb).
 
-FORMAT JSON (wajib valid, satu object):
-{"narasi":"...","visualisasi":{"tipe":"metric|table|chart|none","konfigurasi":{}},"rekomendasi":["..."]}`;
+FORMAT JSON UTAMA (wajib valid, satu object):
+{"narasi":"...","visualisasi":{"tipe":"metric|table|chart|none","konfigurasi":{}},"rekomendasi":["..."]}
+FORMAT ALTERNATIF SDI (jika diminta mode dashboard): {"type":"data_dashboard","title":"...","summary":"...","metrics":[...],"table":{"headers":[...],"rows":[...]},"metadata":{"sumber":"...","tanggal_akses":"...","status":"Terverifikasi SDI"}} — akan di-mapping otomatis ke format utama.`;
 }
 
 /**
@@ -538,6 +539,31 @@ function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: Sa
   // Bersihkan dulu dari markdown fence / reasoning / prose di luar JSON
   const cleanedInput = stripReasoningPrefix(raw);
   const extracted = extractJsonObject(cleanedInput);
+
+  // Adaptor: format alternatif SDI {"type":"data_dashboard", title, summary, metrics, table, metadata}
+  if (extracted && extracted.type === 'data_dashboard') {
+    const narasi = [extracted.title, extracted.summary].filter(Boolean).join(' — ') || 'Ringkasan data SAPA.';
+    const metrics = Array.isArray(extracted.metrics) ? extracted.metrics : [];
+    const table = extracted.table ?? { headers: [], rows: [] };
+    const headers: string[] = Array.isArray(table.headers) ? table.headers : Array.isArray(table.columns) ? table.columns : [];
+    const rows: any[][] = Array.isArray(table.rows) ? table.rows : Array.isArray(table.baris) ? table.baris : [];
+    // Pilih visualisasi: metrics kecil → metric, rows ada → table, else metric
+    let visualisasi: HybridResponse['visualisasi'];
+    if (rows.length > 0 && headers.length > 0) {
+      visualisasi = { tipe: 'table', konfigurasi: { columns: headers, rows } };
+    } else if (metrics.length > 0) {
+      visualisasi = { tipe: 'metric', konfigurasi: { metrics: metrics.map((m: any) => ({ label: m.label, value: m.value, unit: m.unit ?? '' })) } };
+    } else {
+      visualisasi = { tipe: 'none', konfigurasi: {} };
+    }
+    return {
+      narasi,
+      visualisasi: normalizeVisualization(visualisasi),
+      rekomendasi: [],
+      dataSource: dataSourceLabel(dataOrigin),
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   if (extracted && typeof extracted === 'object') {
     const narasi = typeof extracted.narasi === 'string' ? extracted.narasi.trim() : '';
