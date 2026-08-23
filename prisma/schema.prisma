@@ -104,6 +104,9 @@ model Admin {
 enum AdminRole {
   ADMIN
   SUPERADMIN
+  // PR-4a (Lapis 3): klasifikasi hak akses DTSEN sesuai Permen Bappenas 7/2025
+  DTSEN_ANALYST  // query agregat DTSEN (desil per kecamatan/desa)
+  DTSEN_LOOKUP   // query individu by-NIK (eselon II/III, maks 4 akun aktif)
 }
 
 // ─── Data Warehouse SAPA (PR Lapis 2) ───
@@ -158,4 +161,87 @@ enum Severity {
   INFO
   WARNING
   CRITICAL
+}
+
+// ─── Multi-Sumber & DTSEN (PR-4a: Fondasi Lapis 3) ───
+// Pemisahan fisik dari pipeline publik: tabel-tabel ini tidak pernah diimpor
+// modul pipeline /api/query — lihat DESAIN_LAPIS3_MULTISUMBER_DTSEN.md §4.
+// Registry sumber data. sensitivity mengendalikan gerbang akses (fail-closed).
+model DataSource {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  nama            String
+  sensitivity     String // 'PUBLIC' | 'RESTRICTED_AGGR' | 'RESTRICTED_PERSONAL'
+  provenanceLabel String // tampil di jawaban: "DTSEN v2.0 Apr 2026 via Portal SDI"
+  ownerInstansi   String?
+  isActive        Boolean  @default(true)
+  config          Json?
+  lastSync        DateTime?
+  createdAt       DateTime @default(now())
+}
+
+// Rilis DTSEN (append-only): satu rilis tidak pernah menimpa rilis lain.
+model DtsenRelease {
+  id          String    @id @default(cuid())
+  sourceId    String
+  versi       String // 'v2.0-2026-04'
+  wilayahIso  String    @default("11.03") // kode Kab. Aceh Tengah
+  jalur       String // 'API' | 'MANUAL'
+  status      String    @default("STAGING") // 'STAGING' | 'PUBLISHED' | 'SUPERSEDED'
+  totalBaris  Int       @default(0)
+  ditolak     Int       @default(0) // baris gagal validasi impor
+  checksum    String? // sha256 kanonik (pola warehouse SAPA)
+  uploadedBy  String?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+// Data individu (by-name) — TABEL PALING SENSITIF di sistem.
+// Minimasi (UU PDP): NIK disimpan HMAC hash, nama ter-mask sejak ingesti;
+// alamat lengkap, tanggal lahir, no KK mentah, kondisi kesehatan TIDAK disimpan.
+model DtsenIndividu {
+  id           String  @id @default(cuid())
+  releaseId    String
+  nikHash      String // HMAC-SHA256(NIK, env DTSEN_NIK_KEY) — NIK mentah tak pernah disimpan
+  namaMasked   String // "S*****a" sejak ingesti
+  keluargaId   String?
+  kecamatan    String
+  desa         String
+  desil        Int? // 1..10
+  statusBansos Json? // { pkh, bpnt, pbi }
+
+  @@index([releaseId, kecamatan, desa])
+  @@index([releaseId, nikHash])
+}
+
+// Agregat siap-saji per wilayah — dihitung saat publish rilis; K_MIN (5):
+// kelompok < 5 jiwa tidak pernah dibuat barisnya (k-anonymity).
+model DtsenAgregatWilayah {
+  id              String @id @default(cuid())
+  releaseId       String
+  kecamatan       String
+  desa            String
+  desil           Int
+  jumlahJiwa      Int
+  jumlahKeluarga  Int
+
+  @@unique([releaseId, kecamatan, desa, desil])
+  @@index([releaseId, kecamatan])
+}
+
+// Audit akses data restricted — append-only, wajib (akuntabilitas UU PDP).
+model DataAccessAudit {
+  id        String   @id @default(cuid())
+  adminId   String
+  adminNama String
+  aksi      String // 'QUERY_DTSEN' | 'LOOKUP_NIK' | 'IMPORT' | 'PUBLISH' | '..._DITOLAK'
+  detail    String // teks query/ringkasan target (BUKAN data hasil)
+  rowCount  Int      @default(0)
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([createdAt])
 }
