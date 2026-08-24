@@ -27,6 +27,11 @@ import {
   publicDeflectionKind,
   buildPublicDeflectionNarasi,
   PUBLIC_DEFLECTION_REKOMENDASI,
+  planDtsenQuery,
+  fetchDtsenAgregatPublik,
+  type PublicAgregatResult,
+  type DtsenPlan,
+  type PublicDeflectionKind,
 } from './dtsen-planner';
 import {
   isTrendQuery,
@@ -209,21 +214,80 @@ async function buildContext(query: string) {
     id: a.id,
   }));
 
+  // ─── DTSEN Multi-Source Integration ───
+  // Jika query relevan dengan DTSEN agregat, fetch dan gabungkan evidence DTSEN.
+  const plan = planDtsenQuery(query);
+  let dtsenEvidence: EvidenceItem[] = [];
+  let dtsenProvenance: { label: string } = { label: '' };
+  let dtsenNarasi: string | undefined;
+  let dtsenSensor: string[] = [];
+
+  if (plan.asksDtsen && plan.scope === 'AGGR' && (plan.kecamatan || plan.desa || plan.desil || plan.bansos)) {
+    const dtsenResult = await fetchDtsenAgregatPublik({
+      kecamatan: plan.kecamatan,
+      desa: plan.desa,
+      desil: plan.desil,
+      bansos: plan.bansos,
+    });
+    if (dtsenResult) {
+      // Bangun evidence DTSEN
+      for (const d of dtsenResult.byDesil) {
+        dtsenEvidence.push({
+          opd: 'DTSEN (Kemensos/BPS)',
+          indikator: `Desil ${d.desil} — jiwa`,
+          nilai: String(d.jiwa),
+          satuan: 'jiwa',
+          tahun: null,
+          id: `dtsen:desil:${d.desil}`,
+        });
+      }
+      if (dtsenResult.bansos) {
+        for (const b of dtsenResult.bansos) {
+          dtsenEvidence.push({
+            opd: 'DTSEN (Kemensos/BPS)',
+            indikator: `Penerima ${b.program.toUpperCase()}`,
+            nilai: b.jiwa === null ? '(disensor)' : String(b.jiwa),
+            satuan: 'jiwa',
+            tahun: null,
+            id: `dtsen:bansos:${b.program}`,
+          });
+        }
+      }
+      for (const w of dtsenResult.byWilayah.slice(0, 10)) {
+        dtsenEvidence.push({
+          opd: 'DTSEN (Kemensos/BPS)',
+          indikator: `${plan.kecamatan ? 'Desa' : 'Kecamatan'} ${w.nama} — jiwa`,
+          nilai: String(w.jiwa),
+          satuan: 'jiwa',
+          tahun: null,
+          id: `dtsen:wilayah:${encodeURIComponent(w.nama)}`,
+        });
+      }
+      dtsenProvenance = { label: dtsenResult.provenance.label };
+      dtsenNarasi = dtsenResult.narasi;
+      dtsenSensor = dtsenResult.sensor;
+    }
+  }
+
   // Payload LLM ringkas: top-5 saat evidence besar; visualisasi penuh tetap
   // dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
-  const evidenceForLLM = evidence.length > 8 ? evidence.slice(0, 5) : evidence;
+  const allEvidence = [...evidence, ...dtsenEvidence];
+  const evidenceForLLM = allEvidence.length > 8 ? allEvidence.slice(0, 5) : allEvidence;
   const dataForLLM = {
     query,
     intent: intent.kategori,
     filterDipakai,
     evidence: evidenceForLLM,
-    evidenceCount: evidence.length,
+    evidenceCount: allEvidence.length,
     statistik_resmi: {
       total_data: normalizedRecords.length,
       total_opd: allOpds.length,
       total_indikator: allIndicators.length,
       ...(yearsRequested.length > 0 ? { tahun_diminta: yearsRequested } : {}),
     },
+    ...(dtsenProvenance.label ? { dtsen_provenance: dtsenProvenance } : {}),
+    ...(dtsenNarasi ? { dtsen_narasi: dtsenNarasi } : {}),
+    ...(dtsenSensor.length > 0 ? { dtsen_sensor: dtsenSensor } : {}),
   };
 
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
@@ -231,7 +295,8 @@ async function buildContext(query: string) {
     totalOpd: allOpds.length,
     totalIndicators: allIndicators.length,
     totalData: normalizedRecords.length,
-    evidenceCount: evidence.length,
+    evidenceCount: allEvidence.length,
+    dtsenEvidence: dtsenEvidence.length,
   });
 
   return {
@@ -242,7 +307,10 @@ async function buildContext(query: string) {
     allRecords: normalizedRecords,
     filteredData,
     matchedRecords,
-    evidence,
+    evidence: allEvidence,
+    dtsenEvidence,
+    dtsenProvenance,
+    dtsenNarasi,
     dataForLLM,
     konteksRegulasi,
     systemPrompt,
@@ -369,19 +437,173 @@ async function tryMetaQuery(
 }
 
 /**
- * PR-4c (desain §8): defleksi DTSEN di pipeline publik — deterministik, tanpa
- * LLM, tanpa fetch SAPA. Hanya untuk NIK, konsep tanpa padanan di SAPA
- * (dtsen/desil/bpnt/pbi), atau niat per-orang; pertanyaan agregat program
- * (pkh/bansos/kemiskinan) TETAP ke SAPA (46 indikator nyata — jangan dirusak).
- * Provenance metadata: dataOrigin 'dtsen' — jawaban DTSEN tak pernah menyaru
- * sebagai jawaban SAPA.
+ * PR-4c Enhanced (desain §8): integrasi DTSEN multi-source ke pipeline publik.
+ * Berbeda dengan defleksi lama yang sepenuhnya mengalihkan, sekarang:
+ *
+ * - NIK / niat per-orang → tetap defleksi (privacy, audit trail)
+ * - DTSEN agregat (desil, bansos, pembagian wilayah) → fetch publik DTSEN,
+ *   gabungkan ke evidence, AI menjawab berdasarkan SAPA + DTSEN agregat
+ * - DTSEN literal (kata kunci tanpa konteks agregat) → defleksi dengan saran
+
+ * Provenance: setiap evidence DTSEN dilabeli dataOrigin 'dtsen' + provenance chip.
+ * Sensor: k-anonymity sudah diterapkan saat publish (k≥5); sensor dinamis untuk
+ * perhitungan bansos hasil query.
  */
+interface DtsenIntegrationResult {
+  /** Evidence tambahan dari DTSEN (untuk ditambah ke pipeline SAPA) */
+  evidence: EvidenceItem[];
+  /** Provenance DTSEN (untuk narasi header + chip visual) */
+  provenance: { label: string; versi?: string; jalur?: string; publishedAt?: Date | string | null };
+  /** Narasi DTSEN yang bisa langsung digabung ke prompt LLM */
+  dtsenNarasi?: string;
+  /** Apakah query ini defleksi (NIK/personal) */
+  defleksi: boolean;
+  /** Tipe defleksi bila ada */
+  defleksiKind: PublicDeflectionKind | null;
+}
+
+async function integrateDtsenData(query: string, dtsenResult: PublicAgregatResult | null): Promise<DtsenIntegrationResult> {
+  const plan: DtsenPlan = planDtsenQuery(query);
+
+  // 1. NIK / per-orang → defleksi (privacy)
+  if (plan.scope === 'PERSONAL' || (plan.nik !== null)) {
+    const kind = publicDeflectionKind(query);
+    return {
+      evidence: [],
+      provenance: { label: '' },
+      defleksi: true,
+      defleksiKind: kind ?? 'NIK',
+    };
+  }
+
+  // 2. DTSEN agregat → fetch dan gabung ke evidence
+  if (plan.asksDtsen && plan.scope === 'AGGR' && dtsenResult) {
+    // Bangun evidence dari DTSEN agregat
+    const evidence: EvidenceItem[] = [];
+
+    // Evidence per desil
+    for (const d of dtsenResult.byDesil) {
+      evidence.push({
+        opd: 'DTSEN (Kemensos/BPS)',
+        indikator: `Desil ${d.desil} — jiwa`,
+        nilai: String(d.jiwa),
+        satuan: 'jiwa',
+        tahun: null,
+        id: `dtsen:desil:${d.desil}`,
+      });
+    }
+
+    // Evidence bansos
+    if (dtsenResult.bansos) {
+      for (const b of dtsenResult.bansos) {
+        evidence.push({
+          opd: 'DTSEN (Kemensos/BPS)',
+          indikator: `Penerima ${b.program.toUpperCase()}`,
+          nilai: b.jiwa === null ? '(disensor)' : String(b.jiwa),
+          satuan: 'jiwa',
+          tahun: null,
+          id: `dtsen:bansos:${b.program}`,
+        });
+      }
+    }
+
+    // Evidence per wilayah (kecamatan/desa)
+    for (const w of dtsenResult.byWilayah.slice(0, 10)) {
+      evidence.push({
+        opd: 'DTSEN (Kemensos/BPS)',
+        indikator: `${plan.kecamatan ? 'Desa' : 'Kecamatan'} ${w.nama} — jiwa`,
+        nilai: String(w.jiwa),
+        satuan: 'jiwa',
+        tahun: null,
+        id: `dtsen:wilayah:${encodeURIComponent(w.nama)}`,
+      });
+    }
+
+    return {
+      evidence,
+      provenance: dtsenResult.provenance,
+      dtsenNarasi: dtsenResult.narasi,
+      defleksi: false,
+      defleksiKind: null,
+    };
+  }
+
+  // 3. DTSEN literal (kata kunci tanpa konteks agregat) → defleksi dengan saran
+  const kind = publicDeflectionKind(query);
+  if (kind && !plan.asksDtsen) {
+    return {
+      evidence: [],
+      provenance: { label: '' },
+      defleksi: true,
+      defleksiKind: kind,
+    };
+  }
+
+  return {
+    evidence: [],
+    provenance: { label: '' },
+    defleksi: false,
+    defleksiKind: null,
+  };
+}
+
 async function tryDtsenDeflection(
   query: string,
   startedAt: number,
   steps: Record<string, number>,
   streamed: boolean,
 ): Promise<HybridResponse | null> {
+  const plan = planDtsenQuery(query);
+
+  // Jika pertanyaan adalah agregat DTSEN (bukan personal) → biarkan pipeline SAPA lanjut
+  // dengan integrasi DTSEN di buildContext. Hanya defleksi untuk:
+  // - NIK (privacy)
+  // - niat per-orang (privacy)
+  // - DTSEN literal tanpa konteks agregat nyata
+  if (plan.scope === 'AGGR') {
+    // Cek apakah query hanya kata kunci literal tanpa konteks agregat
+    if (plan.kecamatan || plan.desa || plan.desil || plan.bansos) {
+      // Ada konteks agregat — biarkan pipeline SAPA + DTSEN integrasi berjalan
+      return null;
+    }
+    // DTSEN literal tanpa konteks — tetap defleksi dengan saran
+    const kind = publicDeflectionKind(query);
+    if (kind) {
+      steps.dtsenDefleksi = Date.now() - startedAt;
+      const result: HybridResponse = {
+        narasi: buildPublicDeflectionNarasi(kind),
+        visualisasi: { tipe: 'none', konfigurasi: {} },
+        rekomendasi: [...PUBLIC_DEFLECTION_REKOMENDASI],
+        dataSource: 'DTSEN (terbatas) — dialihkan dari jalur publik SAPA',
+        timestamp: new Date().toISOString(),
+      };
+      const metadata = {
+        ...buildObservabilityMeta({
+          opdFilter: null,
+          filterDipakai: `dtsen-defleksi:${kind.toLowerCase()}`,
+          evidence: [],
+          grounding: 'pass',
+          totalData: 0,
+          filteredCount: 0,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: null,
+          finishReason: null,
+          dataOrigin: 'splp',
+          streamed,
+        }),
+        dataOrigin: 'dtsen',
+        dataSource: 'DTSEN (terbatas) — dialihkan',
+        dtsenDefleksi: kind,
+      };
+      await saveChatSession({ query, intent: 'dtsen-defleksi', result, metadata });
+      setCache(query, result);
+      return result;
+    }
+    return null;
+  }
+
+  // NIK / per-orang → defleksi (privacy)
   const kind = publicDeflectionKind(query);
   if (!kind) return null;
   steps.dtsenDefleksi = Date.now() - startedAt;
@@ -765,6 +987,7 @@ function buildSystemPrompt(stats: {
   totalIndicators: number;
   totalData: number;
   evidenceCount: number;
+  dtsenEvidence?: number;
 }): string {
   return `Anda adalah SAPA Smart AI Pemerintah Kabupaten Aceh Tengah.
 Tugas: Merumuskan data dalam field "evidence" menjadi narasi Bahasa Indonesia yang akurat.
