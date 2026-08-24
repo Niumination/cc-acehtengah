@@ -114,4 +114,25 @@ export const DATA_SOURCE_SEEDS: DataSourceSeed[] = [
     provenanceLabel: 'DTSEN — Kemensos/BPS (menunggu rilis resmi)',
     ownerInstansi: 'Kemensos RI / BPS RI',
   },
+  {
+    slug: 'dtsen-splp',
+    nama: 'DTSEN via Portal SDI (SPLP)',
+    sensitivity: 'RESTRICTED_PERSONAL',
+    provenanceLabel: 'DTSEN — Portal SDI (api-splp.layanan.go.id)',
+    ownerInstansi: 'Kemensos RI / BPS RI',
+  },
+  {
+    slug: 'dtsen-kominfo',
+    nama: 'Data Sosial Kominfo Aceh Tengah',
+    sensitivity: 'RESTRICTED_PERSONAL',
+    provenanceLabel: 'Kominfo Aceh Tengah — data penerima bantuan',
+    ownerInstansi: 'Diskominfo Kab. Aceh Tengah',
+  },
+  {
+    slug: 'dtsen-stunting',
+    nama: 'Data Stunting Aceh Tengah',
+    sensitivity: 'RESTRICTED_PERSONAL',
+    provenanceLabel: 'Data Stunting — Kemenko PMK / BPS (manual import)',
+    ownerInstansi: 'Dinas Kesehatan Kab. Aceh Tengah',
+  },
 ];
