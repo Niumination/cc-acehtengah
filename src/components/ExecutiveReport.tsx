@@ -101,7 +101,11 @@ export default function ExecutiveReport() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    // setTimeout(0): setState di callback timer, bukan sinkron di body effect
+    const t = setTimeout(load, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   if (loading) {
     return (

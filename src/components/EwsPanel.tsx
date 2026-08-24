@@ -26,9 +26,13 @@ export default function EwsPanel() {
   };
 
   useEffect(() => {
-    fetchAlerts();
+    // setTimeout(0): setState di callback timer, bukan sinkron di body effect
+    const initial = setTimeout(fetchAlerts, 0);
     const interval = setInterval(fetchAlerts, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, []);
 
   if (loading) {

@@ -72,8 +72,8 @@ export default function LaporanPage() {
       setLogs(data.logs || []);
       setTotal(data.total || 0);
       setStats(data.stats || []);
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat data');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat data');
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,9 @@ export default function LaporanPage() {
   }, [fetchLogs]);
 
   useEffect(() => {
-    fetchLogs();
+    // setTimeout(0): setState di callback timer, bukan sinkron di body effect
+    const t = setTimeout(fetchLogs, 0);
+    return () => clearTimeout(t);
   }, [fetchLogs]);
 
   // Export ke CSV
