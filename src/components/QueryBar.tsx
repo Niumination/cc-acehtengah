@@ -9,10 +9,9 @@ interface QueryBarProps {
   isDefaultMode: boolean;
 }
 
-// PR Lapis-0/1: chip hanya berisi pertanyaan yang benar-benar bisa dijawab
-// pipeline saat ini. Chip "Tren Data" dihapus sementara — tren per indikator
-// butuh data warehouse (roadmap Lapis 2); menjanjikannya di UI = menyesatkan.
-// "Semua OPD" & "Sebaran Tahun" dijawab deterministik (meta-query, tanpa LLM).
+// Chip harus merepresentasikan pertanyaan yang benar-benar bisa dijawab.
+// Meta-query (Semua OPD, OPD Teratas, Sebaran Tahun) dijawab deterministik;
+// chip tren tidak ditampilkan jika evidence time-series belum tersedia.
 const KEYWORD_CHIPS = [
   { label: '🏛️ Jumlah ASN', query: 'berapa jumlah ASN di aceh tengah' },
   { label: '👶 Stunting', query: 'berapa jumlah balita stunting di aceh tengah' },
@@ -22,92 +21,43 @@ const KEYWORD_CHIPS = [
   { label: '💼 Tenaga Kerja', query: 'berapa jumlah tenaga kerja di aceh tengah' },
   { label: '☕ Kopi', query: 'produksi kopi di aceh tengah' },
   { label: '📊 Semua OPD', query: 'apa saja OPD yang ada di aceh tengah' },
+  { label: '🏆 OPD Teratas', query: 'OPD mana yang memiliki indikator paling banyak di Aceh Tengah' },
   { label: '📅 Sebaran Tahun', query: 'bagaimana sebaran data sapa per tahun' },
 ];
 
 export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }: QueryBarProps) {
   const [input, setInput] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onQuery(input.trim());
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const query = input.trim();
+    if (query && !isLoading) {
+      onQuery(query);
       setInput('');
     }
   };
 
   const handleChipClick = (query: string) => {
-    if (!isLoading) {
-      onQuery(query);
-    }
+    if (!isLoading) onQuery(query);
   };
 
   return (
-    <div className="bg-[#FFFFFF] border border-[#C6C3B4] rounded-2xl overflow-hidden">
-      {/* Header — centered, judul + subtext bertumpuk */}
-      <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] flex items-center justify-center text-sm shadow-lg">
-            🤖
-          </div>
-          <span className="text-base font-bold text-[#1B4332]">SAPA Smart AI</span>
-        </div>
-        <span className="text-xs text-[#767D6F]">Tanya data SAPA Aceh Tengah</span>
-        {!isDefaultMode && (
-          <button
-            onClick={onReset}
-            className="absolute right-5 top-5 text-[10px] text-[#1B4332] hover:text-[#2D6A4F] transition-colors flex items-center gap-1"
-          >
-            <span>←</span>
-            <span>Kembali ke Beranda</span>
-          </button>
-        )}
-      </div>
-
-      {/* Keyword Chips — centered */}
-      <div className="px-5 py-3">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {KEYWORD_CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              onClick={() => handleChipClick(chip.query)}
-              disabled={isLoading}
-              className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {chip.label}
-            </button>
-          ))}
+    <section className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] shadow-sm" aria-label="Tanya data SAPA">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full border border-[var(--brand-tint)]" />
+      <div className="relative px-4 pb-3 pt-5 md:px-6">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex items-center gap-2"><div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[var(--brand-deep)] to-[var(--brand-soft)] text-base text-white shadow-lg">✦</div><span className="text-base font-black tracking-tight text-[var(--brand)]">SAPA Smart AI</span></div>
+          <span className="mt-1 text-xs text-[var(--text-muted)]">Tanya data pembangunan Kabupaten Aceh Tengah dengan bahasa natural</span>
+          {!isDefaultMode && <button type="button" onClick={onReset} className="absolute right-4 top-4 inline-flex items-center gap-1 text-[10px] font-bold text-[var(--brand)] transition hover:text-[var(--brand-soft)] md:right-6"><span aria-hidden="true">←</span>Kembali ke beranda</button>}
         </div>
       </div>
 
-      {/* Search Input + Button — centered, button di bawah */}
-      <form onSubmit={handleSubmit} className="px-5 pb-5 pt-1 flex flex-col items-center gap-3">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ketik pertanyaan tentang data Aceh Tengah..."
-          className="w-full max-w-2xl px-5 py-3 rounded-xl bg-[#F5F3EC] border border-[#C6C3B4] text-base text-[#1E2420] placeholder-[#767D6F] focus:outline-none focus:ring-2 focus:ring-[#1B4332]/30 focus:border-[#1B4332]/30 transition-all"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="w-auto px-8 py-2 bg-[#1B4332] text-white rounded-xl text-sm font-medium hover:bg-[#2D6A4F] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#1B4332]/20 flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Memproses</span>
-            </>
-          ) : (
-            <>
-              <span>Tanya</span>
-              <span>→</span>
-            </>
-          )}
-        </button>
+      <div className="relative px-4 pb-3 md:px-6"><div className="flex flex-wrap justify-center gap-2">{KEYWORD_CHIPS.map((chip) => <button type="button" key={chip.label} onClick={() => handleChipClick(chip.query)} disabled={isLoading} className="rounded-full border border-[var(--border)] bg-[var(--surface-container-low)] px-3 py-1.5 text-[10px] font-semibold text-[var(--text-body)] transition hover:border-[#B8D1BB] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40">{chip.label}</button>)}</div></div>
+
+      <form onSubmit={handleSubmit} className="relative flex flex-col gap-2.5 px-4 pb-5 md:px-6">
+        <div className="flex min-w-0 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-1.5 transition focus-within:border-[#83AB8B] focus-within:ring-4 focus-within:ring-[#52B788]/10"><svg className="ml-2 h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.2 4.2" /></svg><input type="text" value={input} onChange={(event) => setInput(event.target.value)} maxLength={2000} disabled={isLoading} aria-label="Pertanyaan tentang data Aceh Tengah" placeholder="Ketik pertanyaan tentang data Aceh Tengah…" className="min-w-0 flex-1 bg-transparent px-1.5 py-2.5 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)] disabled:cursor-not-allowed" /><button type="submit" disabled={isLoading || !input.trim()} className="inline-flex min-w-[96px] items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2.5 text-xs font-bold text-[var(--on-brand)] shadow-lg shadow-[#1B4332]/15 transition hover:bg-[var(--brand-soft)] disabled:cursor-not-allowed disabled:opacity-40">{isLoading ? <><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />Memproses</> : <>Tanya <span aria-hidden="true">→</span></>}</button></div>
+        <div className="flex flex-col gap-1 text-[10px] text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between"><span className="inline-flex items-center gap-1.5"><span className="text-[var(--brand)]">✓</span> AI memprioritaskan evidence SAPA sebelum menyusun jawaban.</span><span>Enter untuk mengajukan · Maks. 2.000 karakter</span></div>
       </form>
-    </div>
+    </section>
   );
 }

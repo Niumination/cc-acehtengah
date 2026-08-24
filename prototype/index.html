@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Prototype output SAPA Smart AI untuk Kabupaten Aceh Tengah" />
+  <title>SAPA Smart AI · Prototype Executive Answer</title>
+  <style>
+    :root {
+      --ink: #17251d;
+      --ink-2: #31423a;
+      --muted: #6f7d73;
+      --muted-2: #91a097;
+      --forest-950: #0b2016;
+      --forest-900: #0f2a1e;
+      --forest-800: #163a29;
+      --forest-700: #1b4332;
+      --forest-600: #2d6a4f;
+      --forest-500: #52b788;
+      --mint: #dce8de;
+      --mint-2: #edf4ed;
+      --cream: #f5f3ec;
+      --paper: #fffefa;
+      --paper-2: #fbfaf5;
+      --line: #dfe3d9;
+      --line-strong: #cbd4c8;
+      --gold: #d9c284;
+      --gold-2: #f4e9c9;
+      --amber: #a15c38;
+      --amber-2: #faeee5;
+      --red: #b3261e;
+      --red-2: #fbe6e2;
+      --blue: #3f6d87;
+      --blue-2: #e7f0f5;
+      --shadow-sm: 0 4px 16px rgba(15, 42, 30, .06);
+      --shadow-md: 0 18px 45px rgba(15, 42, 30, .1);
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 11px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--cream);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: var(--gold-2); color: var(--forest-900); }
+    .app-shell { min-height: 100vh; display: flex; }
+
+    /* ── Sidebar ───────────────────────────────────────────── */
+    .sidebar {
+      width: 250px;
+      min-height: 100vh;
+      flex: 0 0 250px;
+      background: linear-gradient(180deg, var(--forest-950) 0%, var(--forest-900) 58%, #122f22 100%);
+      color: #f3f6ef;
+      display: flex;
+      flex-direction: column;
+      padding: 25px 15px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar::after {
+      content: "";
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      right: -95px;
+      bottom: 90px;
+      background: rgba(82, 183, 136, .08);
+      filter: blur(2px);
+      pointer-events: none;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 28px; }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 13px;
+      display: grid; place-items: center;
+      background: linear-gradient(145deg, #d9c284, #9d7d2b);
+      box-shadow: 0 7px 18px rgba(217, 194, 132, .18);
+      color: var(--forest-950);
+    }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-name { font-size: 14px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; }
+    .brand-sub { margin-top: 4px; font-size: 9px; color: #aebeb2; letter-spacing: .12em; text-transform: uppercase; }
+    .nav-label { padding: 0 12px 9px; color: #809286; font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item {
+      position: relative; display: flex; align-items: center; gap: 11px;
+      color: #bfcdc1; border: 1px solid transparent; border-radius: 12px;
+      padding: 11px 12px; font-size: 12px; transition: .18s ease;
+    }
+    .nav-item:hover { color: #fff; background: rgba(255,255,255,.06); }
+    .nav-item.active { color: #f7fbf2; background: rgba(82,183,136,.14); border-color: rgba(82,183,136,.22); }
+    .nav-item.active::before { content: ""; position: absolute; left: -1px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 4px 4px 0; background: var(--gold); }
+    .nav-icon { width: 17px; height: 17px; display: grid; place-items: center; color: currentColor; flex: 0 0 17px; }
+    .nav-icon svg { width: 16px; height: 16px; }
+    .nav-badge { margin-left: auto; font-size: 9px; line-height: 1; padding: 4px 6px; border-radius: 99px; background: rgba(217,194,132,.16); color: var(--gold); }
+    .sidebar-spacer { flex: 1; }
+    .connection-card { position: relative; z-index: 1; border: 1px solid rgba(255,255,255,.11); background: rgba(255,255,255,.055); border-radius: 15px; padding: 13px; }
+    .connection-label { color: #8fa296; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; font-weight: 800; }
+    .connection-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 11px; color: #e8f2e9; }
+    .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--forest-500); box-shadow: 0 0 0 4px rgba(82,183,136,.13); }
+    .connection-meta { margin-top: 8px; color: #8fa296; font-size: 9px; line-height: 1.5; }
+    .sidebar-footer { margin-top: 14px; padding: 0 10px; color: #718378; font-size: 9px; line-height: 1.55; }
+
+    /* ── Main shell ─────────────────────────────────────────── */
+    .main-shell { min-width: 0; flex: 1; }
+    .topbar {
+      min-height: 65px; padding: 0 34px; display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,254,250,.92); border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px);
+    }
+    .mobile-brand { display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: var(--forest-900); }
+    .mobile-brand .brand-mark { width: 30px; height: 30px; border-radius: 9px; }
+    .mobile-brand .brand-mark svg { width: 19px; height: 19px; }
+    .topbar-context { color: var(--muted); font-size: 11px; }
+    .topbar-context strong { color: var(--ink-2); font-weight: 700; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .tiny-status { display: inline-flex; align-items: center; gap: 7px; color: var(--forest-700); font-size: 10px; font-weight: 800; padding: 7px 10px; border-radius: 99px; background: var(--mint-2); border: 1px solid #d7e7d8; }
+    .tiny-status .pulse { width: 6px; height: 6px; box-shadow: none; }
+    .date-chip { color: var(--muted); font-size: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 99px; background: #fff; }
+    .page { max-width: 1540px; margin: 0 auto; padding: 28px 34px 50px; }
+    .breadcrumb { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 10px; margin-bottom: 21px; }
+    .breadcrumb .current { color: var(--forest-700); font-weight: 800; }
+    .breadcrumb .sep { color: #b7c0b7; }
+    .hero-line { display: flex; align-items: flex-end; justify-content: space-between; gap: 25px; margin-bottom: 24px; }
+    .kicker { margin: 0 0 8px; color: var(--forest-600); font-size: 10px; font-weight: 900; letter-spacing: .17em; text-transform: uppercase; }
+    h1 { margin: 0; color: var(--forest-950); font-size: clamp(28px, 3.1vw, 44px); letter-spacing: -.045em; line-height: 1; }
+    .hero-desc { max-width: 700px; margin: 11px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .hero-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .ghost-btn, .outline-btn, .primary-btn { border: 0; border-radius: 10px; padding: 10px 13px; font-size: 11px; font-weight: 800; transition: .18s ease; }
+    .ghost-btn { color: var(--forest-700); background: transparent; border: 1px solid var(--line-strong); }
+    .ghost-btn:hover, .outline-btn:hover { background: var(--mint-2); border-color: #b8d1bb; }
+    .outline-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; color: var(--forest-700); background: #fff; border: 1px solid var(--line-strong); }
+    .primary-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #fff; background: var(--forest-700); box-shadow: 0 9px 18px rgba(27,67,50,.16); }
+    .primary-btn:hover { background: var(--forest-600); transform: translateY(-1px); }
+    .primary-btn svg, .outline-btn svg, .ghost-btn svg { width: 14px; height: 14px; }
+
+    /* ── Query composer ─────────────────────────────────────── */
+    .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 18px; margin-bottom: 22px; }
+    .query-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 13px; }
+    .query-title { display: flex; align-items: center; gap: 9px; }
+    .ai-orb { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, var(--forest-900), var(--forest-600)); box-shadow: 0 6px 15px rgba(15,42,30,.16); }
+    .ai-orb svg { width: 17px; height: 17px; }
+    .query-title strong { display: block; color: var(--forest-900); font-size: 12px; }
+    .query-title span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .demo-badge { display: inline-flex; align-items: center; gap: 6px; color: #886e20; background: #fcf7e6; border: 1px solid #eee0b4; border-radius: 99px; padding: 6px 9px; font-size: 9px; font-weight: 800; white-space: nowrap; }
+    .demo-badge svg { width: 12px; height: 12px; }
+    .query-form { display: flex; align-items: center; gap: 9px; padding: 7px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--cream); transition: .18s ease; }
+    .query-form:focus-within { border-color: #83ab8b; box-shadow: 0 0 0 4px rgba(82,183,136,.1); }
+    .query-form > svg { width: 19px; height: 19px; color: var(--muted-2); margin-left: 8px; flex: 0 0 auto; }
+    .query-input { min-width: 0; flex: 1; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 13px; padding: 10px 4px; }
+    .query-input::placeholder { color: #9aa69c; }
+    .query-submit { min-width: 100px; padding: 11px 15px; }
+    .chip-wrap { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+    .query-chip { border: 1px solid var(--line); border-radius: 99px; background: var(--paper-2); color: var(--ink-2); padding: 7px 10px; font-size: 10px; transition: .18s ease; }
+    .query-chip:hover, .query-chip.active { color: var(--forest-700); background: var(--mint-2); border-color: #b9d6bc; }
+    .query-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px; color: var(--muted); font-size: 9px; }
+    .query-foot span { display: inline-flex; align-items: center; gap: 6px; }
+    .query-foot svg { width: 13px; height: 13px; color: var(--forest-600); }
+
+    /* ── Loading ────────────────────────────────────────────── */
+    .loading-state { display: none; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 25px; margin-bottom: 22px; }
+    .loading-state.visible { display: block; animation: rise .25s ease both; }
+    .loading-inner { display: flex; align-items: center; gap: 13px; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #dbe8dc; border-top-color: var(--forest-600); border-radius: 50%; animation: spin .75s linear infinite; flex: 0 0 auto; }
+    .loading-text strong { display: block; font-size: 12px; color: var(--forest-900); }
+    .loading-text span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .loading-track { height: 4px; border-radius: 9px; background: #e9eee7; overflow: hidden; margin-top: 18px; }
+    .loading-progress { height: 100%; width: 42%; border-radius: inherit; background: linear-gradient(90deg, var(--forest-600), var(--gold)); animation: progress 1.15s ease-in-out infinite; }
+
+    /* ── Answer canvas ──────────────────────────────────────── */
+    .answer-section { animation: rise .35s ease both; }
+    .answer-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 13px; }
+    .answer-kicker { display: flex; align-items: center; gap: 9px; color: var(--forest-700); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    .answer-kicker .bar { width: 4px; height: 18px; background: var(--gold); border-radius: 99px; }
+    .style-toggle { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--line); background: var(--paper); border-radius: 9px; }
+    .style-toggle button { border: 0; background: transparent; border-radius: 7px; padding: 6px 8px; color: var(--muted); font-size: 9px; font-weight: 800; }
+    .style-toggle button.active { color: var(--forest-700); background: var(--mint-2); }
+    .answer-layout { display: grid; grid-template-columns: minmax(0, 1fr) 325px; gap: 18px; align-items: start; }
+    .answer-main, .decision-panel { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+    .answer-main { overflow: hidden; }
+    .answer-top { padding: 22px 23px 19px; border-bottom: 1px solid var(--line); }
+    .answer-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .verified-pill { display: inline-flex; align-items: center; gap: 6px; color: var(--forest-700); background: var(--mint-2); border: 1px solid #d4e6d6; border-radius: 99px; padding: 6px 9px; font-size: 9px; font-weight: 900; }
+    .verified-pill svg { width: 12px; height: 12px; }
+    .result-meta { color: var(--muted); font-size: 9px; text-align: right; }
+    .answer-title { margin: 0; color: var(--forest-950); font-size: clamp(21px, 2.1vw, 30px); letter-spacing: -.035em; line-height: 1.12; }
+    .answer-lead { max-width: 800px; margin: 9px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.7; }
+    .main-metric-row { display: flex; align-items: flex-end; gap: 12px; margin-top: 19px; }
+    .main-number { color: var(--forest-700); font-size: clamp(43px, 5.5vw, 68px); letter-spacing: -.07em; line-height: .9; font-weight: 900; }
+    .main-unit { padding-bottom: 3px; color: var(--ink-2); font-size: 13px; font-weight: 800; }
+    .main-year { margin-left: auto; padding: 10px 12px; border-radius: 12px; background: var(--cream); border: 1px solid var(--line); text-align: right; }
+    .main-year span { display: block; color: var(--muted); font-size: 9px; }
+    .main-year strong { display: block; margin-top: 3px; color: var(--forest-900); font-size: 14px; }
+    .answer-body { padding: 18px 23px 24px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+    .section-heading h3 { margin: 0; color: var(--forest-900); font-size: 12px; letter-spacing: -.01em; }
+    .section-heading span { color: var(--muted); font-size: 9px; }
+    .narrative-box { background: linear-gradient(135deg, var(--forest-950), var(--forest-800)); border-radius: 15px; padding: 16px 17px; color: #f0f6ee; position: relative; overflow: hidden; }
+    .narrative-box::after { content: ""; position: absolute; width: 160px; height: 160px; border: 1px solid rgba(217,194,132,.2); border-radius: 50%; right: -55px; top: -70px; }
+    .narrative-label { position: relative; z-index: 1; color: var(--gold); font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .narrative-text { position: relative; z-index: 1; max-width: 780px; margin: 8px 0 0; color: #f0f6ee; font-size: 13px; line-height: 1.7; }
+    .narrative-source { position: relative; z-index: 1; margin-top: 13px; color: #b8cbbd; font-size: 9px; }
+    .metric-strip { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 9px; margin: 18px 0; }
+    .mini-metric { border: 1px solid var(--line); border-radius: 13px; padding: 12px; background: var(--paper-2); }
+    .mini-metric .label { color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .mini-metric .value { margin-top: 6px; color: var(--forest-700); font-size: 18px; line-height: 1; font-weight: 900; letter-spacing: -.03em; }
+    .mini-metric .unit { margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .viz-card { margin-top: 17px; padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper-2); }
+    .viz-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .viz-head h4 { margin: 0; color: var(--forest-900); font-size: 12px; }
+    .viz-head p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .viz-tag { flex: 0 0 auto; color: var(--forest-700); border: 1px solid #cfe1d1; background: #f0f7f0; border-radius: 99px; padding: 5px 7px; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+    .bar-chart { display: grid; gap: 11px; }
+    .bar-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 2fr) 52px; align-items: center; gap: 10px; }
+    .bar-label { color: var(--ink-2); font-size: 10px; line-height: 1.2; }
+    .bar-track { height: 10px; border-radius: 99px; background: #e8ede7; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--forest-600), var(--forest-500)); transform-origin: left; animation: grow .65s ease both; }
+    .bar-fill.gold { background: linear-gradient(90deg, #b38c32, var(--gold)); }
+    .bar-fill.warn { background: linear-gradient(90deg, #bd6c42, #e0a477); }
+    .bar-value { text-align: right; color: var(--forest-900); font-size: 10px; font-weight: 900; }
+    .viz-note { display: flex; align-items: flex-start; gap: 7px; margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--line-strong); color: var(--muted); font-size: 9px; line-height: 1.55; }
+    .viz-note svg { width: 13px; height: 13px; color: var(--amber); flex: 0 0 auto; margin-top: 1px; }
+    .dual-metric { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .dual-card { padding: 17px; border-radius: 13px; background: #fff; border: 1px solid var(--line); }
+    .dual-card.highlight { border-color: #d3e3d4; background: var(--mint-2); }
+    .dual-card .dual-label { color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .dual-card .dual-value { margin-top: 7px; color: var(--forest-700); font-weight: 900; font-size: 28px; letter-spacing: -.05em; }
+    .dual-card .dual-unit { color: var(--ink-2); font-size: 10px; font-weight: 800; }
+    .quality-callout { display: flex; gap: 9px; align-items: flex-start; margin-top: 11px; padding: 11px; background: var(--amber-2); border: 1px solid #f0d7c5; border-radius: 11px; }
+    .quality-callout svg { width: 14px; height: 14px; color: var(--amber); flex: 0 0 auto; margin-top: 1px; }
+    .quality-callout strong { display: block; color: #794625; font-size: 9px; }
+    .quality-callout p { margin: 3px 0 0; color: #8b684f; font-size: 9px; line-height: 1.5; }
+    .insight-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 18px 0; }
+    .insight-card { min-height: 96px; border: 1px solid var(--line); border-radius: 13px; padding: 12px; background: var(--paper); }
+    .insight-card .insight-top { display: flex; align-items: center; gap: 7px; }
+    .insight-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--forest-500); }
+    .insight-dot.warn { background: var(--amber); }
+    .insight-dot.info { background: var(--blue); }
+    .insight-label { color: var(--muted); font-size: 9px; font-weight: 800; }
+    .insight-card p { margin: 8px 0 0; color: var(--ink-2); font-size: 10px; line-height: 1.55; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+    .evidence-table { width: 100%; border-collapse: collapse; min-width: 620px; }
+    .evidence-table th { background: var(--cream); color: var(--muted); font-size: 9px; text-align: left; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; padding: 11px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .evidence-table td { padding: 11px 12px; border-bottom: 1px solid #edf0ea; color: var(--ink-2); font-size: 10px; vertical-align: top; }
+    .evidence-table tr:last-child td { border-bottom: 0; }
+    .evidence-table tr:hover td { background: #fbfcf8; }
+    .evidence-table .number { color: var(--forest-700); font-weight: 900; white-space: nowrap; }
+    .evidence-table .muted-cell { color: var(--muted); }
+    .evidence-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 9px; }
+    .evidence-foot strong { color: var(--forest-700); }
+
+    /* ── Decision panel ────────────────────────────────────── */
+    .decision-panel { padding: 18px; position: sticky; top: 88px; }
+    .decision-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
+    .decision-head h3 { margin: 0; color: var(--forest-900); font-size: 13px; }
+    .decision-head p { margin: 5px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .decision-head svg { width: 18px; height: 18px; color: var(--gold); }
+    .panel-section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .panel-section:last-child { border-bottom: 0; padding-bottom: 0; }
+    .panel-section h4 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; color: var(--forest-900); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .panel-section h4 span { color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+    .quick-list { display: grid; gap: 9px; }
+    .quick-item { display: grid; grid-template-columns: 23px 1fr; gap: 9px; }
+    .quick-index { width: 23px; height: 23px; border-radius: 8px; display: grid; place-items: center; color: var(--forest-700); background: var(--gold-2); font-size: 10px; font-weight: 900; }
+    .quick-item strong { display: block; color: var(--ink-2); font-size: 10px; line-height: 1.4; }
+    .quick-item p { margin: 3px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+    .quick-item .quick-meta { margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap; }
+    .quick-meta span { color: var(--forest-700); background: var(--mint-2); border-radius: 99px; padding: 4px 6px; font-size: 8px; font-weight: 800; }
+    .health-list { display: grid; gap: 9px; }
+    .health-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink-2); font-size: 10px; }
+    .health-row span:first-child { color: var(--muted); }
+    .health-state { display: inline-flex; align-items: center; gap: 5px; font-weight: 800; }
+    .health-state.ok { color: var(--forest-700); }
+    .health-state.warn { color: var(--amber); }
+    .health-state.info { color: var(--blue); }
+    .health-state .state-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .source-box { border: 1px solid #d5e3d6; background: var(--mint-2); border-radius: 12px; padding: 11px; }
+    .source-box .source-title { display: flex; align-items: center; gap: 6px; color: var(--forest-700); font-size: 9px; font-weight: 900; }
+    .source-box svg { width: 13px; height: 13px; }
+    .source-box p { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+    .panel-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 14px; }
+    .panel-actions button { width: 100%; }
+    .followups { display: flex; flex-wrap: wrap; gap: 6px; }
+    .followup { text-align: left; color: var(--forest-700); background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 7px 8px; font-size: 9px; line-height: 1.35; }
+    .followup:hover { border-color: #b6d1b9; background: var(--mint-2); }
+
+    /* ── Empty / toast ──────────────────────────────────────── */
+    .not-available { padding: 28px; border: 1px dashed var(--line-strong); border-radius: 15px; background: var(--paper-2); text-align: center; }
+    .not-available .empty-icon { width: 42px; height: 42px; margin: 0 auto 12px; display: grid; place-items: center; color: var(--amber); background: var(--amber-2); border-radius: 13px; }
+    .not-available .empty-icon svg { width: 22px; height: 22px; }
+    .not-available h3 { margin: 0; color: var(--forest-900); font-size: 15px; }
+    .not-available p { max-width: 500px; margin: 8px auto 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .not-available .followups { justify-content: center; margin-top: 14px; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 50; display: none; align-items: center; gap: 8px; max-width: 340px; padding: 11px 13px; color: #fff; background: var(--forest-900); border: 1px solid rgba(255,255,255,.12); border-radius: 11px; box-shadow: var(--shadow-md); font-size: 10px; }
+    .toast.show { display: flex; animation: toast-in .25s ease both; }
+    .toast svg { width: 14px; height: 14px; color: var(--gold); flex: 0 0 auto; }
+
+    /* ── Animations ─────────────────────────────────────────── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes progress { 0% { transform: translateX(-110%); } 100% { transform: translateX(250%); } }
+    @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 1180px) {
+      .answer-layout { grid-template-columns: minmax(0, 1fr) 285px; }
+      .page { padding-left: 24px; padding-right: 24px; }
+      .topbar { padding-left: 24px; padding-right: 24px; }
+    }
+    @media (max-width: 960px) {
+      .sidebar { display: none; }
+      .mobile-brand { display: flex; }
+      .topbar-context { display: none; }
+      .answer-layout { grid-template-columns: 1fr; }
+      .decision-panel { position: static; }
+      .hero-line { align-items: flex-start; flex-direction: column; }
+      .hero-actions { justify-content: flex-start; }
+    }
+    @media (max-width: 640px) {
+      .topbar { min-height: 57px; padding: 0 15px; }
+      .date-chip { display: none; }
+      .page { padding: 19px 13px 35px; }
+      .breadcrumb { margin-bottom: 16px; }
+      h1 { font-size: 31px; }
+      .hero-desc { font-size: 11px; }
+      .query-card { padding: 13px; border-radius: 17px; }
+      .query-head { align-items: flex-start; flex-direction: column; }
+      .demo-badge { align-self: flex-start; }
+      .query-form { align-items: stretch; flex-wrap: wrap; }
+      .query-form > svg { margin-top: 9px; }
+      .query-input { flex-basis: calc(100% - 36px); }
+      .query-submit { width: 100%; }
+      .query-foot { align-items: flex-start; flex-direction: column; }
+      .answer-banner { align-items: flex-start; flex-direction: column; }
+      .answer-top, .answer-body { padding-left: 15px; padding-right: 15px; }
+      .answer-meta { align-items: flex-start; flex-direction: column; }
+      .result-meta { text-align: left; }
+      .main-metric-row { align-items: flex-start; flex-wrap: wrap; }
+      .main-year { margin-left: 0; }
+      .metric-strip, .insight-grid { grid-template-columns: 1fr; }
+      .bar-row { grid-template-columns: minmax(90px, 1fr) minmax(90px, 1.6fr) 45px; gap: 6px; }
+      .bar-label, .bar-value { font-size: 9px; }
+      .dual-metric { grid-template-columns: 1fr; }
+      .decision-panel { padding: 15px; }
+      .panel-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navigasi utama">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 20.5c3.6-1.2 6.4-3.2 8.5-6.1 2.4-3.3 5.9-5 11.5-5.3-1.2 5.1-3.9 8.3-8 9.7-3.3 1.1-6.9 1-12 .4Z" fill="rgba(15,42,30,.14)"/>
+            <path d="M7 24.5c4.3-5.2 8.7-8.2 15.2-11.5"/>
+            <path d="M5 25.5h22"/>
+          </svg>
+        </div>
+        <div><div class="brand-name">SAPA Smart AI</div><div class="brand-sub">Aceh Tengah · Data Hub</div></div>
+      </div>
+      <div class="nav-label">Ruang kendali</div>
+      <nav class="nav">
+        <a class="nav-item" href="#" data-nav="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span>Dashboard</a>
+        <a class="nav-item active" href="#answer" data-nav="ai"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4.2"/><path d="M10.5 12.2 11.5 13.3 13.8 10.8"/></svg></span>Tanya AI<span class="nav-badge">LIVE</span></a>
+        <a class="nav-item" href="#" data-nav="analytics"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V9M12 19V5M19 19v-8"/><path d="M3.5 19.5h17"/></svg></span>Analitik Data</a>
+        <a class="nav-item" href="#" data-nav="gis"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 18-5 2V6l5-2 6 2 5-2v14l-5 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></span>Peta GIS</a>
+        <a class="nav-item" href="#" data-nav="report"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.8h9l3 3V20H6z"/><path d="M14 3.8V7h4M9 11h6M9 14.5h6M9 18h3"/></svg></span>Laporan AI</a>
+        <a class="nav-item" href="#" data-nav="ews"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4 3.6 19h16.8L12 4Z"/><path d="M12 9v4.4M12 16.7v.1"/></svg></span>Early Warning</a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="connection-card">
+        <div class="connection-label">Status koneksi</div>
+        <div class="connection-row"><span class="pulse"></span><strong>Data SAPA terhubung</strong></div>
+        <div class="connection-meta">Direct API aktif · fallback SPLP tersedia<br />Snapshot: 24 Agustus 2026</div>
+      </div>
+      <div class="sidebar-footer">Prototype output AI · lapisan presentasi baru<br />Tidak mengubah API produksi.</div>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="mobile-brand"><div class="brand-mark"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 20.5c3.6-1.2 6.4-3.2 8.5-6.1 2.4-3.3 5.9-5 11.5-5.3-1.2 5.1-3.9 8.3-8 9.7-3.3 1.1-6.9 1-12 .4Z"/><path d="M7 24.5c4.3-5.2 8.7-8.2 15.2-11.5M5 25.5h22"/></svg></div>SAPA Smart AI</div>
+        <div class="topbar-context"><strong>Ruang Tanya AI</strong><span> / </span> Executive answer prototype</div>
+        <div class="topbar-right"><div class="tiny-status"><span class="pulse"></span>Online</div><div class="date-chip">Senin, 24 Agu 2026 · 11.51 WIB</div></div>
+      </header>
+
+      <main class="page">
+        <div class="breadcrumb"><span>SAPA Smart AI</span><span class="sep">/</span><span>Ruang Kendali</span><span class="sep">/</span><span class="current">Tanya AI</span></div>
+        <section class="hero-line">
+          <div>
+            <p class="kicker">Executive data brief</p>
+            <h1>Tanya data, ambil arah.</h1>
+            <p class="hero-desc">Jawaban AI yang tidak berhenti di angka: setiap pertanyaan diarahkan menjadi ringkasan pimpinan, visual yang sesuai jenis data, bukti sumber, dan quick win yang dapat langsung ditindaklanjuti.</p>
+          </div>
+          <div class="hero-actions"><button class="ghost-btn" id="reset-btn">↺ Reset demo</button><button class="outline-btn" id="brief-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.8h9l3 3V20H6z"/><path d="M14 3.8V7h4M9 11h6M9 14.5h6"/></svg> Simpan brief</button></div>
+        </section>
+
+        <section class="query-card" aria-label="Ajukan pertanyaan ke AI">
+          <div class="query-head">
+            <div class="query-title"><div class="ai-orb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4.2"/></svg></div><div><strong>SAPA Smart AI</strong><span>Tanyakan data pembangunan dengan bahasa natural</span></div></div>
+            <div class="demo-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8.5"/></svg> Prototype · data contoh terverifikasi</div>
+          </div>
+          <form class="query-form" id="query-form">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.2 4.2"/></svg>
+            <input id="question" class="query-input" autocomplete="off" value="Berapa jumlah ASN di Aceh Tengah dan apa prioritas tindak lanjutnya?" aria-label="Pertanyaan Anda" />
+            <button class="primary-btn query-submit" type="submit"><span class="submit-label">Tanya AI</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+          </form>
+          <div class="chip-wrap" id="chip-wrap">
+            <button class="query-chip active" data-demo="asn">🏛️ Jumlah ASN</button>
+            <button class="query-chip" data-demo="stunting">👶 Stunting</button>
+            <button class="query-chip" data-demo="opd">📊 OPD dengan indikator terbanyak</button>
+            <button class="query-chip" data-demo="tahun">📅 Distribusi data per tahun</button>
+            <button class="query-chip" data-demo="trend">📈 Tren stunting</button>
+          </div>
+          <div class="query-foot"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7.2v.1"/></svg> AI memprioritaskan evidence SAPA sebelum menyusun narasi.</span><span>Enter untuk mengajukan · Maks. 2.000 karakter</span></div>
+        </section>
+
+        <div class="loading-state" id="loading-state" aria-live="polite"><div class="loading-inner"><div class="spinner"></div><div class="loading-text"><strong id="loading-title">Menganalisis pertanyaan...</strong><span id="loading-subtitle">Menentukan bentuk jawaban yang paling tepat untuk data ini.</span></div></div><div class="loading-track"><div class="loading-progress"></div></div></div>
+
+        <section id="answer" class="answer-section" aria-live="polite"></section>
+      </main>
+    </div>
+  </div>
+  <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m5 12 4 4L19 6"/></svg><span id="toast-text">Berhasil.</span></div>
+
+  <script>
+    const icon = {
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7.2v.1"/></svg>',
+      warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 3.6 19h16.8L12 4Z"/><path d="M12 9v4.4M12 16.7v.1"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.7"/><path d="M12 7v5l3.3 2"/></svg>',
+      database: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5.6" rx="7.3" ry="3"/><path d="M4.7 5.6v6.4c0 1.7 3.3 3 7.3 3s7.3-1.3 7.3-3V5.6M4.7 12v6.4c0 1.7 3.3 3 7.3 3s7.3-1.3 7.3-3V12"/></svg>',
+      copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="11" height="12" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v10A1.5 1.5 0 0 0 5.5 17H8"/></svg>',
+      download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M8 11l4 4 4-4M5 20h14"/></svg>'
+    };
+
+    const demos = {
+      asn: {
+        query: 'Berapa jumlah ASN di Aceh Tengah dan apa prioritas tindak lanjutnya?',
+        type: 'metric',
+        eyebrow: 'NILAI UTAMA',
+        title: 'Jumlah ASN Kabupaten Aceh Tengah',
+        headline: '9.610', unit: 'pegawai', periodLabel: 'Tahun', period: '2026',
+        source: 'Badan Kepegawaian dan Pengembangan SDM',
+        sourceFull: 'SAPA Aceh Tengah · sapa.acehtengahkab.go.id',
+        evidenceLabel: '12 indikator relevan',
+        freshness: 'Diakses 24 Agu 2026 · 11.51 WIB',
+        lead: 'SAPA mencatat jumlah ASN Kabupaten Aceh Tengah sebanyak 9.610 pegawai pada tahun 2026. Jawaban ini menempatkan indikator pokok di depan dan memisahkan indikator terkait agar tidak terbaca sebagai komposisi yang otomatis dapat dijumlahkan.',
+        narrative: 'Jumlah ASN yang tercatat adalah 9.610 pegawai pada tahun 2026. Data terkait juga memuat indikator PNS, PPPK, kapasitas ASN, dan kenaikan pangkat; definisi dan cakupan masing-masing perlu dipastikan sebelum dipakai sebagai basis keputusan kepegawaian.',
+        narrativeTech: 'Record utama menunjukkan 9.610 pegawai pada 2026 dari BKPSDM. Evidence terkait memuat PNS 4.286, PPPK Paruh Waktu 3.325, PPPK penuh Waktu 2.083, serta indikator lain dengan tahun yang belum tercantum.',
+        metrics: [
+          { label: 'Indikator pokok', value: '9.610', unit: 'pegawai' },
+          { label: 'Tahun data', value: '2026', unit: 'tercantum' },
+          { label: 'Produsen data', value: 'BKPSDM', unit: 'teridentifikasi' }
+        ],
+        vizTitle: 'Indikator ketenagaan yang relevan',
+        vizSub: 'Perbandingan nilai per indikator · bukan komposisi ASN',
+        vizTag: 'Evidence',
+        bars: [
+          ['Jumlah ASN', 9610, '9.610'],
+          ['PNS yang ada', 4286, '4.286'],
+          ['PPPK Paruh Waktu', 3325, '3.325'],
+          ['PPPK penuh Waktu', 2083, '2.083']
+        ],
+        vizNote: 'Nilai ditampilkan apa adanya dari indikator SAPA. AI tidak menjumlahkan atau mengklaim hubungan komposisi karena definisi tiap record perlu dikonfirmasi.',
+        insights: [
+          { tone: 'ok', label: 'Terjawab', text: 'Indikator pokok dan tahun tersedia di evidence utama.' },
+          { tone: 'info', label: 'Konteks', text: 'Ada indikator terkait yang dapat membantu briefing BKPSDM.' },
+          { tone: 'warn', label: 'Perlu validasi', text: 'Sebagian indikator terkait belum mencantumkan tahun.' }
+        ],
+        quickWins: [
+          { title: 'Tetapkan indikator induk untuk rapat pimpinan', meta: ['BKPSDM', '0–2 hari'], text: 'Gunakan “Jumlah ASN” sebagai angka headline; tampilkan indikator lain sebagai konteks terpisah.' },
+          { title: 'Lengkapi tahun dan periode pembaruan', meta: ['BKPSDM', '2–7 hari'], text: 'Minta metadata waktu pada indikator ketenagaan yang masih kosong sebelum dipakai membandingkan.' },
+          { title: 'Buat snapshot monitoring kepegawaian', meta: ['SAPA · BKPSDM', 'Siklus berikutnya'], text: 'Simpan jawaban ini sebagai baseline dan tandai perubahan pada pembaruan berikutnya.' }
+        ],
+        health: [
+          ['Angka utama', 'ok', 'Terverifikasi'],
+          ['Tahun utama', 'ok', 'Tercantum'],
+          ['Konteks waktu', 'warn', 'Sebagian kosong'],
+          ['Deret waktu', 'info', 'Belum ditanyakan']
+        ],
+        evidence: [
+          ['Jumlah ASN', '9.610', 'pegawai', 'Badan Kepegawaian dan Pengembangan SDM', '2026'],
+          ['Jumlah PNS yang ada', '4.286', 'pegawai', 'Badan Kepegawaian dan Pengembangan SDM', '—'],
+          ['Jumlah PPPK Paruh Waktu', '3.325', 'pegawai', 'Badan Kepegawaian dan Pengembangan SDM', '—'],
+          ['Jumlah PPPK penuh Waktu', '2.083', 'pegawai', 'Badan Kepegawaian dan Pengembangan SDM', '—'],
+          ['Indeks Profesionalitas ASN Dimensi kompetensi', '27,89', 'Nilai', 'Badan Kepegawaian dan Pengembangan SDM', '—']
+        ],
+        followups: ['Indikator ASN tanpa tahun', 'Ringkasan satu halaman', 'Buat pertanyaan untuk BKPSDM']
+      },
+      stunting: {
+        query: 'Bagaimana kondisi stunting di Aceh Tengah dan apa yang perlu ditindaklanjuti?',
+        type: 'dual', eyebrow: 'INDIKATOR SOSIAL', title: 'Kondisi Stunting Kabupaten Aceh Tengah',
+        headline: '730', unit: 'orang', periodLabel: 'Tahun utama', period: '2025',
+        source: 'Dinas Kesehatan', sourceFull: 'SAPA Aceh Tengah · sapa.acehtengahkab.go.id', evidenceLabel: '3 indikator relevan', freshness: 'Diakses 24 Agu 2026 · 11.52 WIB',
+        lead: 'Evidence SAPA mencatat 730 anak balita yang mengalami stunting pada tahun 2025. Ada indikator sejenis dengan nilai 730 orang dan prevalensi 4,9 persen, tetapi sebagian record tidak mencantumkan tahun.',
+        narrative: 'Angka yang paling jelas periodenya adalah 730 anak balita yang mengalami stunting pada tahun 2025. SAPA juga memuat prevalensi stunting sebesar 4,9 persen tanpa tahun tercantum. Karena deret waktu belum tersedia dalam evidence ini, AI tidak menyimpulkan tren naik atau turun.',
+        narrativeTech: 'Evidence Dinas Kesehatan berisi tiga indikator: JAB(5) P stunting 730 orang pada 2025, Jumlah Balita Stunting 730 orang tanpa tahun, dan Prevalensi Stunting (Pendek dan Sangat Pendek) 4,9 persen tanpa tahun.',
+        metrics: [{ label: 'Balita stunting', value: '730', unit: 'orang · 2025' }, { label: 'Prevalensi', value: '4,9', unit: 'persen · tahun —' }, { label: 'Deret waktu', value: 'Belum ada', unit: 'di evidence ini' }],
+        vizTitle: 'Nilai utama dan kualitas waktu data', vizSub: 'Satuan berbeda tidak dibandingkan dalam satu skala', vizTag: 'Metric + quality',
+        dual: [{ label: 'Jumlah anak balita yang mengalami stunting', value: '730', unit: 'orang · 2025', highlight: true }, { label: 'Prevalensi stunting (pendek dan sangat pendek)', value: '4,9', unit: 'persen · tahun tidak tercantum', highlight: false }],
+        vizNote: 'Tidak ada klaim tren karena evidence yang dipakai tidak memuat rangkaian waktu. Kartu KPI dashboard yang menampilkan 31,4 persen dari Bappeda tidak digabungkan karena produsen dan definisi indikator berbeda.',
+        insights: [{ tone: 'ok', label: 'Angka utama', text: '730 orang memiliki tahun 2025 dan produsen data teridentifikasi.' }, { tone: 'warn', label: 'Kualitas metadata', text: 'Tahun pada indikator prevalensi belum tercantum.' }, { tone: 'info', label: 'Batas analisis', text: 'Permintaan tren perlu deret waktu yang sebanding.' }],
+        quickWins: [{ title: 'Samakan definisi indikator stunting', meta: ['Bappeda · Dinkes', '0–7 hari'], text: 'Tetapkan indikator headline, satuan, dan produsen data yang dipakai bersama.' }, { title: 'Lengkapi tahun dan periode pengukuran', meta: ['Dinas Kesehatan', 'Siklus berikutnya'], text: 'Tambahkan metadata waktu agar perubahan dapat dibaca tanpa asumsi.' }, { title: 'Minta deret waktu sebelum menetapkan tren', meta: ['Tim data', 'Brief berikutnya'], text: 'Ajukan snapshot periode yang sama untuk analisis tren yang fair.' }],
+        health: [['Angka utama', 'ok', 'Terverifikasi'], ['Tahun utama', 'ok', '2025'], ['Prevalensi', 'warn', 'Tahun kosong'], ['Tren', 'info', 'Belum tersedia']],
+        evidence: [['Jumlah anak balita yang mengalami stunting (JAB(5) P stunting)', '730', 'Orang', 'Dinas Kesehatan', '2025'], ['Jumlah Balita Stunting', '730', 'Orang', 'Dinas Kesehatan', '—'], ['Prevalensi Stunting (Pendek dan Sangat Pendek)', '4,9', 'Persen', 'Dinas Kesehatan', '—']],
+        followups: ['Tampilkan hanya data bertahun', 'Cari periode pembanding', 'Buat brief lintas OPD']
+      },
+      opd: {
+        query: 'OPD mana yang memiliki indikator paling banyak di Aceh Tengah?', type: 'bars', eyebrow: 'REGISTRY DATA', title: 'Sebaran indikator per OPD', headline: '38', unit: 'OPD terdaftar', periodLabel: 'Pemutakhiran', period: 'Triwulan IV', source: 'SAPA Data API', sourceFull: 'SAPA Aceh Tengah · sapa.acehtengahkab.go.id', evidenceLabel: '38 OPD · 1.793 indikator unik', freshness: 'Diakses 24 Agu 2026 · 11.51 WIB',
+        lead: 'Registry SAPA memuat 38 OPD dan 1.793 indikator unik. Dinas Kesehatan memiliki volume indikator terbanyak, diikuti Dinas Keluarga Berencana PPPA dan Dinas Pekerjaan Umum dan Penataan Ruang.',
+        narrative: 'Volume indikator tertinggi berada pada Dinas Kesehatan dengan 294 indikator, disusul Dinas Keluarga Berencana PPPA 192 dan Dinas Pekerjaan Umum dan Penataan Ruang 172. Ini menunjukkan konsentrasi registry data, bukan ukuran kualitas kinerja OPD.',
+        narrativeTech: 'Snapshot statistik SAPA memuat 2.032 record dari 38 OPD dan 1.793 indikator unik. Top volume: Dinas Kesehatan 294, Dinas Keluarga Berencana PPPA 192, Dinas Pekerjaan Umum dan Penataan Ruang 172, Dinas Pemuda dan Olahraga 164.',
+        metrics: [{ label: 'Total records', value: '2.032', unit: 'data SAPA' }, { label: 'OPD terdaftar', value: '38', unit: 'organisasi' }, { label: 'Indikator unik', value: '1.793', unit: 'jenis indikator' }],
+        vizTitle: 'Top OPD berdasarkan jumlah indikator', vizSub: 'Volume registry · bukan peringkat kinerja', vizTag: 'Ranking',
+        bars: [['Dinas Kesehatan', 294, '294'], ['Dinas Keluarga Berencana PPPA', 192, '192'], ['Dinas Pekerjaan Umum dan Penataan Ruang', 172, '172'], ['Dinas Pemuda dan Olahraga', 164, '164'], ['Dinas Perpustakaan dan Kearsipan', 92, '92'], ['Dinas Pendidikan dan Kebudayaan', 87, '87'], ['Dinas Koperasi dan UKM', 81, '81'], ['Dinas Perkebunan', 79, '79']],
+        vizNote: 'Jumlah indikator menggambarkan kelengkapan registry yang terbaca saat snapshot; tidak boleh dipakai sendirian untuk menilai kinerja atau prioritas anggaran.',
+        insights: [{ tone: 'ok', label: 'Cakupan', text: '38 OPD sudah terbaca di registry SAPA.' }, { tone: 'info', label: 'Konsentrasi', text: 'Volume indikator paling besar berada di Dinas Kesehatan.' }, { tone: 'warn', label: 'Interpretasi', text: 'Volume data bukan proxy kualitas kinerja.' }],
+        quickWins: [{ title: 'Prioritaskan profiling metadata', meta: ['Diskominfo · OPD', '0–7 hari'], text: 'Mulai dari OPD dengan volume registry besar untuk memastikan nama, satuan, tahun, dan frekuensi konsisten.' }, { title: 'Tetapkan data steward per OPD', meta: ['Sekda · Diskominfo', 'Sprint berikutnya'], text: 'Setiap OPD memiliki penanggung jawab yang dapat menjelaskan definisi indikator.' }, { title: 'Pisahkan volume dari kualitas', meta: ['Tim evaluasi', 'Brief rutin'], text: 'Tambahkan status kelengkapan dan freshness agar ranking tidak disalahartikan sebagai kinerja.' }],
+        health: [['Total data', 'ok', 'Terbaca'], ['Cakupan OPD', 'ok', '38 terdaftar'], ['Kualitas indikator', 'info', 'Perlu profiling'], ['Freshness', 'ok', 'Triwulan IV']],
+        evidence: [['Dinas Kesehatan', '294', 'indikator', 'SAPA Data API', 'Snapshot'], ['Dinas Keluarga Berencana PPPA', '192', 'indikator', 'SAPA Data API', 'Snapshot'], ['Dinas Pekerjaan Umum dan Penataan Ruang', '172', 'indikator', 'SAPA Data API', 'Snapshot'], ['Dinas Pemuda dan Olahraga', '164', 'indikator', 'SAPA Data API', 'Snapshot'], ['Dinas Perpustakaan dan Kearsipan', '92', 'indikator', 'SAPA Data API', 'Snapshot']],
+        followups: ['Tampilkan seluruh 38 OPD', 'Cari OPD tanpa tahun data', 'Buat agenda profiling metadata']
+      },
+      tahun: {
+        query: 'Bagaimana distribusi data SAPA per tahun di Aceh Tengah?', type: 'bars', eyebrow: 'KUALITAS DATA', title: 'Distribusi record menurut tahun', headline: '2.032', unit: 'total records', periodLabel: 'Pemutakhiran', period: 'Triwulan IV', source: 'SAPA Data API', sourceFull: 'SAPA Aceh Tengah · sapa.acehtengahkab.go.id', evidenceLabel: '6 kelompok tahun', freshness: 'Diakses 24 Agu 2026 · 11.51 WIB',
+        lead: 'Distribusi record menunjukkan 733 data bertahun 2025, 452 data bertahun 2026, dan 816 data belum mencantumkan tahun. Temuan kualitas metadata ini penting sebelum pimpinan membaca tren lintas waktu.',
+        narrative: 'Snapshot SAPA berisi 2.032 record: 733 pada 2025, 452 pada 2026, dan 816 record tidak mencantumkan tahun. Karena sebagian record tidak memiliki metadata waktu, analisis tren perlu dibatasi pada data yang tahun dan periodenya jelas.',
+        narrativeTech: 'Distribusi: 2022 sebanyak 1 record, 2023 sebanyak 3, 2024 sebanyak 27, 2025 sebanyak 733, 2026 sebanyak 452, dan Unknown sebanyak 816. Total enam kelompok adalah 2.032 record.',
+        metrics: [{ label: 'Bertahun 2025', value: '733', unit: 'record' }, { label: 'Bertahun 2026', value: '452', unit: 'record' }, { label: 'Tahun kosong', value: '816', unit: 'record' }],
+        vizTitle: 'Distribusi data SAPA per tahun', vizSub: 'Unknown disorot karena menjadi sinyal kualitas metadata', vizTag: 'Distribution',
+        bars: [['2022', 1, '1'], ['2023', 3, '3'], ['2024', 27, '27'], ['2025', 733, '733'], ['2026', 452, '452'], ['Tidak tercantum', 816, '816', 'warn']],
+        vizNote: '“Tidak tercantum” bukan tahun baru. Ini adalah record yang belum memiliki nilai tahun dan harus dipisahkan dari analisis tren.',
+        insights: [{ tone: 'ok', label: 'Snapshot terbaru', text: 'Data 2025 dan 2026 mendominasi record yang memiliki tahun.' }, { tone: 'warn', label: 'Bottleneck', text: '816 record belum memiliki metadata tahun.' }, { tone: 'info', label: 'Implikasi', text: 'Tren lintas tahun perlu filter waktu yang eksplisit.' }],
+        quickWins: [{ title: 'Wajibkan field tahun pada input data', meta: ['Diskominfo · OPD', '0–7 hari'], text: 'Jadikan tahun dan periode sebagai metadata minimum sebelum record masuk registry.' }, { title: 'Backfill metadata secara bertahap', meta: ['Data steward', 'Sprint berikutnya'], text: 'Mulai dari indikator prioritas dan record yang paling sering dipakai dalam briefing.' }, { title: 'Pisahkan mode snapshot dan tren', meta: ['Pengelola SAPA', 'Rilis berikutnya'], text: 'Jangan tampilkan grafik tren jika evidence belum memiliki deret waktu yang sebanding.' }],
+        health: [['Total records', 'ok', '2.032'], ['Data bertahun', 'ok', 'Terbaca'], ['Tahun kosong', 'warn', 'Perlu backfill'], ['Tren', 'info', 'Terbatas']],
+        evidence: [['2022', '1', 'record', 'SAPA Data API', 'Tahun'], ['2023', '3', 'record', 'SAPA Data API', 'Tahun'], ['2024', '27', 'record', 'SAPA Data API', 'Tahun'], ['2025', '733', 'record', 'SAPA Data API', 'Tahun'], ['2026', '452', 'record', 'SAPA Data API', 'Tahun'], ['Tidak tercantum', '816', 'record', 'SAPA Data API', 'Metadata kosong']],
+        followups: ['Tampilkan OPD dengan tahun kosong', 'Buat daftar backfill', 'Tanya tren indikator tertentu']
+      },
+      trend: {
+        query: 'Bagaimana tren stunting 3 tahun terakhir di Aceh Tengah?', type: 'empty', eyebrow: 'BATAS DATA', title: 'Tren stunting belum dapat disimpulkan', headline: 'Tidak tersedia', unit: 'deret waktu', periodLabel: 'Evidence', period: 'Belum cukup', source: 'SAPA Aceh Tengah', sourceFull: 'SAPA Aceh Tengah · sapa.acehtengahkab.go.id', evidenceLabel: 'Tidak ada deret waktu sebanding', freshness: 'Diakses 24 Agu 2026 · 11.52 WIB',
+        lead: 'AI tidak akan membuat garis tren dari satu atau beberapa record yang periodenya berbeda. Pertanyaan ini memerlukan data stunting untuk beberapa periode dengan definisi dan satuan yang sama.',
+        narrative: 'SAPA memiliki indikator stunting, tetapi evidence yang ditemukan belum membentuk deret waktu yang sebanding untuk tiga tahun terakhir. Karena itu, tren naik atau turun belum dapat disimpulkan secara bertanggung jawab.',
+        narrativeTech: 'Query tren dihentikan pada tahap validasi evidence: record yang tersedia tidak membentuk panel waktu dengan definisi indikator, satuan, dan periode yang konsisten. Tidak ada interpolasi atau angka tambahan yang dibuat.',
+        metrics: [{ label: 'Deret waktu', value: 'Belum ada', unit: 'untuk query ini' }, { label: 'Angka tersedia', value: 'Ada', unit: 'snapshot indikator' }, { label: 'Kesimpulan tren', value: 'Ditahan', unit: 'menunggu evidence' }],
+        vizTitle: 'Mengapa visual tren tidak ditampilkan?', vizSub: 'Tidak tersedia ≠ nol · ini adalah kontrol kualitas jawaban', vizTag: 'Guardrail',
+        vizNote: 'Quick win berikutnya adalah meminta snapshot periode yang sama dari OPD pengampu. Setelah evidence lengkap, AI dapat memilih line chart atau area chart secara otomatis.',
+        insights: [{ tone: 'warn', label: 'Kesimpulan', text: 'Tren belum bisa ditetapkan dari evidence saat ini.' }, { tone: 'info', label: 'Data yang ada', text: 'Indikator snapshot tetap dapat ditampilkan secara terpisah.' }, { tone: 'ok', label: 'Guardrail', text: 'AI menolak membuat visual yang berpotensi menyesatkan.' }],
+        quickWins: [{ title: 'Minta data per periode yang seragam', meta: ['Dinkes · Bappeda', 'Brief berikutnya'], text: 'Pastikan indikator, satuan, dan definisi sama sebelum dibandingkan.' }, { title: 'Simpan alasan data belum cukup', meta: ['SAPA Smart AI', 'Otomatis'], text: 'Tampilkan status “belum tersedia” agar pimpinan tahu tindakan data berikutnya.' }, { title: 'Jalankan ulang pertanyaan setelah snapshot masuk', meta: ['Tim data', 'Siklus berikutnya'], text: 'Gunakan pertanyaan yang sama untuk mendapatkan pembacaan tren yang dapat diaudit.' }],
+        health: [['Evidence indikator', 'ok', 'Ada'], ['Deret waktu', 'warn', 'Belum cukup'], ['Visual tren', 'info', 'Ditahan'], ['Rekomendasi', 'ok', 'Tersedia']],
+        evidence: [], followups: ['Tampilkan snapshot stunting', 'Data apa yang dibutuhkan?', 'Cari indikator stunting']
+      }
+    };
+
+    const state = { active: 'asn', style: 'pimpinan', lastData: demos.asn };
+    const answerEl = document.getElementById('answer');
+    const questionEl = document.getElementById('question');
+    const loadingEl = document.getElementById('loading-state');
+    const loadingTitleEl = document.getElementById('loading-title');
+    const loadingSubtitleEl = document.getElementById('loading-subtitle');
+    const queryForm = document.getElementById('query-form');
+    const toastEl = document.getElementById('toast');
+    const toastTextEl = document.getElementById('toast-text');
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function numberWithDot(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number.toLocaleString('id-ID') : escapeHtml(value);
+    }
+
+    function resolveDemo(query) {
+      const q = query.toLowerCase();
+      if (q.includes('tren') || q.includes('3 tahun') || q.includes('3 bulan')) return 'trend';
+      if (q.includes('stunting') || q.includes('balita')) return 'stunting';
+      if (q.includes('opd') && (q.includes('banyak') || q.includes('terbanyak') || q.includes('indikator'))) return 'opd';
+      if (q.includes('tahun') || q.includes('distribusi') || q.includes('sebaran data')) return 'tahun';
+      if (q.includes('asn') || q.includes('pns') || q.includes('pppk') || q.includes('pegawai')) return 'asn';
+      return null;
+    }
+
+    function renderMetricStrip(data) {
+      return `<div class="metric-strip">${data.metrics.map((m) => `<div class="mini-metric"><div class="label">${escapeHtml(m.label)}</div><div class="value">${escapeHtml(m.value)}</div><div class="unit">${escapeHtml(m.unit)}</div></div>`).join('')}</div>`;
+    }
+
+    function renderBars(data) {
+      const max = Math.max(...data.bars.map((row) => Number(row[1]) || 0), 1);
+      return `<div class="bar-chart">${data.bars.map((row) => {
+        const customTone = row[3] === 'warn' ? 'warn' : (row[0] === '2026' ? 'gold' : '');
+        const width = Math.max(((Number(row[1]) || 0) / max) * 100, 1.5);
+        return `<div class="bar-row"><div class="bar-label">${escapeHtml(row[0])}</div><div class="bar-track"><div class="bar-fill ${customTone}" style="width:${width}%"></div></div><div class="bar-value">${escapeHtml(row[2])}</div></div>`;
+      }).join('')}</div>`;
+    }
+
+    function renderViz(data) {
+      if (data.type === 'dual') {
+        return `<div class="viz-card"><div class="viz-head"><div><h4>${escapeHtml(data.vizTitle)}</h4><p>${escapeHtml(data.vizSub)}</p></div><span class="viz-tag">${escapeHtml(data.vizTag)}</span></div><div class="dual-metric">${data.dual.map((item) => `<div class="dual-card ${item.highlight ? 'highlight' : ''}"><div class="dual-label">${escapeHtml(item.label)}</div><div class="dual-value">${escapeHtml(item.value)}</div><div class="dual-unit">${escapeHtml(item.unit)}</div></div>`).join('')}</div><div class="quality-callout">${icon.warn}<div><strong>Kontrol kualitas interpretasi</strong><p>Jangan bandingkan 730 orang dengan 4,9 persen dalam satu skala; keduanya berbeda satuan dan tahun.</p></div></div><div class="viz-note">${icon.info}<span>${escapeHtml(data.vizNote)}</span></div></div>`;
+      }
+      if (data.type === 'empty') {
+        return `<div class="viz-card"><div class="viz-head"><div><h4>${escapeHtml(data.vizTitle)}</h4><p>${escapeHtml(data.vizSub)}</p></div><span class="viz-tag">${escapeHtml(data.vizTag)}</span></div><div class="not-available"><div class="empty-icon">${icon.clock}</div><h3>Visual tren ditahan</h3><p>Evidence belum membentuk deret waktu yang sebanding. Tampilkan “belum tersedia” daripada membuat garis tren dari data yang tidak sepadan.</p></div><div class="viz-note">${icon.info}<span>${escapeHtml(data.vizNote)}</span></div></div>`;
+      }
+      return `<div class="viz-card"><div class="viz-head"><div><h4>${escapeHtml(data.vizTitle)}</h4><p>${escapeHtml(data.vizSub)}</p></div><span class="viz-tag">${escapeHtml(data.vizTag)}</span></div>${renderBars(data)}<div class="viz-note">${icon.info}<span>${escapeHtml(data.vizNote)}</span></div></div>`;
+    }
+
+    function renderInsights(data) {
+      return `<div class="insight-grid">${data.insights.map((item) => `<div class="insight-card"><div class="insight-top"><span class="insight-dot ${item.tone === 'warn' ? 'warn' : item.tone === 'info' ? 'info' : ''}"></span><span class="insight-label">${escapeHtml(item.label)}</span></div><p>${escapeHtml(item.text)}</p></div>`).join('')}</div>`;
+    }
+
+    function renderEvidence(data) {
+      if (!data.evidence || data.evidence.length === 0) return `<div class="not-available" style="margin-top:17px;text-align:left;padding:18px"><strong style="display:block;color:var(--forest-900);font-size:11px">Evidence yang cocok belum membentuk tabel.</strong><p style="margin:5px 0 0;text-align:left;font-size:10px">AI tetap menampilkan alasan dan langkah data berikutnya tanpa membuat angka baru.</p></div>`;
+      return `<div style="margin-top:18px"><div class="section-heading"><h3>Evidence yang dipakai</h3><span>${escapeHtml(data.evidenceLabel)} · klik pertanyaan berikutnya untuk mempersempit</span></div><div class="table-wrap"><table class="evidence-table"><thead><tr><th>Indikator / dimensi</th><th>Nilai</th><th>Satuan</th><th>Produsen / sumber</th><th>Tahun</th></tr></thead><tbody>${data.evidence.map((row) => `<tr><td>${escapeHtml(row[0])}</td><td class="number">${escapeHtml(row[1])}</td><td>${escapeHtml(row[2])}</td><td class="muted-cell">${escapeHtml(row[3])}</td><td class="muted-cell">${escapeHtml(row[4])}</td></tr>`).join('')}</tbody></table></div><div class="evidence-foot"><span><strong>${data.evidence.length}</strong> baris ditampilkan dari evidence terpilih.</span><span>Data mentah tetap di SAPA.</span></div></div>`;
+    }
+
+    function renderQuickWins(data) {
+      return `<div class="panel-section"><h4>Quick win <span>aksi terdekat</span></h4><div class="quick-list">${data.quickWins.map((item, index) => `<div class="quick-item"><div class="quick-index">${index + 1}</div><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p><div class="quick-meta">${item.meta.map((meta) => `<span>${escapeHtml(meta)}</span>`).join('')}</div></div></div>`).join('')}</div></div>`;
+    }
+
+    function renderHealth(data) {
+      return `<div class="panel-section"><h4>Kualitas jawaban <span>bukan confidence score</span></h4><div class="health-list">${data.health.map((row) => `<div class="health-row"><span>${escapeHtml(row[0])}</span><span class="health-state ${row[1]}"><i class="state-dot"></i>${escapeHtml(row[2])}</span></div>`).join('')}</div></div>`;
+    }
+
+    function briefText(data) {
+      const narrative = state.style === 'teknis' ? data.narrativeTech : data.narrative;
+      const wins = data.quickWins.map((x, i) => `${i + 1}. ${x.title} — ${x.text}`).join('\n');
+      return `SAPA SMART AI — EXECUTIVE DATA BRIEF\n${data.title}\n\n${narrative}\n\nQUICK WIN\n${wins}\n\nSUMBER\n${data.sourceFull}\n${data.freshness}\nStatus: Evidence SAPA terverifikasi; prototype presentasi.`;
+    }
+
+    function renderAnswer(data) {
+      state.lastData = data;
+      const narrative = state.style === 'teknis' ? data.narrativeTech : data.narrative;
+      const isEmpty = data.type === 'empty';
+      const mainValue = isEmpty ? 'Belum' : data.headline;
+      answerEl.innerHTML = `
+        <div class="answer-banner"><div class="answer-kicker"><span class="bar"></span>Jawaban AI · ${escapeHtml(data.eyebrow)}</div><div class="style-toggle" role="group" aria-label="Gaya jawaban"><button class="${state.style === 'pimpinan' ? 'active' : ''}" data-style="pimpinan">Ringkas pimpinan</button><button class="${state.style === 'teknis' ? 'active' : ''}" data-style="teknis">Catatan teknis</button></div></div>
+        <div class="answer-layout">
+          <article class="answer-main">
+            <div class="answer-top">
+              <div class="answer-meta"><span class="verified-pill">${icon.check} Evidence SAPA terverifikasi</span><span class="result-meta">${escapeHtml(data.evidenceLabel)}<br>${escapeHtml(data.freshness)}</span></div>
+              <h2 class="answer-title">${escapeHtml(data.title)}</h2>
+              <p class="answer-lead">${escapeHtml(data.lead)}</p>
+              <div class="main-metric-row"><div class="main-number">${escapeHtml(mainValue)}</div><div class="main-unit">${escapeHtml(data.unit)}</div><div class="main-year"><span>${escapeHtml(data.periodLabel)}</span><strong>${escapeHtml(data.period)}</strong></div></div>
+            </div>
+            <div class="answer-body">
+              <div class="section-heading"><h3>Executive narrative</h3><span>Gaya: ${state.style === 'pimpinan' ? 'ringkas pimpinan' : 'catatan teknis'}</span></div>
+              <div class="narrative-box"><div class="narrative-label">Apa yang perlu diketahui</div><p class="narrative-text">${escapeHtml(narrative)}</p><div class="narrative-source">Sumber: ${escapeHtml(data.source)} · angka tidak di luar evidence</div></div>
+              ${renderMetricStrip(data)}
+              ${renderViz(data)}
+              ${renderInsights(data)}
+              ${renderEvidence(data)}
+            </div>
+          </article>
+          <aside class="decision-panel">
+            <div class="decision-head"><div><h3>Panel keputusan</h3><p>Jembatan dari data ke tindakan yang aman.</p></div>${icon.info}</div>
+            ${renderQuickWins(data)}
+            ${renderHealth(data)}
+            <div class="panel-section"><h4>Sumber & provenance <span>audit trail</span></h4><div class="source-box"><div class="source-title">${icon.database} ${escapeHtml(data.sourceFull)}</div><p>${escapeHtml(data.freshness)}<br>Mode: Direct API dengan fallback SPLP<br>Validasi: hanya angka dari evidence.</p></div><div class="panel-actions"><button class="outline-btn" id="copy-btn">${icon.copy} Salin</button><button class="primary-btn" id="export-btn">${icon.download} Ekspor</button></div></div>
+            <div class="panel-section"><h4>Pertanyaan lanjutan <span>follow-up</span></h4><div class="followups">${data.followups.map((q) => `<button class="followup" data-followup="${escapeHtml(q)}">${escapeHtml(q)} ↗</button>`).join('')}</div></div>
+          </aside>
+        </div>`;
+      bindAnswerActions();
+    }
+
+    function showToast(message) {
+      toastTextEl.textContent = message;
+      toastEl.classList.add('show');
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+    }
+
+    function bindAnswerActions() {
+      answerEl.querySelectorAll('[data-style]').forEach((button) => button.addEventListener('click', () => { state.style = button.dataset.style; renderAnswer(state.lastData); }));
+      const copyBtn = document.getElementById('copy-btn');
+      const exportBtn = document.getElementById('export-btn');
+      if (copyBtn) copyBtn.addEventListener('click', async () => {
+        const text = briefText(state.lastData);
+        try { await navigator.clipboard.writeText(text); showToast('Ringkasan berhasil disalin ke clipboard.'); }
+        catch { showToast('Browser menolak clipboard; gunakan tombol Ekspor.'); }
+      });
+      if (exportBtn) exportBtn.addEventListener('click', () => {
+        const blob = new Blob([briefText(state.lastData)], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'sapa-executive-brief.txt'; link.click(); URL.revokeObjectURL(url); showToast('Brief disimpan sebagai file teks.');
+      });
+      answerEl.querySelectorAll('[data-followup]').forEach((button) => button.addEventListener('click', () => { questionEl.value = button.dataset.followup; questionEl.focus(); showToast('Pertanyaan lanjutan siap diajukan.'); }));
+    }
+
+    function chooseDemo(key, withLoading = true) {
+      const data = demos[key] || demos.asn;
+      state.active = key;
+      questionEl.value = data.query;
+      document.querySelectorAll('.query-chip').forEach((chip) => chip.classList.toggle('active', chip.dataset.demo === key));
+      if (!withLoading) { renderAnswer(data); return; }
+      loadingEl.classList.add('visible');
+      answerEl.style.display = 'none';
+      loadingTitleEl.textContent = 'Menganalisis pertanyaan...';
+      loadingSubtitleEl.textContent = 'Mencocokkan intent, evidence, dan bentuk visual yang paling aman.';
+      setTimeout(() => { loadingTitleEl.textContent = 'Menyusun executive brief...'; loadingSubtitleEl.textContent = 'Menyiapkan narasi, quick win, dan audit trail sumber data.'; }, 460);
+      setTimeout(() => { loadingEl.classList.remove('visible'); answerEl.style.display = 'block'; renderAnswer(data); answerEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 1050);
+    }
+
+    queryForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const query = questionEl.value.trim();
+      if (query.length < 3) { showToast('Pertanyaan minimal tiga karakter.'); return; }
+      const key = resolveDemo(query);
+      if (!key) { showToast('Prototype ini memiliki empat skenario demo. Coba chip pertanyaan yang tersedia.'); return; }
+      chooseDemo(key, true);
+    });
+
+    document.querySelectorAll('.query-chip').forEach((chip) => chip.addEventListener('click', () => chooseDemo(chip.dataset.demo, true)));
+    document.getElementById('reset-btn').addEventListener('click', () => { state.style = 'pimpinan'; chooseDemo('asn', false); showToast('Prototype dikembalikan ke skenario ASN.'); });
+    document.getElementById('brief-btn').addEventListener('click', () => { const data = state.lastData; const blob = new Blob([briefText(data)], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = 'sapa-executive-brief.txt'; link.click(); URL.revokeObjectURL(url); showToast('Brief disimpan sebagai file teks.'); });
+    document.querySelectorAll('[data-nav]').forEach((item) => item.addEventListener('click', (event) => { event.preventDefault(); if (item.dataset.nav !== 'ai') showToast('Navigasi lain tetap aman; prototype fokus pada output Tanya AI.'); }));
+
+    renderAnswer(demos.asn);
+  </script>
+</body>
+</html>

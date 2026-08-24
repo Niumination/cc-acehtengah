@@ -25,8 +25,9 @@ const META_STOPWORDS = new Set([
   'sebaran', 'distribusi', 'tahun', 'waktu', 'periode', 'per', 'dalam', 'ini',
   'tolong', 'tampilkan', 'perlihatkan', 'sebutkan', 'mohon', 'dong', 'coba',
   'list', 'daftar', 'tersedia', 'tercatat', 'terdaftar', 'saat', 'terkini', 'sekarang',
-  'bagaimana', 'gimana', 'kapan', 'mengapa', 'kenapa', 'siapa', 'dimana', 'kemana',
-  'apakah', 'sudahkah', 'bagaimanakah', 'boleh', 'minta',
+  'bagaimana', 'gimana', 'kapan', 'mengapa', 'kenapa', 'siapa', 'dimana', 'mana', 'kemana',
+  'apakah', 'sudahkah', 'bagaimanakah', 'boleh', 'minta', 'dengan', 'memiliki',
+  'paling', 'terbanyak', 'tertinggi', 'terendah', 'utama', 'indikatornya', 'jumlahnya', 'banyak',
 ]);
 
 function contentWords(query: string): string[] {
@@ -46,7 +47,7 @@ export function detectMetaQuery(query: string): MetaKind | null {
   if (words.length > 0) return null; // ada topik substantif → jalur evidence biasa
 
   const mentionsOpd = /\b(opd|skpd|skpk|perangkat daerah|organisasi|instansi)\b/.test(q);
-  const asks = /(apa saja|daftar|semua|berapa|tampilkan|list|sebutkan|mana saja)/.test(q);
+  const asks = /(apa saja|daftar|semua|berapa|tampilkan|list|sebutkan|mana saja|mana|paling|terbanyak|tertinggi|terendah)/.test(q);
   if (mentionsOpd && asks) return 'daftar_opd';
 
   const sebaranTahun = /(sebaran|distribusi)/.test(q) && /(tahun|waktu|periode)/.test(q);

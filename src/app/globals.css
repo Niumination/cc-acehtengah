@@ -108,6 +108,24 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Visible keyboard focus untuk ruang kerja pimpinan dan data yang dapat diaudit. */
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand-soft) 55%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Custom Scrollbar — warm themed */

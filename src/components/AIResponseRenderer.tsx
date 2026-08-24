@@ -6,14 +6,23 @@ import {
 } from 'recharts';
 import { HybridResponse } from '@/types';
 import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
+import ExecutiveAnswerRenderer from './ExecutiveAnswerRenderer';
 
 const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
 interface Props {
   response: HybridResponse;
+  onFollowUp?: (query: string) => void;
 }
 
-export default function AIResponseRenderer({ response }: Props) {
+export default function AIResponseRenderer({ response, onFollowUp }: Props) {
+  // Keep a one-switch rollback path. The legacy renderer is intentionally
+  // preserved because old/mock responses and saved chat logs must remain safe.
+  const useExecutiveUi = process.env.NEXT_PUBLIC_AI_EXECUTIVE_UI !== 'false';
+  if (useExecutiveUi) {
+    return <ExecutiveAnswerRenderer response={response} onFollowUp={onFollowUp} />;
+  }
+
   const { narasi, visualisasi, rekomendasi } = response;
   const sdiPayload = visualisasi && visualisasi.tipe !== 'none' ? toAIDataPayload(response) : null;
   const useSdi = !!sdiPayload && sdiPayload.table.rows.length > 0;

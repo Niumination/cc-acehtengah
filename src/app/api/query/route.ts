@@ -2,7 +2,9 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { processAIQueryStreaming } from '@/services/ai-orchestrator';
 import { getMockQueryResponse } from '@/lib/mock-data';
-import { isMockMode } from '@/lib/data-source';
+import { buildMockSapaRecords, isMockMode } from '@/lib/data-source';
+import { buildMetaResponse, detectMetaQuery } from '@/services/meta-query';
+import type { HybridResponse } from '@/types';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -49,8 +51,14 @@ export async function POST(req: NextRequest) {
 
   const { query } = parsed.data;
 
-  // Mock mode — SSE juga (agar klien SSE tidak gagal parse)
+  // Mock mode — tetap SSE agar klien tidak berubah. Meta-query juga diarahkan
+  // ke planner deterministik supaya chip demo tidak menampilkan jawaban generik.
   if (isMockMode()) {
+    const metaKind = detectMetaQuery(query);
+    if (metaKind) {
+      const metaResult = buildMetaResponse(metaKind, buildMockSapaRecords(), 'splp');
+      return sseResponse(mockStreamResult(metaResult));
+    }
     return sseResponse(mockStream(query));
   }
 
@@ -91,9 +99,16 @@ function sseResponse(stream: ReadableStream): Response {
 }
 
 function mockStream(query: string): ReadableStream {
+  const result: HybridResponse = getMockQueryResponse(query);
+  return mockStreamResult(result);
+}
+
+function mockStreamResult(result: HybridResponse): ReadableStream {
   const encoder = new TextEncoder();
-  const result = getMockQueryResponse(query);
-  const narasi: string = typeof result?.narasi === 'string' ? result.narasi : '';
+  const narasi = typeof result.narasi === 'string' ? result.narasi : '';
+  const dataSource = result.dataSource?.includes('DATA CONTOH')
+    ? result.dataSource
+    : `${result.dataSource || 'mock'} · DATA CONTOH`;
   return new ReadableStream({
     async start(controller) {
       const send = (event: string, data: unknown) => {
@@ -110,7 +125,7 @@ function mockStream(query: string): ReadableStream {
           send('narasi', { text: progressive });
           await sleep(120);
         }
-        send('result', { ...result, dataSource: `${result?.dataSource ?? 'mock'} · DATA CONTOH` });
+        send('result', { ...result, dataSource });
       } finally {
         try { controller.close(); } catch {}
       }

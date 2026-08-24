@@ -9,6 +9,7 @@
 ## Features
 
 - 🤖 **AI Smart Query** — Tanya data SAPA dalam bahasa natural
+- 🧭 **Executive Answer** — Narasi pimpinan, visual adaptif, evidence, provenance, quality flag, dan quick win
 - 📊 **Dashboard Analytics** — Visualisasi data OPD, indikator, tren
 - 🗺️ **Peta GIS** — Peta interaktif kabupaten Aceh Tengah
 - 📋 **Laporan AI** — Log otomatis setiap query AI (auth required)

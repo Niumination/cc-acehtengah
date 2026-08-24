@@ -134,6 +134,10 @@ describe('detectMetaQuery', () => {
     expect(detectMetaQuery('bagaimana sebaran data sapa per tahun')).toBe('sebaran_tahun');
     expect(detectMetaQuery('berapa total data indikator sapa')).toBe('statistik_portal');
   });
+  it('REGRESI: pertanyaan ranking OPD masuk ke agregat portal, bukan LLM', () => {
+    expect(detectMetaQuery('OPD mana yang memiliki indikator paling banyak di Aceh Tengah')).toBe('daftar_opd');
+    expect(detectMetaQuery('OPD dengan indikator terbanyak')).toBe('daftar_opd');
+  });
   it('pertanyaan substantif TIDAK meta', () => {
     expect(detectMetaQuery('berapa jumlah ASN di aceh tengah')).toBeNull();
     expect(detectMetaQuery('berapa jumlah balita stunting')).toBeNull();

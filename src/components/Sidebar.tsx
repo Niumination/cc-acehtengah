@@ -6,9 +6,9 @@ import { LogoMark } from '@/components/brand/Logo';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA' },
-  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & Analitik' },
-  { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif' },
-  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Laporan & Riwayat' },
+  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & analitik' },
+  { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta interaktif' },
+  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Brief & riwayat' },
   { href: '/dashboard/admin/dtsen', label: 'Admin DTSEN', icon: '🔐', desc: 'Rilis data terbatas' },
 ];
 
@@ -22,41 +22,41 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`flex flex-col h-full border-r border-[var(--border-strong)] bg-[var(--surface-card)] transition-all duration-300 ease-in-out ${
-        collapsed ? 'w-[68px]' : 'w-56'
-      }`}
+      aria-label="Navigasi utama"
+      className={`relative flex h-full flex-col overflow-hidden bg-[var(--brand-deep)] text-[var(--on-brand-muted)] transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-[250px]'}`}
     >
-      {/* Header — Hamburger + Logo */}
-      <div className={`bg-[var(--brand-deep)] flex h-[61px] items-center ${collapsed ? 'px-2' : 'px-4'}`}>
-        <div className="flex items-center gap-2.5">
-          {/* Hamburger Button */}
-          <button
-            onClick={onToggle}
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 bg-[var(--brand)] hover:bg-[var(--brand-soft)] text-[var(--on-brand-muted)] hover:text-[var(--on-brand)] border border-[var(--brand-soft)]"
-            title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
-              <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
-              <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
-            </svg>
-          </button>
-          {!collapsed && (
-            <div className="flex items-center gap-2 min-w-0">
-              <LogoMark size={30} className="flex-shrink-0 rounded-lg" />
-              <div className="min-w-0">
-                <h1 className="text-sm font-bold text-white tracking-tight truncate">Aceh Tengah</h1>
-                <p className="text-[10px] text-[var(--text-muted)] font-medium">SAPA Smart AI</p>
-              </div>
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-56 w-56 rounded-full bg-[var(--brand-soft)]/10" />
+
+      {/* Brand + collapse */}
+      <div className={`relative z-[1] flex h-[68px] items-center border-b border-white/10 ${collapsed ? 'justify-center px-2' : 'gap-3 px-4'}`}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+          title={collapsed ? 'Tampilkan sidebar' : 'Sembunyikan sidebar'}
+          className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl border border-[var(--brand-soft)] bg-[var(--brand)] text-[var(--on-brand-muted)] transition hover:bg-[var(--brand-soft)] hover:text-white"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
+            <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
+          </svg>
+        </button>
+        {!collapsed && (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <LogoMark size={32} className="flex-shrink-0 rounded-lg" />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-black tracking-tight text-white">SAPA Smart AI</h1>
+              <p className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-[#AEBEB2]">Aceh Tengah · Data hub</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 py-4 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <p className={`text-[9px] font-bold text-[#767D6F] uppercase tracking-widest mb-2 ${collapsed ? 'text-center px-0' : 'px-3'}`}>
-          {collapsed ? '•' : 'Navigasi'}
+      <nav className={`relative z-[1] flex-1 space-y-1 py-5 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <p className={`mb-3 text-[9px] font-black uppercase tracking-[0.16em] text-[#809286] ${collapsed ? 'text-center' : 'px-3'}`}>
+          {collapsed ? '•' : 'Ruang kendali'}
         </p>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
@@ -65,56 +65,41 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 rounded-xl text-sm transition-all duration-200 ${
-                collapsed ? 'px-2 py-2.5 justify-center' : 'px-3 py-2.5'
-              } ${
-                isActive
-                  ? 'bg-[#DCE8DE] text-[#1B4332] border border-[#2D6A4F]/20'
-                  : 'text-[#4B5249] hover:bg-[#E9E6DA] hover:text-[#1B4332] border border-transparent'
-              }`}
+              aria-current={isActive ? 'page' : undefined}
+              className={`group relative flex items-center rounded-xl border text-sm transition-all duration-200 ${collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-3'} ${isActive ? 'border-[var(--brand-soft)]/40 bg-[var(--brand-soft)]/20 text-white shadow-inner' : 'border-transparent text-[#BFCDC1] hover:border-white/10 hover:bg-white/[0.06] hover:text-white'}`}
             >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
+              {isActive && <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--accent)]" />}
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-base" aria-hidden="true">{item.icon}</span>
               {!collapsed && (
-                <div className="min-w-0">
-                  <p className={`text-xs font-semibold truncate ${isActive ? 'text-[#1B4332]' : 'text-[#4B5249]'}`}>
-                    {item.label}
-                  </p>
-                  <p className="text-[10px] text-[#767D6F] truncate">{item.desc}</p>
-                </div>
+                <span className="min-w-0">
+                  <span className={`block truncate text-xs font-bold ${isActive ? 'text-white' : 'text-[#E0E9E1]'}`}>{item.label}</span>
+                  <span className="mt-0.5 block truncate text-[10px] text-[#8FA296]">{item.desc}</span>
+                </span>
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* System Status */}
-      <div className={`border-t border-[#C6C3B4] ${collapsed ? 'px-2 py-3' : 'px-4 py-4 space-y-2'}`}>
-        {!collapsed && <p className="text-[9px] font-bold text-[#767D6F] uppercase tracking-widest">Sistem</p>}
-        <div className="space-y-1.5">
-          <StatusRow label="SAPA" status="●" color="text-[#2D6A4F]" collapsed={collapsed} />
-          <StatusRow label="AI" status="●" color="text-[#1B4332]" collapsed={collapsed} />
-        </div>
-        {!collapsed && <p className="text-[10px] text-[#767D6F] pt-2">Diskominfo Aceh Tengah</p>}
+      {/* System status */}
+      <div className={`relative z-[1] border-t border-white/10 ${collapsed ? 'px-2 py-4' : 'space-y-2 px-4 py-4'}`}>
+        {!collapsed && <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#809286]">Status sistem</p>}
+        <StatusRow label="SAPA" collapsed={collapsed} />
+        <StatusRow label="AI" collapsed={collapsed} />
+        {!collapsed && <p className="pt-2 text-[9px] leading-relaxed text-[#718378]">Diskominfo Kabupaten Aceh Tengah<br />Executive data workspace</p>}
       </div>
     </aside>
   );
 }
 
-function StatusRow({ label, status, color, collapsed }: { label: string; status: string; color: string; collapsed: boolean }) {
+function StatusRow({ label, collapsed }: { label: string; collapsed: boolean }) {
   if (collapsed) {
-    return (
-      <div className="flex justify-center" title={`${label}: Active`}>
-        <span className={`w-2 h-2 rounded-full ${color.replace('text-', 'bg-')}`} />
-      </div>
-    );
+    return <div className="flex justify-center py-1" title={`${label}: aktif`}><span className="h-2 w-2 rounded-full bg-[var(--brand-soft)] shadow-[0_0_0_4px_rgba(82,183,136,.12)]" /></div>;
   }
   return (
     <div className="flex items-center justify-between text-[10px]">
-      <span className="text-[#767D6F]">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className={`w-1.5 h-1.5 rounded-full ${color.replace('text-', 'bg-')}`} />
-        <span className={`font-medium ${color}`}>Active</span>
-      </div>
+      <span className="text-[#8FA296]">{label}</span>
+      <span className="inline-flex items-center gap-1.5 font-bold text-[var(--brand-soft)]"><span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-soft)]" />Aktif</span>
     </div>
   );
 }
