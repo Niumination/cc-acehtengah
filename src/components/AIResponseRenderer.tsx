@@ -4,6 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import type { TooltipContentProps } from 'recharts';
 import { HybridResponse } from '@/types';
 import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
 import ExecutiveAnswerRenderer from './ExecutiveAnswerRenderer';
@@ -83,13 +84,15 @@ export default function AIResponseRenderer({ response, onFollowUp }: Props) {
 }
 
 // ─── Metric Renderer ───
-function MetricRenderer({ config }: { config: any }) {
-  const metrics = config?.metrics ?? [];
+interface MetricItem { label?: string; value?: string | number; unit?: string }
+
+function MetricRenderer({ config }: { config: Record<string, unknown> }) {
+  const metrics = (config?.metrics as MetricItem[] | undefined) ?? [];
   if (metrics.length === 0) return null;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {metrics.map((m: any, i: number) => (
+      {metrics.map((m, i) => (
         <div key={i} className="bg-[#E9E6DA] rounded-xl p-4 text-center border border-[#C6C3B4]">
           <p className="text-[10px] text-[#767D6F] uppercase tracking-wider mb-1">{m.label}</p>
           <p className="text-xl font-bold text-[#1B4332]">{m.value}</p>
@@ -101,14 +104,17 @@ function MetricRenderer({ config }: { config: any }) {
 }
 
 // ─── Table Renderer ───
-function TableRenderer({ config }: { config: any }) {
-  const columns: any[] = config?.columns ?? [];
-  const rawRows: any[] = config?.rows ?? [];
+type ColumnSpec = string | { key?: string; name?: string };
+type TableRow = unknown[] | Record<string, unknown>;
+
+function TableRenderer({ config }: { config: Record<string, unknown> }) {
+  const columns = (config?.columns as ColumnSpec[] | undefined) ?? [];
+  const rawRows = (config?.rows as TableRow[] | undefined) ?? [];
 
   if (columns.length === 0 || rawRows.length === 0) return null;
 
   // Handle dua format columns: array of strings ATAU array of objects {key, name}
-  const colMeta = columns.map((c: any) =>
+  const colMeta = columns.map((c) =>
     typeof c === 'string' ? { key: c, name: c } : { key: c?.key ?? c?.name ?? String(c), name: c?.name ?? c?.key ?? String(c) }
   );
 
@@ -117,7 +123,7 @@ function TableRenderer({ config }: { config: any }) {
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-[#E9E6DA]">
           <tr className="border-b border-[#C6C3B4]">
-            {colMeta.map((col: any) => (
+            {colMeta.map((col) => (
               <th key={col.key} className="text-left py-2.5 px-3 font-semibold text-[#767D6F] whitespace-nowrap">
                 {col.name}
               </th>
@@ -125,13 +131,18 @@ function TableRenderer({ config }: { config: any }) {
           </tr>
         </thead>
         <tbody>
-          {rawRows.map((row: any, i: number) => (
+          {rawRows.map((row, i) => (
             <tr key={i} className="border-b border-[#C6C3B4] hover:bg-[#E9E6DA] transition-colors">
-              {colMeta.map((col: any, ci: number) => (
-                <td key={col.key} className="py-2 px-3 text-[#4B5249]">
-                  {Array.isArray(row) ? (row[ci] ?? '-') : (row[col.key] ?? row[col.name] ?? '-')}
-                </td>
-              ))}
+              {colMeta.map((col, ci) => {
+                const cell = Array.isArray(row)
+                  ? (row[ci] ?? '-')
+                  : (row[col.key] ?? row[col.name] ?? '-');
+                return (
+                  <td key={col.key} className="py-2 px-3 text-[#4B5249]">
+                    {String(cell)}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -141,11 +152,11 @@ function TableRenderer({ config }: { config: any }) {
 }
 
 // ─── Chart Renderer ───
-function ChartRenderer({ config }: { config: any }) {
-  const chartType = config?.type ?? 'bar';
-  const data = config?.data ?? [];
-  const xKey = config?.xKey ?? 'name';
-  const lines = config?.lines ?? config?.bars ?? [];
+function ChartRenderer({ config }: { config: Record<string, unknown> }) {
+  const chartType = (config?.type as string | undefined) ?? 'bar';
+  const data = (config?.data as Record<string, unknown>[] | undefined) ?? [];
+  const xKey = (config?.xKey as string | undefined) ?? 'name';
+  const lines = ((config?.lines ?? config?.bars) as string[] | undefined) ?? [];
 
   if (data.length === 0 || lines.length === 0) return null;
 
@@ -156,7 +167,7 @@ function ChartRenderer({ config }: { config: any }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
           <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={ChartTooltip} />
           {lines.map((line: string, i: number) => (
             <Line key={line} type="monotone" dataKey={line} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} />
           ))}
@@ -174,14 +185,14 @@ function ChartRenderer({ config }: { config: any }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
           <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={ChartTooltip} />
           {lines.map((line: string, i: number) => (
             <Area key={line} type="monotone" dataKey={line} stroke={COLORS[i % COLORS.length]} fill={`url(#grad-${i})`} strokeWidth={2} />
           ))}
         </AreaChart>
       ) : chartType === 'pie' || chartType === 'donut' ? (
         <PieChart>
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={ChartTooltip} />
           <Pie
             data={data}
             dataKey={lines[0] ?? 'value'}
@@ -190,9 +201,9 @@ function ChartRenderer({ config }: { config: any }) {
             innerRadius={chartType === 'donut' ? 60 : 0}
             outerRadius={120}
             paddingAngle={2}
-            label={({ name, percent }: any) => `${(percent * 100).toFixed(0)}%`}
+            label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
           >
-            {data.map((_: any, i: number) => (
+            {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
@@ -202,7 +213,7 @@ function ChartRenderer({ config }: { config: any }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#C6C3B4" />
           <XAxis dataKey={xKey} stroke="#767D6F" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis stroke="#767D6F" tick={{ fontSize: 11 }} />
-          <Tooltip content={<ChartTooltip />} />
+          <Tooltip content={ChartTooltip} />
           {lines.map((bar: string, i: number) => (
             <Bar key={bar} dataKey={bar} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
           ))}
@@ -213,12 +224,12 @@ function ChartRenderer({ config }: { config: any }) {
 }
 
 // ─── Chart Tooltip ───
-function ChartTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="p-2.5 bg-[#FFFFFF] border border-[#C6C3B4] rounded-lg shadow-xl text-xs">
       <p className="font-bold text-[#1B4332] mb-1">{label}</p>
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} style={{ color: p.color || p.fill }}>
           {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
         </p>
