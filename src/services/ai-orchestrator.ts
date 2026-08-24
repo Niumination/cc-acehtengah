@@ -223,12 +223,13 @@ async function buildContext(query: string) {
   let dtsenSensor: string[] = [];
 
   if (plan.asksDtsen && plan.scope === 'AGGR' && (plan.kecamatan || plan.desa || plan.desil || plan.bansos)) {
-    const dtsenResult = await fetchDtsenAgregatPublik({
-      kecamatan: plan.kecamatan,
-      desa: plan.desa,
-      desil: plan.desil,
-      bansos: plan.bansos,
-    });
+    try {
+      const dtsenResult = await fetchDtsenAgregatPublik({
+        kecamatan: plan.kecamatan,
+        desa: plan.desa,
+        desil: plan.desil,
+        bansos: plan.bansos,
+      });
     if (dtsenResult) {
       // Bangun evidence DTSEN
       for (const d of dtsenResult.byDesil) {
@@ -266,6 +267,11 @@ async function buildContext(query: string) {
       dtsenProvenance = { label: dtsenResult.provenance.label };
       dtsenNarasi = dtsenResult.narasi;
       dtsenSensor = dtsenResult.sensor;
+    }
+    } catch (err) {
+      // Sumber DTSEN belum siap (mis. tabel rilis belum dimigrasi ke DB):
+      // jangan gagalkan seluruh jawaban — lanjutkan dengan evidence SAPA saja.
+      console.warn('[ai-orchestrator] DTSEN unavailable, lanjut tanpa evidence DTSEN:', err instanceof Error ? err.message : err);
     }
   }
 
