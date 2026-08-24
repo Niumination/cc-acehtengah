@@ -52,9 +52,30 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | **KPI Pimpinan** | ✅ | `/api/kpi` (deterministik, cache 10 mnt) |
 | **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
 | **Fondasi DTSEN (role-gated)** | ✅ | `POST /api/dtsen/query` — 401/403 fail-closed + audit (data via PR-4b/4d) |
-| **Impor Manual DTSEN (role-gated)** | ✅ | `/dashboard/admin/dtsen` + `POST /api/dtsen/import`, `release/[id]/publish` |
+| **Impor Manual DTSEN Multi-Sumber (role-gated)** | ✅ | `/dashboard/admin/dtsen` + `POST /api/dtsen/import?format=DTSEN_CSV|STUNTING_XLSX|KOMINFO_XLSX`, `release/[id]/publish` |
+| **DTSEN SPLP API Source** | ✅ | `GET /api/dtsen/source` — fetch agregat DTSEN langsung dari api-splp.layanan.go.id |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
+
+## API Routes — DTSEN Multi-Sumber (PR-4c)
+
+| Route | Method | Deskripsi | Auth |
+|-------|--------|-----------|------|
+| `/api/dtsen/source` | GET | Fetch agregat DTSEN dari api-splp.layanan.go.id | RESTRICTED_AGGR |
+| `/api/dtsen/import` | POST | Import CSV/Excel ke staging (multi-format) | RESTRICTED_PERSONAL |
+| `/api/dtsen/query` | POST | Query restricted (aggr + by-NIK lookup) | Sesuai scope |
+| `/api/dtsen/releases` | GET | Daftar rilis (metadata saja) | RESTRICTED_PERSONAL |
+| `/api/dtsen/release/[id]/publish` | POST | Publish atomik + purge rilis lama | RESTRICTED_PERSONAL |
+
+### Import Multi-Format (`POST /api/dtsen/import?format=...`)
+
+| Format | Source | Kolom kunci | Catatan |
+|--------|--------|-------------|---------|
+| `DTSEN_CSV` | `dtsen` | nik, nama, no_kk, kecamatan, desa, desil, pkh, bpnt, pbi_jk | Format standar — bansos eksplisit |
+| `STUNTING_XLSX` | `dtsen-stunting` | NIK, Nama, Kec, Desa/Kel | Bansos=false, desil default 1 |
+| `KOMINFO_XLSX` | `dtsen-kominfo` | NIK, NAMA, KETERANGAN DESIL, KK, DESA, KECAMATAN | Bansos=false, desil dari kolom |
+
+**SPLP API Source:** `GET /api/dtsen/source?type=aggr&source=splp&kecamatan=&desa=&desil=` — fetch langsung dari `api-splp.layanan.go.id/dtsen-aceh-tengah/1.0/api/dtsen-aceh-tengah`
 
 ## Auth System
 
