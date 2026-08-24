@@ -202,3 +202,17 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 | `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
 | `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
 | `DTSEN_NIK_KEY` | random string ≥16 | Kunci HMAC NIK jalur DTSEN; tanpa ini impor menolak (409) |
+
+### Catatan Real-World Data Handling (PR-4c+ patch)
+
+Parser multi-sumber (`src/services/dtsen-multisource.ts`) sudah divalidasi melawan file Excel riil:
+
+| Isu | Solusi |
+|-----|--------|
+| NIK numerik (Excel mengembalikan sebagai `number`, bukan string) | `normalizeNik()` mengkonversi number → string sebelum validasi |
+| NIK yang sudah masked (mengandung `*`, mis. `08022**********`) | Ditolak dengan pesan: `NIK harus 16 digit angka tanpa *` |
+| Kecamatan alias lokal (`"LUT TAWAR"` ≠ `"Laut Tawar"`) | `KEC_ALIAS` map + `kecLookup()` menge-resolve alias sebelum pencocokan |
+| Desil range (`"6-10"`) | `normalizeDesil()` mengambil batas bawah (6) |
+| Desil teks (`"Belum Ada Desl"`) | Di-set ke 1 (prioritas tertinggi) + warning |
+| Desil kosong/null | Di-set ke 1 + warning |
+| Baris kosong di Excel (header offset, blank rows) | Dihandle oleh frontend parser sebelum kirim JSON ke API |

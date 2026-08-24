@@ -31,14 +31,37 @@ function normText(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// ─── Alias kecamatan: nama lokal / alternatif yang belum standar ───
+// LUT TAWAR adalah nama lokal yang dipakai warga untuk "Laut Tawar"
+const KEC_ALIAS: Record<string, string> = {
+  'lut tawar': 'Laut Tawar',
+};
+
 // ─── Helper: lookup kecamatan (case-insensitive, spacing-normalized) ───
 function kecLookup(raw: string): string | null {
   if (!raw || raw.trim() === '') return null;
   const n = normText(raw);
+
+  // 1. Cek di alias map dulu (misal: "LUT TAWAR" → "Laut Tawar")
+  if (n in KEC_ALIAS) return KEC_ALIAS[n];
+
+  // 2. Cek di daftar kecamatan resmi
   for (const kec of KECAMATAN_ACEH_TENGAH) {
     if (normText(kec) === n) return kec;
   }
   return null;
+}
+
+// ─── Helper: normalisasi NIK — selalu string, trimming whitespace ───
+// Excel dapat mengembalikan NIK sebagai number (mis. 997654466) atau string.
+// NIK yang sudah masked (mengandung *) tetap diproses sebagai string.
+function normalizeNik(raw: unknown): string {
+  if (raw === null || raw === undefined) return '';
+  // Jika number, konversi ke string tanpa notasi ilmiah
+  if (typeof raw === 'number') {
+    return String(raw).trim();
+  }
+  return String(raw).replace(/\s+/g, ' ').trim();
 }
 
 // ─── Parser stunting (format Excel) ───
@@ -68,7 +91,7 @@ export function parseStuntingXlsx(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const line = i + 2; // +1 untuk 0-based, +1 lagi untuk header
-    const nik = String(row['NIK'] ?? row['nik'] ?? '').trim();
+    const nik = normalizeNik(row['NIK'] ?? row['nik']);
     const nikAwal = /^\d{4}/.test(nik) ? nik.slice(0, 4) : undefined;
 
     const fail = (reason: string) => {
@@ -77,7 +100,7 @@ export function parseStuntingXlsx(
     };
 
     if (!/^\d{16}$/.test(nik)) {
-      fail(`NIK harus 16 digit angka (diterima: "${nik ? nik.slice(0, 4) + '…' : 'kosong'}")`);
+      fail(`NIK harus 16 digit angka tanpa * (diterima: "${nik ? nik.slice(0, 4) + '…' : 'kosong'}")`);
       continue;
     }
 
@@ -118,6 +141,43 @@ export function parseStuntingXlsx(
   return { valid, rejected, totalDataLines: rows.length, warnings };
 }
 
+// ─── Helper: normalisasi desil dari berbagai format ───
+// Handles: integer (3), range ("6-10"), text ("Belum Ada Desl"), "6-10 Dalam Proses penurunan"
+// For ranges, takes the lower bound. For "Belum Ada Desl" or empty, defaults to 1 (highest priority).
+function normalizeDesil(raw: unknown): { desil: number; warning?: string } | null {
+  if (raw === null || raw === undefined) return { desil: 1, warning: 'Desil kosong — di-set ke 1 (prioritas tertinggi).' };
+
+  // Jika sudah number
+  const n = Number(raw);
+  if (Number.isInteger(n)) {
+    if (n >= 1 && n <= 10) return { desil: n };
+    return null; // out of range
+  }
+
+  const s = String(raw).replace(/\s+/g, ' ').trim();
+  if (s === '' || s.toLowerCase().includes('belum ada')) {
+    return { desil: 1, warning: `Desil "${s}" — di-set ke 1 (prioritas tertinggi).` };
+  }
+
+  // Cek format range: "6-10"
+  const rangeMatch = s.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if (rangeMatch) {
+    const low = parseInt(rangeMatch[1]!, 10);
+    if (low >= 1 && low <= 10) return { desil: low };
+    return null;
+  }
+
+  // Coba parse sebagai integer tunggal
+  const intMatch = s.match(/^(\d+)$/);
+  if (intMatch) {
+    const val = parseInt(intMatch[1]!, 10);
+    if (val >= 1 && val <= 10) return { desil: val };
+    return null;
+  }
+
+  return null;
+}
+
 // ─── Parser kominfo (format Excel) ───
 // Kolom: NO, NAMA, KETERANGAN DESIL, NIK, KK, TEMPAT TGL LAHIR, PEKERJAAN,
 //        JENIS KELAMIN, DESA, KECAMATAN, KRITERIA PPKS, NAMA ALAT BANTU,
@@ -144,7 +204,7 @@ export function parseKominfoXlsx(
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const line = i + 2;
-    const nik = String(row['NIK'] ?? row['nik'] ?? '').trim();
+    const nik = normalizeNik(row['NIK'] ?? row['nik']);
     const nikAwal = /^\d{4}/.test(nik) ? nik.slice(0, 4) : undefined;
 
     const fail = (reason: string) => {
@@ -153,7 +213,7 @@ export function parseKominfoXlsx(
     };
 
     if (!/^\d{16}$/.test(nik)) {
-      fail(`NIK harus 16 digit angka (diterima: "${nik ? nik.slice(0, 4) + '…' : 'kosong'}")`);
+      fail(`NIK harus 16 digit angka tanpa * (diterima: "${nik ? nik.slice(0, 4) + '…' : 'kosong'}")`);
       continue;
     }
 
@@ -176,15 +236,18 @@ export function parseKominfoXlsx(
       continue;
     }
 
-    // KETERANGAN DESIL — angka 1-10
-    const desilRaw = String(row['KETERANGAN DESIL'] ?? row['desil'] ?? row['Desil'] ?? '').trim();
-    const desil = Number(desilRaw);
-    if (!Number.isInteger(desil) || desil < 1 || desil > 10) {
-      fail(`Desil harus bilangan bulat 1-10 (diterima: "${desilRaw || 'kosong'}")`);
+    // KETERANGAN DESIL — bisa berupa angka, range ("6-10"), atau teks ("Belum Ada Desl")
+    const desilRaw = row['KETERANGAN DESIL'] ?? row['desil'] ?? row['Desil'];
+    const desilResult = normalizeDesil(desilRaw);
+    if (desilResult === null) {
+      const desilStr = String(desilRaw ?? '').replace(/\s+/g, ' ').trim();
+      fail(`Desil tidak valid (diterima: "${desilStr || 'kosong'}")`);
       continue;
     }
+    const desil = desilResult.desil;
+    if (desilResult.warning) warnings.push(desilResult.warning);
 
-    const noKk = String(row['KK'] ?? row['no_kk'] ?? '').trim();
+    const noKk = normalizeNik(row['KK'] ?? row['no_kk']);
 
     valid.push({
       nikHash: hmac(nik, secret),
