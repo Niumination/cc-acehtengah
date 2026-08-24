@@ -1,9 +1,14 @@
-// ─── POST /api/dtsen/import — impor manual CSV → staging (PR-4b) ───
+// ─── POST /api/dtsen/import — impor manual multi-format → staging (PR-4b + PR-4c) ───
 // Alur ketat (desain §7.2): validasi template → baris kotor DITOLAK (dengan
 // alasan per baris) → baris valid masuk STAGING dalam bentuk terminimasi
 // (HMAC NIK + nama masked). CSV mentah & NIK mentah TIDAK PERNAH disimpan,
 // TIDAK PERNAH dikembalikan di respons.
 // Otorisasi: role RESTRICTED_PERSONAL (DTSEN_LOOKUP/SUPERADMIN) — via data-gate.
+//
+// Format yang didukung (query param ?format=):
+//   DTSEN_CSV   — format DTSEN standar (CSV: nik, nama, no_kk, kecamatan, desa, desil, pkh, bpnt, pbi_jk)
+//   STUNTING_XLSX — format stunting (Excel: NIK, Nama, JK, Kec, Desa/Kel, dll)
+//   KOMINFO_XLSX — format Kominfo (Excel: NIK, NAMA, KETERANGAN DESIL, KK, DESA, KECAMATAN, dll)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -14,7 +19,10 @@ import {
   parseAndValidateDtsenCsv,
   buildAgregatWilayah,
   importChecksum,
+  type ValidDtsenRow,
+  type RejectedRow,
 } from '@/services/dtsen-import';
+import { parseStuntingXlsx, parseKominfoXlsx } from '@/services/dtsen-multisource';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -65,9 +73,39 @@ export async function POST(req: NextRequest) {
   if (raw.length > MAX_BODY_BYTES) {
     return NextResponse.json({ error: 'Berkas terlalu besar (> 10 MB teks).' }, { status: 413 });
   }
+  const format = (req.nextUrl.searchParams.get('format') ?? 'DTSEN_CSV').toUpperCase();
   const filename = (req.nextUrl.searchParams.get('filename') ?? 'unggahan.csv').slice(0, 120);
 
-  const result = parseAndValidateDtsenCsv(raw, secret);
+  let result: { valid: ValidDtsenRow[]; rejected: RejectedRow[]; totalDataLines: number };
+  let parseWarnings: string[] = [];
+
+  switch (format) {
+    case 'DTSEN_CSV':
+      result = parseAndValidateDtsenCsv(raw, secret);
+      break;
+    case 'STUNTING_XLSX':
+      {
+        // Untuk Excel, body harus berupa JSON array of row objects (parse di frontend)
+        const parsed = JSON.parse(raw);
+        const sr = parseStuntingXlsx(parsed, secret);
+        result = { valid: sr.valid, rejected: sr.rejected, totalDataLines: sr.totalDataLines };
+        parseWarnings = sr.warnings;
+      }
+      break;
+    case 'KOMINFO_XLSX':
+      {
+        const parsed = JSON.parse(raw);
+        const kr = parseKominfoXlsx(parsed, secret);
+        result = { valid: kr.valid, rejected: kr.rejected, totalDataLines: kr.totalDataLines };
+        parseWarnings = kr.warnings;
+      }
+      break;
+    default:
+      return NextResponse.json(
+        { error: `Format "${format}" tidak didukung. Format: DTSEN_CSV, STUNTING_XLSX, KOMINFO_XLSX` },
+        { status: 400 },
+      );
+  }
   if (result.valid.length === 0) {
     await audit(admin!, 'IMPORT', `file=${filename} DITOLAK total: ${result.rejected[0]?.reason ?? 'tanpa baris valid'}`, ip);
     return NextResponse.json(
@@ -81,7 +119,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const source = await prisma.dataSource.findUnique({ where: { slug: 'dtsen' } }).catch(() => null);
+  const sourceSlug =
+    format === 'STUNTING_XLSX' ? 'dtsen-stunting'
+    : format === 'KOMINFO_XLSX' ? 'dtsen-kominfo'
+    : 'dtsen';
+
+  const source = await prisma.dataSource.findUnique({ where: { slug: sourceSlug } }).catch(() => null);
   if (!source) {
     return NextResponse.json(
       { error: 'Fondasi tabel belum ada. Jalankan sekali: POST /api/setup dengan x-setup-token.' },
@@ -94,7 +137,7 @@ export async function POST(req: NextRequest) {
       data: {
         sourceId: source.id,
         versi: (req.nextUrl.searchParams.get('versi') ?? 'manual').slice(0, 60),
-        jalur: 'MANUAL',
+        jalur: format === 'DTSEN_CSV' ? 'MANUAL' : `MANUAL_${format}`,
         status: 'STAGING',
         totalBaris: result.valid.length,
         ditolak: result.rejected.length,
@@ -134,6 +177,7 @@ export async function POST(req: NextRequest) {
       message:
         'Rilis distaging (NIK sudah HMAC, nama ter-mask — data mentah tidak disimpan). ' +
         'Tinjau di halaman admin, lalu publish untuk menjadikannya rilis aktif.',
+      ...(parseWarnings.length > 0 && { warnings: parseWarnings }),
     });
   } catch (err) {
     console.error('[dtsen/import] gagal:', err);
