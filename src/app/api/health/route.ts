@@ -52,7 +52,6 @@ export async function GET() {
     services.qdrant = 'skip';
   }
 
-  const allOk = Object.values(services).every((s) => s === 'ok' || s === 'skip');
   const anyError = Object.values(services).some((s) => s === 'error');
 
   return NextResponse.json({
