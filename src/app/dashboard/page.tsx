@@ -20,8 +20,14 @@ export default function DashboardPage() {
   const abortRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveNarasiRef = useRef('');
+  // Penanda urutan invokasi: hanya invokasi dengan seq terbaru boleh mengubah UI.
+  // Mencegah catch/abort invokasi lama menimpa jawaban sukses invokasi baru
+  // (banner "terlalu lama" palsu saat jawaban sebenarnya berhasil).
+  const seqRef = useRef(0);
 
   const handleQuery = useCallback(async (query: string) => {
+    const seq = ++seqRef.current;
+
     // Abort previous request if any
     abortRef.current?.abort();
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -100,6 +106,9 @@ export default function DashboardPage() {
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
+      // Invokasi sudah digantikan query lebih baru → buang hasilnya diam-diam.
+      if (seq !== seqRef.current) return;
+
       if (streamError) throw new Error(streamError);
 
       if (finalResult) {
@@ -120,11 +129,15 @@ export default function DashboardPage() {
       setStatusText(null);
       liveNarasiRef.current = '';
       setLiveNarasi('');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      // Invokasi dibatalkan karena digantikan query/reset lebih baru →
+      // JANGAN set error: itu penyebab banner timeout palsu menimpa jawaban sukses.
+      if (seq !== seqRef.current) return;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      const errMsg = err?.name === 'AbortError'
+      const isAbort = err instanceof Error && err.name === 'AbortError';
+      const errMsg = isAbort
         ? 'AI membutuhkan waktu terlalu lama (65 detik). Coba pertanyaan yang lebih singkat.'
-        : `Terjadi kesalahan: ${err?.message ?? 'Unknown'}`;
+        : `Terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown'}`;
       setError(errMsg);
       setMode('ai-response');
       setAiResponse(null);
@@ -132,12 +145,16 @@ export default function DashboardPage() {
       setLiveNarasi('');
       setStatusText(null);
     } finally {
-      setIsLoading(false);
-      abortRef.current = null;
+      if (seq === seqRef.current) {
+        setIsLoading(false);
+        abortRef.current = null;
+      }
     }
   }, []);
 
   const handleReset = useCallback(() => {
+    // Invalidasi invokasi in-flight agar catch-nya diam (tidak menampilkan banner).
+    seqRef.current += 1;
     abortRef.current?.abort();
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setMode('default');
