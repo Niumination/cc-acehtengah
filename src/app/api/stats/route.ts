@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchSapaData, getUniqueOpd, getUniqueIndicators } from '@/lib/sapa-client';
 
 // In-memory cache for stats (10 minutes)
-let statsCache: any = null;
+let statsCache: Record<string, unknown> | null = null;
 let statsCacheTime = 0;
 const CACHE_TTL = 10 * 60 * 1000;
 

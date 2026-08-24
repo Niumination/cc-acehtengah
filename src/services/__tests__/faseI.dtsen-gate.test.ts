@@ -10,7 +10,6 @@ import {
   DATA_SOURCE_SEEDS,
   type DataSensitivity,
 } from '@/lib/data-gate';
-import type { AdminPayload } from '@/lib/auth';
 
 const SENSITIVITIES: DataSensitivity[] = ['PUBLIC', 'RESTRICTED_AGGR', 'RESTRICTED_PERSONAL'];
 const analyst = { id: 'a1', username: 'analis', nama: 'Analis Dinsos', role: 'DTSEN_ANALYST' };

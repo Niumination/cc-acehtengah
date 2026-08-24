@@ -62,7 +62,7 @@ describe('Fase E — observabilitas SoT', () => {
     expect(m.dataOrigin).toBe('splp');
     expect(m.finish_reason).toBeNull();
     expect(m.grounding).toBe('replaced');
-    expect(m.evidenceIds.length).toBe(30); // cap 30
+    expect((m.evidenceIds as number[]).length).toBe(30); // cap 30
     expect(m.evidenceCount).toBe(35);
   });
 

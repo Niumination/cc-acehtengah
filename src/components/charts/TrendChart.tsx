@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 
 interface TrendChartProps {
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   lines: { key: string; color: string; name: string }[];
   xKey: string;
   title?: string;

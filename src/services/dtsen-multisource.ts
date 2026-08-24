@@ -79,7 +79,7 @@ function normalizeNik(raw: unknown): string {
 export function parseStuntingXlsx(
   rows: Record<string, unknown>[],
   secret: string,
-  opts: ValidateOptions = {},
+  _opts: ValidateOptions = {},
 ): MultisourceImportResult {
   const valid: ValidDtsenRow[] = [];
   const rejected: RejectedRow[] = [];
@@ -192,7 +192,7 @@ function normalizeDesil(raw: unknown): { desil: number; warning?: string } | nul
 export function parseKominfoXlsx(
   rows: Record<string, unknown>[],
   secret: string,
-  opts: ValidateOptions = {},
+  _opts: ValidateOptions = {},
 ): MultisourceImportResult {
   const valid: ValidDtsenRow[] = [];
   const rejected: RejectedRow[] = [];

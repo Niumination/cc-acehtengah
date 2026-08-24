@@ -31,11 +31,11 @@ export async function POST(req: NextRequest) {
       },
       { status: 500 },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         success: false,
-        message: err.message || 'Unknown error',
+        message: err instanceof Error ? err.message : 'Unknown error',
       },
       { status: 500 },
     );

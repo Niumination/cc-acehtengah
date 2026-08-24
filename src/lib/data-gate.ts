@@ -71,7 +71,6 @@ export function buildAuditEntry(params: {
   ip?: string | null;
 }): AuditEntry {
   const detail = (params.detail ?? '')
-    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1F\x7F]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

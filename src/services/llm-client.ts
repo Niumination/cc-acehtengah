@@ -4,8 +4,8 @@
 
 interface LLMInput {
   query: string;
-  data?: any;
-  konteks?: any[];
+  data?: Record<string, unknown>;
+  konteks?: unknown[];
 }
 
 function getConfig() {

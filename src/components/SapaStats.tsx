@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
+  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts';
 
 interface Overview {
@@ -41,7 +41,7 @@ interface SapaStatsData {
   topIndicators: Indicator[];
   dataByYear: DataByYear[];
   kategoriDistribusi: KategoriDist[];
-  sampleRecords: any[];
+  sampleRecords: Record<string, unknown>[];
 }
 
 const CHART_COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4'];
@@ -247,7 +247,10 @@ export default function SapaStats() {
                 contentStyle={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '12px', fontSize: '12px' }}
                 itemStyle={{ color: '#1E2420' }}
                 labelStyle={{ color: '#C6C3B4' }}
-                formatter={(value: any, _name: any, props: any) => [`${value} record`, props.payload?.nama ?? '']}
+                formatter={(value: unknown, _name: unknown, props: unknown) => {
+                  const nama = (props as { payload?: { nama?: string } } | null)?.payload?.nama ?? '';
+                  return [`${value} record`, nama] as [string, string];
+                }}
               />
               <Bar dataKey="jumlah" name="Jumlah Record" radius={[0, 6, 6, 0]}>
                 {top10.map((_, i) => (

@@ -40,7 +40,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 /** Create JWT token */
 export async function createToken(admin: AdminPayload): Promise<string> {
-  return new SignJWT(admin as any)
+  return new SignJWT({ ...admin })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')

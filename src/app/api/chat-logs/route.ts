@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const from = url.searchParams.get('from');
     const to = url.searchParams.get('to');
 
-    const where: any = {};
+    const where: Prisma.ChatSessionWhereInput = {};
     if (intent && intent !== 'all') where.intent = intent;
     if (search) where.query = { contains: search, mode: 'insensitive' };
     if (from || to) {

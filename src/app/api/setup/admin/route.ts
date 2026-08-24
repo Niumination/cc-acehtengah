@@ -51,9 +51,9 @@ export async function POST(req: NextRequest) {
       await prisma.$executeRawUnsafe(`
         CREATE UNIQUE INDEX IF NOT EXISTS "Admin_username_key" ON "Admin"("username")
       `);
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Enum might not exist yet, try without enum type
-      if (e?.message?.includes('AdminRole')) {
+      if (e instanceof Error && e.message.includes('AdminRole')) {
         await prisma.$executeRawUnsafe(`
           DO $$ BEGIN
             CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'SUPERADMIN');

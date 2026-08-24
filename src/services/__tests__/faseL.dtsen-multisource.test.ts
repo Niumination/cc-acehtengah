@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parseStuntingXlsx, parseKominfoXlsx } from '@/services/dtsen-multisource';
-import { hmac, maskNama, K_MIN } from '@/services/dtsen-import';
+import { hmac, maskNama } from '@/services/dtsen-import';
 
 const SECRET = 'test-secret-key-16chars';
 

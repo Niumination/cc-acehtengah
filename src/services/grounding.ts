@@ -9,6 +9,8 @@ export interface EvidenceItem {
   nilai: string;
   satuan: string;
   tahun: string | null;
+  /** Angka numerik hasil parsing dari `nilai` (diisi pipeline grounding). */
+  nilaiNumber?: number;
   /** Evidence ID (SAPA: kode_indikator number; DTSEN: 'dtsen:...' string). */
   id: number | string;
 }
@@ -29,7 +31,7 @@ function isFourDigitYear(s: string): boolean {
 export function buildAllowedNumbers(evidence: EvidenceItem[]): Set<string> {
   const set = new Set<string>();
   for (const e of evidence) {
-    const raws = [e.nilai, String(e.nilai ?? ''), String((e as any).nilaiNumber ?? '')];
+    const raws = [e.nilai, String(e.nilai ?? ''), String(e.nilaiNumber ?? '')];
     for (const r of raws) {
       const m = r.match(/[\d.,]+/g) ?? [];
       for (const n of m) {
@@ -38,7 +40,7 @@ export function buildAllowedNumbers(evidence: EvidenceItem[]): Set<string> {
       }
     }
     // also add nilaiNumber if present as number directly
-    const nn = (e as any).nilaiNumber;
+    const nn = e.nilaiNumber;
     if (typeof nn === 'number' && Number.isFinite(nn)) set.add(String(nn).replace(/[.,]/g, ''));
   }
   // dedup empty

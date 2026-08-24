@@ -31,7 +31,9 @@ export const maxDuration = 60;
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB teks CSV
 const CHUNK = 5000;
 
-function audit(admin: any, aksi: 'IMPORT' | 'IMPORT_DITOLAK', detail: string, ip: string, rowCount = 0) {
+import type { AdminPayload } from '@/lib/auth';
+
+function audit(admin: AdminPayload, aksi: 'IMPORT' | 'IMPORT_DITOLAK', detail: string, ip: string, rowCount = 0) {
   return prisma.dataAccessAudit
     .create({ data: buildAuditEntry({ admin, aksi, detail, ip, rowCount }) })
     .catch((e) => console.error('[dtsen/import] audit gagal:', e));

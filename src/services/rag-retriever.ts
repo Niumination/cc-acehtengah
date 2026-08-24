@@ -10,8 +10,8 @@ export interface RegulationContext {
 }
 
 export async function retrieveContext(
-  query: string,
-  kategori?: string,
+  _query: string,
+  _kategori?: string,
 ): Promise<RegulationContext[]> {
   const qdrantUrl = process.env.QDRANT_URL;
   if (!qdrantUrl) return []; // Qdrant belum dikonfigurasi — skip silently

@@ -12,9 +12,17 @@ export interface AIDataPayload {
 
 export function toAIDataPayload(res: HybridResponse): AIDataPayload | null {
   const cfg = res.visualisasi?.konfigurasi ?? {};
-  const rows: (string | number)[][] = Array.isArray(cfg.rows) ? cfg.rows : Array.isArray(cfg.baris) ? cfg.baris : [];
-  const headers: string[] = Array.isArray(cfg.columns) ? cfg.columns.map((c: any) => typeof c === 'string' ? c : c?.name ?? String(c)) : Array.isArray(cfg.kolom) ? cfg.kolom : ['Indikator', 'Nilai', 'Satuan', 'OPD', 'Tahun'];
-  const metrics: AIDataPayload['metrics'] = Array.isArray(cfg.metrics) ? cfg.metrics : [];
+  const rows: (string | number)[][] = Array.isArray(cfg.rows)
+    ? (cfg.rows as (string | number)[][])
+    : Array.isArray(cfg.baris)
+      ? (cfg.baris as (string | number)[][])
+      : [];
+  const headers: string[] = Array.isArray(cfg.columns)
+    ? (cfg.columns as Array<string | { name?: string }>).map((c) => (typeof c === 'string' ? c : c?.name ?? String(c)))
+    : Array.isArray(cfg.kolom)
+      ? (cfg.kolom as string[])
+      : ['Indikator', 'Nilai', 'Satuan', 'OPD', 'Tahun'];
+  const metrics: AIDataPayload['metrics'] = Array.isArray(cfg.metrics) ? (cfg.metrics as AIDataPayload['metrics']) : [];
   // Fallback metrics from first row if table exists
   if (metrics.length === 0 && rows.length > 0) {
     const top = rows.slice(0, 4);

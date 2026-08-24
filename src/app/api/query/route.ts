@@ -99,7 +99,8 @@ function sseResponse(stream: ReadableStream): Response {
 }
 
 function mockStream(query: string): ReadableStream {
-  const result: HybridResponse = getMockQueryResponse(query);
+  // Mock data disusun mengikuti kontrak HybridResponse legacy
+  const result = getMockQueryResponse(query) as unknown as HybridResponse;
   return mockStreamResult(result);
 }
 

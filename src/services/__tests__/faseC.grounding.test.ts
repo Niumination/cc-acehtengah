@@ -8,7 +8,7 @@ const ev: EvidenceItem[] = [
   { opd: 'Dinkes', indikator: 'Prevalensi Stunting', nilai: '12.5', satuan: 'persen', tahun: '2023', id: 102 },
 ];
 
-function mk(narasi: string, rekomendasi: string[] = [], viz: any = { tipe: 'none', konfigurasi: {} }): HybridResponse {
+function mk(narasi: string, rekomendasi: string[] = [], viz: HybridResponse['visualisasi'] = { tipe: 'none', konfigurasi: {} }): HybridResponse {
   return { narasi, rekomendasi, visualisasi: viz, dataSource: 'test', timestamp: new Date().toISOString() };
 }
 

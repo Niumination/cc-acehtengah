@@ -5,6 +5,17 @@ import { callLLM, streamLLM, extractNarasiPartial, stripReasoningPrefix } from '
 import { retrieveContext } from './rag-retriever';
 import { groundOutput, buildVizFromEvidence, buildDeterministicNarasi } from './grounding';
 import type { EvidenceItem } from './grounding';
+import type { Prisma } from '@prisma/client';
+
+/** Metrik longgar untuk konfigurasi visualisasi 'metric' (payload LLM tidak terjamin bentuknya). */
+interface MetricItem {
+  label?: unknown;
+  value?: unknown;
+  unit?: unknown;
+}
+
+const VIZ_TIPE_LIST = ['chart', 'table', 'map', 'metric', 'none'] as const;
+type VizTipe = (typeof VIZ_TIPE_LIST)[number];
 import {
   fetchSapaData,
   dataSourceLabel,
@@ -29,9 +40,6 @@ import {
   PUBLIC_DEFLECTION_REKOMENDASI,
   planDtsenQuery,
   fetchDtsenAgregatPublik,
-  type PublicAgregatResult,
-  type DtsenPlan,
-  type PublicDeflectionKind,
 } from './dtsen-planner';
 import {
   isTrendQuery,
@@ -45,7 +53,6 @@ import {
 } from './trend-analysis';
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
-import { ensureChatSessionTable } from '@/lib/db-migration';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
@@ -83,7 +90,7 @@ function setCache(query: string, response: HybridResponse) {
 // ─── Core pipeline: intent + fetch + filter + build context ───
 async function buildContext(query: string) {
   const intent = await detectIntent(query);
-  const opdFilter = (intent as any).opdFilter as string | undefined;
+  const opdFilter = intent.opdFilter;
 
   const { records: sapaRecords, origin: dataOrigin } = await getCachedSapaData();
 
@@ -217,7 +224,7 @@ async function buildContext(query: string) {
   // ─── DTSEN Multi-Source Integration ───
   // Jika query relevan dengan DTSEN agregat, fetch dan gabungkan evidence DTSEN.
   const plan = planDtsenQuery(query);
-  let dtsenEvidence: EvidenceItem[] = [];
+  const dtsenEvidence: EvidenceItem[] = [];
   let dtsenProvenance: { label: string } = { label: '' };
   let dtsenNarasi: string | undefined;
   let dtsenSensor: string[] = [];
@@ -355,15 +362,15 @@ async function saveChatSession(params: {
   query: string;
   intent: string;
   result: HybridResponse;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }) {
   try {
     await prisma.chatSession.create({
       data: {
         query: params.query,
         intent: params.intent,
-        aiResponse: params.result as any,
-        metadata: params.metadata,
+        aiResponse: params.result as unknown as Prisma.InputJsonValue,
+        metadata: params.metadata as unknown as Prisma.InputJsonValue,
       },
     });
   } catch (dbErr) {
@@ -389,7 +396,7 @@ export function buildObservabilityMeta(input: {
   dataOrigin: SapaDataOrigin;
   streamed: boolean;
   error?: string | null;
-}): Record<string, any> {
+}): Record<string, unknown> {
   return {
     opdFilter: input.opdFilter ?? null,
     filterDipakai: input.filterDipakai,
@@ -455,103 +462,7 @@ async function tryMetaQuery(
  * Sensor: k-anonymity sudah diterapkan saat publish (k≥5); sensor dinamis untuk
  * perhitungan bansos hasil query.
  */
-interface DtsenIntegrationResult {
-  /** Evidence tambahan dari DTSEN (untuk ditambah ke pipeline SAPA) */
-  evidence: EvidenceItem[];
-  /** Provenance DTSEN (untuk narasi header + chip visual) */
-  provenance: { label: string; versi?: string; jalur?: string; publishedAt?: Date | string | null };
-  /** Narasi DTSEN yang bisa langsung digabung ke prompt LLM */
-  dtsenNarasi?: string;
-  /** Apakah query ini defleksi (NIK/personal) */
-  defleksi: boolean;
-  /** Tipe defleksi bila ada */
-  defleksiKind: PublicDeflectionKind | null;
-}
 
-async function integrateDtsenData(query: string, dtsenResult: PublicAgregatResult | null): Promise<DtsenIntegrationResult> {
-  const plan: DtsenPlan = planDtsenQuery(query);
-
-  // 1. NIK / per-orang → defleksi (privacy)
-  if (plan.scope === 'PERSONAL' || (plan.nik !== null)) {
-    const kind = publicDeflectionKind(query);
-    return {
-      evidence: [],
-      provenance: { label: '' },
-      defleksi: true,
-      defleksiKind: kind ?? 'NIK',
-    };
-  }
-
-  // 2. DTSEN agregat → fetch dan gabung ke evidence
-  if (plan.asksDtsen && plan.scope === 'AGGR' && dtsenResult) {
-    // Bangun evidence dari DTSEN agregat
-    const evidence: EvidenceItem[] = [];
-
-    // Evidence per desil
-    for (const d of dtsenResult.byDesil) {
-      evidence.push({
-        opd: 'DTSEN (Kemensos/BPS)',
-        indikator: `Desil ${d.desil} — jiwa`,
-        nilai: String(d.jiwa),
-        satuan: 'jiwa',
-        tahun: null,
-        id: `dtsen:desil:${d.desil}`,
-      });
-    }
-
-    // Evidence bansos
-    if (dtsenResult.bansos) {
-      for (const b of dtsenResult.bansos) {
-        evidence.push({
-          opd: 'DTSEN (Kemensos/BPS)',
-          indikator: `Penerima ${b.program.toUpperCase()}`,
-          nilai: b.jiwa === null ? '(disensor)' : String(b.jiwa),
-          satuan: 'jiwa',
-          tahun: null,
-          id: `dtsen:bansos:${b.program}`,
-        });
-      }
-    }
-
-    // Evidence per wilayah (kecamatan/desa)
-    for (const w of dtsenResult.byWilayah.slice(0, 10)) {
-      evidence.push({
-        opd: 'DTSEN (Kemensos/BPS)',
-        indikator: `${plan.kecamatan ? 'Desa' : 'Kecamatan'} ${w.nama} — jiwa`,
-        nilai: String(w.jiwa),
-        satuan: 'jiwa',
-        tahun: null,
-        id: `dtsen:wilayah:${encodeURIComponent(w.nama)}`,
-      });
-    }
-
-    return {
-      evidence,
-      provenance: dtsenResult.provenance,
-      dtsenNarasi: dtsenResult.narasi,
-      defleksi: false,
-      defleksiKind: null,
-    };
-  }
-
-  // 3. DTSEN literal (kata kunci tanpa konteks agregat) → defleksi dengan saran
-  const kind = publicDeflectionKind(query);
-  if (kind && !plan.asksDtsen) {
-    return {
-      evidence: [],
-      provenance: { label: '' },
-      defleksi: true,
-      defleksiKind: kind,
-    };
-  }
-
-  return {
-    evidence: [],
-    provenance: { label: '' },
-    defleksi: false,
-    defleksiKind: null,
-  };
-}
 
 async function tryDtsenDeflection(
   query: string,
@@ -1022,7 +933,7 @@ FORMAT OUTPUT: tepat SATU object JSON valid, tanpa teks lain sebelum/sesudah:
  * Robust JSON extraction — handles markdown code fences (```json ... ```),
  * surrounding prose, and truncated-but-complete objects.
  */
-function extractJsonObject(raw: string): any | null {
+function extractJsonObject(raw: string): Record<string, unknown> | null {
   // Strip markdown code fences
   let cleaned = raw.replace(/```(?:json)?/gi, '').trim();
 
@@ -1069,15 +980,25 @@ function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: Sa
   if (extracted && extracted.type === 'data_dashboard') {
     const narasi = [extracted.title, extracted.summary].filter(Boolean).join(' — ') || 'Ringkasan data SAPA.';
     const metrics = Array.isArray(extracted.metrics) ? extracted.metrics : [];
-    const table = extracted.table ?? { headers: [], rows: [] };
+    const table: Record<string, unknown> =
+      (extracted.table ?? { headers: [], rows: [] }) as Record<string, unknown>;
     const headers: string[] = Array.isArray(table.headers) ? table.headers : Array.isArray(table.columns) ? table.columns : [];
-    const rows: any[][] = Array.isArray(table.rows) ? table.rows : Array.isArray(table.baris) ? table.baris : [];
+    const rows: unknown[][] = Array.isArray(table.rows) ? table.rows : Array.isArray(table.baris) ? table.baris : [];
     // Pilih visualisasi: metrics kecil → metric, rows ada → table, else metric
     let visualisasi: HybridResponse['visualisasi'];
     if (rows.length > 0 && headers.length > 0) {
       visualisasi = { tipe: 'table', konfigurasi: { columns: headers, rows } };
     } else if (metrics.length > 0) {
-      visualisasi = { tipe: 'metric', konfigurasi: { metrics: metrics.map((m: any) => ({ label: m.label, value: m.value, unit: m.unit ?? '' })) } };
+      visualisasi = {
+        tipe: 'metric',
+        konfigurasi: {
+          metrics: metrics.map((m: Record<string, unknown>) => ({
+            label: String(m.label ?? ''),
+            value: m.value,
+            unit: typeof m.unit === 'string' ? m.unit : '',
+          })),
+        },
+      };
     } else {
       visualisasi = { tipe: 'none', konfigurasi: {} };
     }
@@ -1149,28 +1070,46 @@ function extractReadableNarasi(cleaned: string): string {
  * - "chart"   → { type, xKey, data, lines } (accepts {jenis, sumbuX, data, garis})
  * - "none"    → {}
  */
-function normalizeVisualization(vis: any): { tipe: 'chart' | 'table' | 'map' | 'metric' | 'none'; konfigurasi: Record<string, any> } {
-  const rawTipe = vis?.tipe ?? 'none';
-  const tipe: 'chart' | 'table' | 'map' | 'metric' | 'none' =
-    ['chart', 'table', 'map', 'metric', 'none'].includes(rawTipe) ? rawTipe : 'none';
-  const cfg = vis?.konfigurasi ?? {};
+function normalizeVisualization(
+  vis: unknown
+): { tipe: VizTipe; konfigurasi: Record<string, unknown> } {
+  const visObj = (vis && typeof vis === 'object' ? vis : {}) as {
+    tipe?: unknown;
+    konfigurasi?: unknown;
+  };
+  const cfg = (visObj.konfigurasi && typeof visObj.konfigurasi === 'object'
+    ? visObj.konfigurasi
+    : {}) as Record<string, unknown>;
+
+  const rawTipe = visObj.tipe ?? 'none';
+  const tipe: VizTipe =
+    typeof rawTipe === 'string' && (VIZ_TIPE_LIST as readonly string[]).includes(rawTipe)
+      ? (rawTipe as VizTipe)
+      : 'none';
 
   if (tipe === 'metric') {
     // Format A (deepseek): { metrics: [{label, value, unit}] }
     if (Array.isArray(cfg.metrics)) {
-      return { tipe, konfigurasi: { metrics: cfg.metrics } };
+      return {
+        tipe,
+        konfigurasi: {
+          metrics: cfg.metrics.filter(
+            (m): m is MetricItem => !!m && typeof m === 'object' && 'label' in m
+          ),
+        },
+      };
     }
     // Format B (ling): { nilai, satuan, label, detail: [{label, nilai, satuan}] }
-    const metrics: any[] = [];
+    const metrics: MetricItem[] = [];
     if (cfg.nilai != null) {
-      metrics.push({ label: cfg.label ?? 'Nilai', value: cfg.nilai, unit: cfg.satuan ?? '' });
+      metrics.push({ label: typeof cfg.label === 'string' ? cfg.label : 'Nilai', value: cfg.nilai, unit: typeof cfg.satuan === 'string' ? cfg.satuan : '' });
     }
     if (Array.isArray(cfg.detail)) {
-      for (const d of cfg.detail) {
+      for (const d of cfg.detail as Record<string, unknown>[]) {
         metrics.push({
-          label: d.label ?? 'Nilai',
+          label: typeof d.label === 'string' ? d.label : 'Nilai',
           value: d.nilai ?? d.value,
-          unit: d.satuan ?? d.unit ?? '',
+          unit: typeof (d.satuan ?? d.unit) === 'string' ? ((d.satuan ?? d.unit) as string) : '',
         });
       }
     }

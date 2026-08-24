@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { fetchSapaData, getUniqueOpd, getUniqueIndicators, filterByOpd } from '@/lib/sapa-client';
 
-let analyticsCache: any = null;
+let analyticsCache: Record<string, unknown> | null = null;
 let cacheExpiry = 0;
+
+function getErrMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Kesalahan tidak diketahui';
+}
 
 export async function GET() {
   try {
@@ -107,7 +111,7 @@ export async function GET() {
     cacheExpiry = Date.now() + 10 * 60 * 1000;
 
     return NextResponse.json(result);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: getErrMessage(err) }, { status: 500 });
   }
 }

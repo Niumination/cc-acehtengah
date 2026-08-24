@@ -53,7 +53,7 @@ describe('Fase B — sapa-client regression', () => {
       satuan: 'orang', tahun: '2024', variabel: '100',
     };
     const r2024 = { ...base, id: 20 };
-    const rTerbaru: SapaRecord = { ...base, id: 21, tahun: 'terbaru' as any, variabel: '999' };
+    const rTerbaru: SapaRecord = { ...base, id: 21, tahun: 'terbaru' as unknown as SapaRecord['tahun'], variabel: '999' };
     const rNull: SapaRecord = { ...base, id: 22, tahun: null, variabel: '1' };
     expect(aggregateByIndicator([r2024, rTerbaru])[0].nilai).toBe('100');
     expect(aggregateByIndicator([rNull, r2024])[0].nilai).toBe('100');

@@ -13,7 +13,7 @@ import fixture from '@/services/__fixtures__/sapa-mini.json';
 const records = fixture as SapaRecord[];
 
 // ── pure helpers needed for tests (mirroring future fix) ──
-function groundNumbers(text: string, evidence: ReturnType<typeof aggregateByIndicator>): string[] {
+function groundNumbers(text: string, _evidence: ReturnType<typeof aggregateByIndicator>): string[] {
   const nums = text.match(/[\d.,]+/g) ?? [];
   return nums.filter((n) => {
     const v = n.replace(/[.,]/g, '');

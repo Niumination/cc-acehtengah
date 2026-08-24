@@ -141,7 +141,7 @@ describe('buildEwsSection', () => {
 
   it('severity tidak dikenal disaring keluar', () => {
     const out = buildEwsSection([
-      { indikator: 'X', satuan: '', pesan: 'aneh', severity: 'FATAL' as any, createdAt: '' },
+      { indikator: 'X', satuan: '', pesan: 'aneh', severity: 'FATAL' as ReportAlert['severity'], createdAt: '' },
     ]);
     expect(out.alerts).toEqual([]);
   });

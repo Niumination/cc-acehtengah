@@ -17,6 +17,7 @@
 import { KECAMATAN_ACEH_TENGAH, K_MIN, type AgregatRow } from '@/services/dtsen-import';
 import type { DataSensitivity } from '@/lib/data-gate';
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 // ─── Normalisasi ringan (konsisten dgn dtsen-import.normalize) ───
 function norm(s: string): string {
@@ -495,7 +496,7 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
 
   const releaseRef: ReleaseRef = { versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt };
 
-  const where: any = { releaseId: release.id };
+  const where: Prisma.DtsenAgregatWilayahWhereInput = { releaseId: release.id };
   if (filter.kecamatan) where.kecamatan = filter.kecamatan;
   if (filter.desa) where.desa = { equals: filter.desa, mode: 'insensitive' };
   if (filter.desil && filter.desil.length > 0) where.desil = { in: filter.desil };
@@ -543,13 +544,14 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     bansosCounts = [];
     for (const prog of filter.bansos) {
       const colPath = prog === 'pbi' ? 'pbi_jk' : prog;
-      const count = await prisma.dtsenIndividu.count({
-        where: {
-          releaseId: release.id,
-          ...where,
-          statusBansos: { path: [colPath], equals: true },
-        },
-      });
+      const individuWhere: Prisma.DtsenIndividuWhereInput = {
+        releaseId: release.id,
+        ...(filter.kecamatan ? { kecamatan: filter.kecamatan } : {}),
+        ...(filter.desa ? { desa: { equals: filter.desa, mode: 'insensitive' } } : {}),
+        ...(filter.desil && filter.desil.length > 0 ? { desil: { in: filter.desil } } : {}),
+        statusBansos: { path: [colPath], equals: true },
+      };
+      const count = await prisma.dtsenIndividu.count({ where: individuWhere });
       bansosCounts.push({
         program: prog,
         jiwa: count >= K_MIN ? count : count === 0 ? 0 : null,

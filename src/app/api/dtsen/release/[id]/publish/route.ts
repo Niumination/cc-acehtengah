@@ -17,7 +17,9 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-function audit(admin: any, aksi: 'PUBLISH' | 'PUBLISH_DITOLAK', detail: string, ip: string, rowCount = 0) {
+import type { AdminPayload } from '@/lib/auth';
+
+function audit(admin: AdminPayload, aksi: 'PUBLISH' | 'PUBLISH_DITOLAK', detail: string, ip: string, rowCount = 0) {
   return prisma.dataAccessAudit
     .create({ data: buildAuditEntry({ admin, aksi, detail, ip, rowCount }) })
     .catch((e) => console.error('[dtsen/publish] audit gagal:', e));
