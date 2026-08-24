@@ -1,3 +1,33 @@
+# Review — Executive Answer UI
+
+> **UPDATE 2026-08-24 — sesi v2-live: SELESAI ✅**
+>
+> Branch `feat/ai-executive-answer-v2-live`, HEAD `fa0a300` (8 commit di atas main `f6d7cb2`; main belum tersentuh, belum push).
+>
+> | Commit | Isi |
+> |---|---|
+> | `b692e9d`→`1dc36e5` | Fondasi + fix turbopack root |
+> | `f76607a` | Fix banner timeout palsu (`seqRef` guard) |
+> | `ad48481` | Chip pertanyaan per sumber data (SAPA/DTSEN/Bapokting) + degradasi anggun DTSEN |
+> | `15523d1` `75e048b` `f2e364f` `5e05518` | Pembersihan lint penuh: 42 error + 17 warning → **0 masalah** (tipe eksplisit, tanpa suppressions; dead code dihapus; setState-in-effect diperbaiki via pola `setTimeout(0)`) |
+> | `fa0a300` | BACKLOG.md — semua fitur ditahan tercatat |
+>
+> Verifikasi: tsc bersih · eslint 0 masalah · **207/207 tes** · build sukses ·
+> server live port 3001 (`USE_MOCK_DATA=false`), SAPA ~0,5s, meta-query 38 OPD <3s,
+> dashboard 2.032 record live.
+>
+> Ditahan menunggu izin (lihat `BACKLOG.md`): dashboard Sumber Data, Top OPD +
+> analitik drill-down, scraper Bapokting (layak: 2.433 baris, GET-filter),
+> integrasi DTSEN penuh (`DTSEN_NIK_KEY` + impor 2 xlsx). Prasyarat: keputusan
+> migrasi skema Supabase produksi (drift pra-eksisting P2021/P2022) — tidak
+> pernah auto-run.
+>
+> Rollback UI: `NEXT_PUBLIC_AI_EXECUTIVE_UI=false`.
+>
+> ---
+
+## Arsip sesi v1
+
 # Review & Tes Lokal — Executive Answer UI (feat/ai-executive-answer-v1)
 
 **Status: ✅ SIAP MERGE** — semua quality gate lulus, verifikasi visual browser sukses.
