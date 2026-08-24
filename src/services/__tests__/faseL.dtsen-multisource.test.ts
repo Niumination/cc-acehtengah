@@ -64,6 +64,28 @@ describe('parseStuntingXlsx', () => {
     expect(r.rejected).toHaveLength(1);
     expect(r.rejected[0].reason).toContain('tidak dikenal');
   });
+
+  it('menerima kecamatan dengan alias "LUT TAWAR" → "Laut Tawar"', () => {
+    const rows = [{ NIK: '1104080304610001', Nama: 'Test Balita', JK: 'L', Kec: 'LUT TAWAR', 'Desa/Kel': 'Kuala I' }];
+    const r = parseStuntingXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].kecamatan).toBe('Laut Tawar');
+  });
+
+  it('menerima NIK numerik (number type dari Excel) → di-konversi ke string', () => {
+    const rows = [{ NIK: 1104080304610001, Nama: 'Test Balita', JK: 'L', Kec: 'Bintang', 'Desa/Kel': 'Kuala I' }];
+    const r = parseStuntingXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].nikHash).toBe(hmac('1104080304610001', SECRET));
+  });
+
+  it('menolak NIK yang sudah masked (mengandung *)', () => {
+    const rows = [{ NIK: '08022**********', Nama: 'Test User', JK: 'L', Kec: 'Ketol', 'Desa/Kel': 'Serempah' }];
+    const r = parseStuntingXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(0);
+    expect(r.rejected).toHaveLength(1);
+    expect(r.rejected[0].reason).toContain('NIK harus 16 digit');
+  });
 });
 
 describe('parseKominfoXlsx', () => {
@@ -117,6 +139,36 @@ describe('parseKominfoXlsx', () => {
     const r = parseKominfoXlsx(rows, SECRET);
     expect(r.valid).toHaveLength(0);
     expect(r.rejected).toHaveLength(1);
-    expect(r.rejected[0].reason).toContain('Desil harus bilangan bulat 1-10');
+    expect(r.rejected[0].reason).toContain('Desil tidak valid');
+  });
+
+  it('menerima desil range "6-10" → ambil batas bawah (6)', () => {
+    const rows = [{ NIK: '1104080304610001', NAMA: 'Test User', 'KETERANGAN DESIL': '6-10', DESA: 'Kuala I', KECAMATAN: 'Bintang' }];
+    const r = parseKominfoXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].desil).toBe(6);
+  });
+
+  it('menerima "Belum Ada Desl" → set desil 1 + warning', () => {
+    const rows = [{ NIK: '1104080304610001', NAMA: 'Test User', 'KETERANGAN DESIL': 'Belum Ada Desl', DESA: 'Kuala I', KECAMATAN: 'Bintang' }];
+    const r = parseKominfoXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].desil).toBe(1);
+    expect(r.warnings.some(w => w.includes('prioritas tertinggi'))).toBe(true);
+  });
+
+  it('menerima desil kosong/undefined → set desil 1 + warning', () => {
+    const rows = [{ NIK: '1104080304610001', NAMA: 'Test User', 'KETERANGAN DESIL': null, DESA: 'Kuala I', KECAMATAN: 'Bintang' }];
+    const r = parseKominfoXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].desil).toBe(1);
+    expect(r.warnings.some(w => w.includes('prioritas tertinggi'))).toBe(true);
+  });
+
+  it('menerima NIK numerik (number type dari Excel)', () => {
+    const rows = [{ NIK: 1104080304610001, NAMA: 'Test User', 'KETERANGAN DESIL': 1, DESA: 'Kuala I', KECAMATAN: 'Bintang' }];
+    const r = parseKominfoXlsx(rows, SECRET);
+    expect(r.valid).toHaveLength(1);
+    expect(r.valid[0].nikHash).toBe(hmac('1104080304610001', SECRET));
   });
 });
