@@ -9,7 +9,8 @@ export interface EvidenceItem {
   nilai: string;
   satuan: string;
   tahun: string | null;
-  id: number;
+  /** Evidence ID (SAPA: kode_indikator number; DTSEN: 'dtsen:...' string). */
+  id: number | string;
 }
 
 // Extract angka raw: urutan digit dengan . , sebagai pemisah

@@ -16,6 +16,7 @@
 
 import { KECAMATAN_ACEH_TENGAH, K_MIN, type AgregatRow } from '@/services/dtsen-import';
 import type { DataSensitivity } from '@/lib/data-gate';
+import { prisma } from '@/lib/prisma';
 
 // ─── Normalisasi ringan (konsisten dgn dtsen-import.normalize) ───
 function norm(s: string): string {
@@ -449,4 +450,135 @@ export function buildLookupNarasi(found: LookupFound | null, release: ReleaseRef
     `• Status bansos: ${bansosTxt}\n\n` +
     `Nama ditampilkan termask dan NIK tidak pernah ditampilkan (UU 27/2022). Akses ini tercatat di audit trail.`
   );
+}
+
+// ═══ I. FETCH AGREGAT DTSEN YANG SUDAH DIPUBLISH (PUBLIC ACCESS) ═══
+// Data agregat yang sudah dipublish (k≥K_MIN) boleh diakses publik melalui
+// pipeline AI system. K-anonymity sudah diterapkan saat publish — kelompok
+// < 5 jiwa tidak pernah muncul di tabel ini. Sensor tambahan (k<5 hasil query
+// dinamis) diterapkan di buildAgregatAnswer().
+
+/** Parameter filter untuk query agregat publik DTSEN. */
+export interface PublicAgregatFilter {
+  kecamatan?: string | null;
+  desa?: string | null;
+  desil?: number[] | null;
+  bansos?: Array<'pkh' | 'bpnt' | 'pbi'> | null;
+}
+
+/** Hasil agregat publik DTSEN yang sudah melalui sensor k-anonymity. */
+export interface PublicAgregatResult {
+  release: ReleaseRef;
+  provenance: { label: string; versi: string; jalur: string; publishedAt: Date | string | null };
+  rows: AgregatRow[];
+  totalJiwa: number;
+  totalKeluarga: number;
+  byDesil: DesilSummary[];
+  byWilayah: WilayahSummary[];
+  bansos: BansosCountResult[] | null;
+  sensor: string[];
+  narasi: string;
+}
+
+/**
+ * Fetch agregat DTSEN yang sudah dipublish secara publik (tanpa auth).
+ * K-anonymity dilindungi: kelompok < K_MIN sudah disensor saat publish.
+ * Sensor dinamis (< K_MIN hasil hitung ulang) diterapkan di sini untuk bansos.
+ */
+export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Promise<PublicAgregatResult | null> {
+  const release = await prisma.dtsenRelease.findFirst({
+    where: { status: 'PUBLISHED' },
+    orderBy: { publishedAt: 'desc' },
+    select: { id: true, versi: true, jalur: true, publishedAt: true },
+  });
+  if (!release) return null;
+
+  const releaseRef: ReleaseRef = { versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt };
+
+  const where: any = { releaseId: release.id };
+  if (filter.kecamatan) where.kecamatan = filter.kecamatan;
+  if (filter.desa) where.desa = { equals: filter.desa, mode: 'insensitive' };
+  if (filter.desil && filter.desil.length > 0) where.desil = { in: filter.desil };
+
+  const aggrDb = await prisma.dtsenAgregatWilayah.findMany({
+    where,
+    orderBy: [{ kecamatan: 'asc' }, { desa: 'asc' }, { desil: 'asc' }],
+  });
+
+  if (aggrDb.length === 0) {
+    // Query kosong tetap kembalikan answer yang jujur
+    const jawaban = buildAgregatAnswer({
+      rows: [],
+      release: releaseRef,
+      kecamatan: filter.kecamatan ?? null,
+      desa: filter.desa ?? null,
+      desil: filter.desil ?? null,
+      bansosCounts: null,
+    });
+    return {
+      release: releaseRef,
+      provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+      rows: [],
+      totalJiwa: 0,
+      totalKeluarga: 0,
+      byDesil: [],
+      byWilayah: [],
+      bansos: null,
+      sensor: jawaban.sensor,
+      narasi: jawaban.narasi,
+    };
+  }
+
+  const rows: AgregatRow[] = aggrDb.map((r) => ({
+    kecamatan: r.kecamatan,
+    desa: r.desa,
+    desil: r.desil,
+    jumlahJiwa: r.jumlahJiwa,
+    jumlahKeluarga: r.jumlahKeluarga,
+  }));
+
+  // Hitung bansos dinamis — dengan sensor k-anonymity (< K_MIN → null/disensor)
+  let bansosCounts: BansosCountResult[] | null = null;
+  if (filter.bansos && filter.bansos.length > 0) {
+    bansosCounts = [];
+    for (const prog of filter.bansos) {
+      const colPath = prog === 'pbi' ? 'pbi_jk' : prog;
+      const count = await prisma.dtsenIndividu.count({
+        where: {
+          releaseId: release.id,
+          ...where,
+          statusBansos: { path: [colPath], equals: true },
+        },
+      });
+      bansosCounts.push({
+        program: prog,
+        jiwa: count >= K_MIN ? count : count === 0 ? 0 : null,
+      });
+    }
+  }
+
+  const jawaban = buildAgregatAnswer({
+    rows,
+    release: releaseRef,
+    kecamatan: filter.kecamatan ?? null,
+    desa: filter.desa ?? null,
+    desil: filter.desil ?? null,
+    bansosCounts,
+  });
+
+  const totalJiwa = rows.reduce((a, r) => a + r.jumlahJiwa, 0);
+  const totalKeluarga = rows.reduce((a, r) => a + r.jumlahKeluarga, 0);
+
+  return {
+    release: releaseRef,
+    provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+    rows,
+    totalJiwa,
+    totalKeluarga,
+    byDesil: jawaban.byDesil,
+    byWilayah: jawaban.byWilayah,
+    bansos: jawaban.bansos,
+    sensor: jawaban.sensor,
+    narasi: jawaban.narasi,
+  };
 }

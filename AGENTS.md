@@ -21,10 +21,11 @@
 
 ```
 SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
-(Data Source)     (Next.js API)     (Eksekutif)
-                        │
-                        ├── ChatSession DB (auto-log)
-                        └── Admin Auth (JWT cookie)
+DTSEN ─[publish]────┘ (gabungan evidence: SAPA + agregat DTSEN publik)
+(Data Sources)     (Query Planner + Provenance + Sensor k-anon)
+                          │
+                          ├── ChatSession DB (auto-log)
+                          └── Admin Auth (JWT cookie)
 ```
 
 ## Stack
@@ -32,7 +33,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Layer | Teknologi |
 |-------|-----------|
 | Frontend | Next.js 16, React 19, Tailwind, Recharts, Leaflet |
-| Backend | Next.js API Routes, Prisma 6 |
+| Backend | Next.js API Routes, Prisma 6, AI Query Planner + Provenance Tracking |
 | Database | Supabase PostgreSQL (Supavisor pooler, port 6543) |
 | Auth | bcryptjs + jose (JWT) + httpOnly cookie |
 | AI | OpenAI-compatible (OpenCode Zen, OpenRouter, etc.) |
@@ -43,7 +44,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 | Fitur | Status | Endpoint |
 |-------|:------:|----------|
 | Dashboard utama | ✅ | `/dashboard` |
-| AI Smart Query | ✅ | `POST /api/query` |
+| **AI Smart Query** | ✅ | `POST /api/query` — SAPA + DTSEN agregat publik (one door, provenance tracked)
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan Eksekutif (Auth)** | ✅ | `/dashboard/laporan` — generator naratif deterministik (bukan lagi sekadar log viewer) + `/api/report` |
@@ -216,3 +217,29 @@ Parser multi-sumber (`src/services/dtsen-multisource.ts`) sudah divalidasi melaw
 | Desil teks (`"Belum Ada Desl"`) | Di-set ke 1 (prioritas tertinggi) + warning |
 | Desil kosong/null | Di-set ke 1 + warning |
 | Baris kosong di Excel (header offset, blank rows) | Dihandle oleh frontend parser sebelum kirim JSON ke API |
+
+### Integrasi DTSEN Multi-Source ke AI System (Aug 24, 2026)
+
+AI Smart Query (`POST /api/query`) kini menggabungkan data DTSEN agregat publik ke dalam evidence, sehingga pertanyaan tentang desil, bansos, dan pembagian wilayah menjawab berdasarkan **gabungan SAPA + DTSEN** — bukan hanya SAPA.
+
+**Logika pipeline (di `src/services/ai-orchestrator.ts`):**
+
+1. **NIK / per-orang** → defleksi ke konsol DTSEN terbatas (privacy, audit trail, UU 27/2022)
+2. **DTSEN agregat** (desil, bansos, pembagian wilayah) →
+   - Fetch agregat publik via `fetchDtsenAgregatPublik()` (k≥5 sudah disensor saat publish)
+   - Evidence DTSEN digabung ke evidence SAPA → dikirim ke LLM
+   - Narasi WAJIB menyertakan provenance: "Menurut DTSEN (Kemensos/BPS)…"
+3. **DTSEN literal** (kata kunci tanpa konteks agregat) → defleksi dengan rekomendasi agregat
+
+**Data flow:**
+```
+/api/query → buildContext()
+  ├── SAPA retrieval (existing)
+  └── DTSEN integration (baru):
+       planDtsenQuery → fetchDtsenAgregatPublik()
+       → evidence DTSEN (desil, bansos, wilayah)
+       → provenance label → system prompt + dataForLLM
+  → Evidence gabungan (SAPA + DTSEN) → LLM → grounding SoT → response
+```
+
+**Provenance tracking:** setiap evidence DTSEN dilabeli `opd="DTSEN (Kemensos/BPS)"`, `id="dtsen:..."`, dan `dataOrigin: 'dtsen'` di metadata.
