@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import QueryBar from '@/components/QueryBar';
 import DefaultDashboard from '@/components/SapaStats';
+import TopOpdWidget from '@/components/TopOpdWidget';
 import AIResponseRenderer from '@/components/AIResponseRenderer';
 import KpiPanel from '@/components/KpiPanel';
 import EwsPanel from '@/components/EwsPanel';
@@ -180,6 +181,7 @@ export default function DashboardPage() {
         <>
           {/* PR Lapis 2: KPI pimpinan + EWS di atas beranda statistik portal */}
           <KpiPanel />
+          <TopOpdWidget />
           <div className="bg-[var(--surface-card)] border border-[#C6C3B4] rounded-2xl p-4">
             <EwsPanel />
           </div>

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import OpdDrilldown from '@/components/OpdDrilldown';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -87,10 +89,22 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
   );
 }
 
+// Wrapper + Suspense: useSearchParams() memerlukan boundary Suspense agar halaman
+// tetap bisa di-prerender statis (Next.js app router).
 export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsContent />
+    </Suspense>
+  );
+}
+
+function AnalyticsContent() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const selectedOpd = searchParams.get('opd');
 
   const fetchData = async () => {
     try {
@@ -157,6 +171,9 @@ export default function AnalyticsPage() {
           </p>
         </div>
       </div>
+
+      {/* Drill-down per OPD — aktif saat ?opd=<nama> (dari widget Top OPD) */}
+      {selectedOpd && <OpdDrilldown key={selectedOpd} opd={selectedOpd} />}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
