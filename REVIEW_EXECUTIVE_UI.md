@@ -240,3 +240,24 @@ lalu dikembalikan ke build normal untuk verifikasi fitur v3.
     pesan jujur "belum ada deret" + tabel indikator ✅
   - Drill-down PPPA: tren "Persentase rumah tangga … sanitasi layak"
     2 titik (2025–2026) tergambar ✅
+
+---
+
+## 10. Scope C — Hardening Drill-down + Koordinasi Root (2026-08-26)
+
+### Scope C selesai (`be8e521`)
+- Logika murni diekstrak ke `src/services/opd-drilldown.ts` (pola
+  executive-presentation.ts): `parseNumericId` (angka format Indonesia,
+  tolak non-numerik tanpa mengarang), `resolveExactOpdName`,
+  `buildOpdDetail` (dedup tahun, validasi 1900–2200, tren ≥2 titik).
+- Handler route kini tipis: I/O + cache saja. Duplikasi logika dihapus.
+- **+11 unit test** → total suite **218/218 lulus** (sebelumnya 207).
+- Gate penuh pasca-refactor: test ✅ · tsc ✅ · lint target ✅ · build ✅.
+- BACKLOG.md item 2 diperbarui: Top OPD + drill-down TERIMPLEMENTASI di branch ini.
+
+### Catatan koordinasi dengan Hermes (root Niumination)
+- Commit lokal root `3fe4291` terverifikasi murni berisi file Pabrik Aplikasi
+  (docs/references, apps/pabrik-aplikasi-gas, skills/ecosystem/pabrik-aplikasi,
+  manifest.json 69 skill) — tidak menyentuh services/cc-acehtengah.
+- Kesepakatan dicatat: saat migrasi/rebase/push root nanti, commit tersebut
+  WAJIB dipertahankan; working tree root yang dirty sengaja tidak disentuh.
