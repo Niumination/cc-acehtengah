@@ -20,11 +20,16 @@ Kartu/ringkasan jumlah record per sumber data di dashboard utama:
 
 ## 2. Dashboard Top OPD + Analitik Drill-down
 
-**Status:** dicatat, belum diimplementasi.
+**Status:** ✅ TERIMPLEMENTASI di branch `feat/ai-executive-answer-v3`
+(`99d5f9e`, refactor `feat(opd-drilldown)`) — belum di main, menyusul merge.
 
-- Widget "Top OPD" (jumlah indikator/record per OPD) di dashboard.
-- Klik OPD → halaman analitik detail (tren tahunan, indikator per OPD).
-- Data sudah tersedia dari `/api/analytics` (`opdBreakdown`).
+- Widget "Top 10 OPD" deterministik di beranda (`TopOpdWidget.tsx`,
+  sumber `/api/analytics` → `opdBreakdown`).
+- Klik OPD → panel drill-down `/dashboard/analytics?opd=...`
+  (`OpdDrilldown.tsx` + API `GET /api/analytics/opd/[slug]`):
+  stat ringkas, chart tren (hanya ≥2 titik tahun valid), 15 indikator
+  nilai terakhir, provenance + jumlah record tanpa tahun.
+- Logika murni di `src/services/opd-drilldown.ts`, 11 unit test.
 
 ## 3. Scraper Bapokting
 
