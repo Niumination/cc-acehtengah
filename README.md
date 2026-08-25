@@ -68,12 +68,13 @@ src/
 │   ├── api/auth/         # Login, logout, session
 │   ├── api/chat-logs/    # AI query logs
 │   ├── api/query/        # AI Smart Query
+│   ├── api/analytics/opd/[slug]/  # Detail analitik per OPD (tren, indikator)
 │   ├── dashboard/        # Main dashboard
 │   └── login/            # Login page
-├── components/           # UI components
+├── components/           # UI components (TopOpdWidget, OpdDrilldown, dst.)
 ├── lib/                  # Auth, Prisma, SAPA client
 ├── middleware.ts          # Route protection
-└── services/             # AI pipeline, data sync
+└── services/             # AI pipeline, data sync, opd-drilldown (murni + test)
 ```
 
 ## License
