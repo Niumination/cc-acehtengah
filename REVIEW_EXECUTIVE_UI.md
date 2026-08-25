@@ -117,3 +117,78 @@ git push origin main   # → memicu deploy Vercel otomatis
 ```
 
 Rollback darurat pasca-deploy: set env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` di Vercel → redeploy (tanpa migrasi DB).
+
+---
+
+## 7. Laporan Akhir Format §12 (2026-08-26)
+
+```text
+BASE REMOTE:
+- URL: git@github.com:Niumination/cc-acehtengah.git
+- commit main terbaru: f6d7cb2b590c9c97703b839db9f2b9b25e6efc50
+  "feat: integrate DTSEN multi-source agregat into AI Smart Query"
+- tanggal/waktu verifikasi: 2026-08-26 02:12 (+07:00) — git fetch origin main,
+  HEAD origin/main = f6d7cb2, identik dengan base di instruksi §1.
+  Remote lokal `latest` (cc-acehtengah-latest checkout) juga tidak lebih baru.
+
+FEATURE:
+- branch: feat/ai-executive-answer-v2-live (11 commit di atas base)
+- commit feature: HEAD = 2049681 ("docs: perbarui review dengan status sesi v2-live")
+- base feature: f6d7cb2 (merge-base = HEAD origin/main → fast-forward aman)
+- apakah ed323ab dapat di-cherry-pick langsung: tidak perlu — ed323ab
+  ("feat(ui): add executive AI answer presentation") sudah terserap ke branch ini
+  sebagai padanannya a248ace (isi sama; a248ace menambah
+  docs/ai/INSTRUKSI_PENERAPAN_EXECUTIVE_AI.md 636 baris). Kedua commit ada di
+  objek repo; branch memakai a248ace sebagai titik mulai lalu 10 commit lanjutan.
+
+FILE DIUBAH:
+- 57 file: +3.253 / −448 (48 M, 9 A)
+- Inti feature: src/services/executive-presentation.ts (adapter murni baru),
+  src/components/ExecutiveAnswerRenderer.tsx (renderer baru),
+  src/services/__tests__/executive-presentation.test.ts,
+  switch NEXT_PUBLIC_AI_EXECUTIVE_UI di AIResponseRenderer.tsx,
+  meta-query.ts (jalur deterministik daftar_opd), shell global
+  (Sidebar/layout/QueryBar/globals.css), next.config.ts (turbopack root),
+  eslint.config.mjs, prototype/*, BACKLOG.md, REVIEW_EXECUTIVE_UI.md.
+- File yang tidak disentuh karena konflik/pekerjaan agent lain: tidak ada —
+  seluruh pekerjaan dilakukan linear di atas f6d7cb2 tanpa rebase paksa.
+
+KEAMANAN PERUBAHAN:
+- HybridResponse legacy dipertahankan: ya (field presentation? optional;
+  fallback renderer legacy via flag)
+- SSE dipertahankan: ya (status → narasi → result, terverifikasi mock mode)
+- DB/schema berubah: tidak (0 migrasi Prisma; P2021 pra-eksisting tak disentuh)
+- LLM tambahan: tidak (tetap 1 panggilan LLM; adapter & meta-query deterministik)
+- DTSEN/auth disentuh: hanya sentuhan kosmetik lint pada lib/auth.ts
+  (`SignJWT(admin as any)` → `SignJWT({...admin})`), audit-log.ts, data-gate.ts
+  — semantik verifikasi/audit tidak berubah; faseI.dtsen-gate.test 12/12 lulus
+- feature flag rollback: ya — NEXT_PUBLIC_AI_EXECUTIVE_UI=false → renderer legacy
+
+VALIDASI:
+- npm test: ✅ 207/207 passed (12 file test), ulang 2026-08-26 02:12
+- tsc --noEmit: ✅ exit 0, tanpa error
+- npm run build: ✅ exit 0, semua route terkompilasi
+- lint target (file feature): ✅ bersih (0 error, 0 warning)
+- full lint: ✅ exit 0 — baseline lama 42 error + 17 warning sudah dibersihkan
+  penuh di sesi v2-live (5e05518 dkk.), kini 0 masalah, tanpa suppressions
+- manual query: sesi v2-live (port 3001, USE_MOCK_DATA=false): meta-query
+  "OPD mana yang memiliki indikator paling banyak" → SSE urut status/narasi/
+  result; Executive Answer utuh (headline, ranking 12 OPD, insight, quick wins,
+  provenance); dashboard live 2.032 record SAPA ~0,5s; chip per sumber data;
+  banner timeout palsu tidak muncul lagi
+- preview URL/port: http://localhost:3001/dashboard
+
+DEPLOY:
+- push GitHub: tidak dilakukan (branch lokal belum ada di origin)
+- deploy Vercel: tidak dilakukan (menunggu persetujuan eksplisit pemilik repo)
+
+RISIKO TERSISA:
+- Verifikasi visual live-data di PRODUKSI belum pernah dilakukan; semua uji
+  visual dilakukan lokal (live API SAPA dari jaringan lokal + mock mode).
+  SAPA eksternal timeout dari jaringan ini saat sesi v1.
+- Jalur rollback flag (false → renderer legacy) teruji lewat kode/test, belum
+  pernah dieksekusi visual end-to-end di deployment sungguhan.
+- Turbopack root fix (next.config.ts) divalidasi di mesin lokal multi-lockfile;
+  perilaku build CI/Vercel perlu diamati sekali pasca-deploy pertama.
+- Drift skema produksi pra-eksisting (P2021 tabel DTSEN, P2022) tetap ada dan
+  sengaja tidak disentuh — butuh keputusan migrasi Supabase terpisah.
