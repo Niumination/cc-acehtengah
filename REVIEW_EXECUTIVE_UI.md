@@ -192,3 +192,20 @@ RISIKO TERSISA:
   perilaku build CI/Vercel perlu diamati sekali pasca-deploy pertama.
 - Drift skema produksi pra-eksisting (P2021 tabel DTSEN, P2022) tetap ada dan
   sengaja tidak disentuh — butuh keputusan migrasi Supabase terpisah.
+
+---
+
+## 8. Verifikasi Jalur Rollback (branch feat/ai-executive-answer-v3, 2026-08-26)
+
+Risiko #2 dari §12 ("jalur rollback belum dieksekusi visual end-to-end") telah **ditutup**:
+
+| Langkah | Hasil |
+|---|---|
+| Build ulang dengan `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` | ✅ exit 0 (flag di-inline saat build produksi) |
+| Server produksi lokal `next start -p 3100` | ✅ `/dashboard` HTTP 200 |
+| Browser e2e: klik chip "🏛️ Jumlah ASN" (query substantif, SSE live SAPA) | ✅ Renderer LEGACY aktif: marker "Hasil Analisis AI", metrik ASN 9610, tabel 12 indikator, provenance "Terverifikasi SDI". Tanpa struktur Executive Answer, tanpa crash |
+| Browser e2e: klik chip "🏆 OPD Teratas" (jalur meta-query baru `daftar_opd`) | ✅ Kompatibel dengan legacy: narasi deterministik 38 OPD, metrik top-4, tabel lengkap 38 baris via AIDataWidget. Tidak ada angka baru di luar evidence |
+
+Kesimpulan: switch flag aman dieksekusi sebagai rollback darurat pasca-deploy.
+Catatan operasional: karena env di-inline saat build, rollback di Vercel = set env
+`NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → **redeploy** (bukan hanya restart).
