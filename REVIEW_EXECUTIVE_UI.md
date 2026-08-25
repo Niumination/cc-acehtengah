@@ -209,3 +209,34 @@ Risiko #2 dari §12 ("jalur rollback belum dieksekusi visual end-to-end") telah 
 Kesimpulan: switch flag aman dieksekusi sebagai rollback darurat pasca-deploy.
 Catatan operasional: karena env di-inline saat build, rollback di Vercel = set env
 `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → **redeploy** (bukan hanya restart).
+
+---
+
+## 9. Sesi v3 — Scope A: Widget Top OPD + Drill-down (2026-08-26)
+
+Branch `feat/ai-executive-answer-v3` @ `99d5f9e`. Klarifikasi penting dari user:
+server port 3000 milik user = build normal (Executive UI aktif, benar); server
+port 3100 sesi ini sempat memakai build flag=false khusus uji rollback (§8),
+lalu dikembalikan ke build normal untuk verifikasi fitur v3.
+
+### Yang dibangun (Scope A rencana v3)
+- API baru `GET /api/analytics/opd/[slug]`: detail satu OPD — stat ringkas,
+  deret tren indikator (hanya ≥2 titik tahun valid, dedup per tahun, parsing
+  angka format Indonesia), 15 indikator nilai terakhir, provenance + jumlah
+  record tanpa tahun. Cache in-memory 10 mnt. 404 eksplisit jika OPD tak ada.
+- Widget `TopOpdWidget.tsx` di beranda: Top 10 OPD deterministik dari
+  `/api/analytics`, link drill-down, fallback error rapi.
+- `OpdDrilldown.tsx`: panel detail di `/dashboard/analytics?opd=...` —
+  mini-stat, hingga 4 chart tren (LineChart), tabel indikator, catatan jujur
+  "tren tidak dipaksakan".
+- Fix build: `useSearchParams()` dibungkus Suspense (AnalyticsPage → wrapper +
+  AnalyticsContent) agar prerender statis tidak gagal.
+
+### Quality gate & verifikasi visual
+- tsc ✅ · eslint target ✅ · test **207/207** ✅ · build ✅ (23/23 halaman statis)
+- Browser e2e (port 3100, live SAPA):
+  - Widget Top 10 OPD render live (Dinas Kesehatan 294 → RSU Datu Beru 66) ✅
+  - Drill-down Dinas Kesehatan: 294 record, 87 tanpa tahun, 0 tren →
+    pesan jujur "belum ada deret" + tabel indikator ✅
+  - Drill-down PPPA: tren "Persentase rumah tangga … sanitasi layak"
+    2 titik (2025–2026) tergambar ✅
