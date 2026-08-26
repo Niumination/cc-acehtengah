@@ -245,3 +245,18 @@ model DataAccessAudit {
   @@index([adminId, createdAt])
   @@index([createdAt])
 }
+
+model BapoktingPrice {
+  id          String   @id @default(cuid())
+  no          Int
+  namaKomoditas String
+  hargaPerKg  Int      // dalam Rupiah
+  satuan      String   @default("Kg")
+  tanggal     DateTime @default(now())
+  sumber      String   @default("Bapokting Aceh Tengah")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([namaKomoditas])
+  @@index([tanggal])
+}
