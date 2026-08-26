@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 23, 2026 — PR-4b: jalur impor manual DTSEN (CSV→validasi→staging→publish atomik, purge rilis lama, UI admin `/dashboard/admin/dtsen`, env DTSEN_NIK_KEY); sebelumnya PR-4a fondasi, PR-3 Laporan Eksekutif, PR Lapis 0–2
+> **Last update:** Aug 26, 2026 — **Hotfix LLM reliability live** (`7c342e7`): `max_tokens` 800→2500 (JSON jawaban tak lagi terpotong oleh reasoning model), retry LLM 3x backoff eksponensial utk 5xx/network, pesan error ramah tanpa bocoran detail provider. Sebelumnya PR-4b impor DTSEN, PR-4a, PR-3, PR Lapis 0–2
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -243,3 +243,20 @@ AI Smart Query (`POST /api/query`) kini menggabungkan data DTSEN agregat publik 
 ```
 
 **Provenance tracking:** setiap evidence DTSEN dilabeli `opd="DTSEN (Kemensos/BPS)"`, `id="dtsen:..."`, dan `dataOrigin: 'dtsen'` di metadata.
+
+### Hotfix LLM Reliability (Aug 26, 2026 — `7c342e7`, live)
+
+Investigasi produksi menemukan 3 masalah di live Vercel; semua diperbaiki di `src/services/llm-client.ts` + `src/services/ai-orchestrator.ts`:
+
+| Masalah | Akar masalah | Fix |
+|---------|--------------|-----|
+| Jawaban AI jatuh ke template, rekomendasi selalu kosong | Model reasoning (`x-preview-f-free`) memakai ratusan token `reasoning_content` sebelum `content`; `max_tokens: 800` membuat JSON terpotong (finish=length) | `max_tokens` **2500** di `callLLM` & `streamLLM` (eksperimen: payload tabel gagal @800, utuh @2500 ~38s < timeout 60s) |
+| Provider 503 intermiten (~1/3 request; pernah 4x berturut-turut saat outage Aug 26) | Retry lama hanya 1x @500ms | Retry **3x backoff eksponensial** 500ms→1500ms utk 5xx + network error, sebelum chunk pertama (idempotent-safe) |
+| Error mentah bocor ke user ("AI API error 503 {…}") | `err.message` disisipkan langsung ke narasi fallback | Pesan ramah generik ke user; detail lengkap hanya `console.error` server |
+
+**Fallback model saat outage:** katalog provider berisi alternatif gratis yang teruji —
+`nemotron-3-ultra-free` (JSON utuh, ~36s), `laguna-s-2.1-free`. Cukup ubah env Vercel
+`AI_MODEL` + redeploy; tidak perlu deploy kode.
+
+**Rollback darurat UI** tetap: env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → redeploy.
+Kompatibilitas: cherry-pick `7c342e7` ke atas v3 teruji tanpa konflik (test gabungan 218/218).
