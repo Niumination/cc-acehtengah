@@ -4,16 +4,6 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const SKPD_LIST = [
-  { kode: 'DINKES', nama: 'Dinas Kesehatan', kategori: 'DINAS' as const },
-  { kode: 'DINDIK', nama: 'Dinas Pendidikan', kategori: 'DINAS' as const },
-  { kode: 'DINSOS', nama: 'Dinas Sosial', kategori: 'DINAS' as const },
-  { kode: 'BAPPEDA', nama: 'Bappeda', kategori: 'BADAN' as const },
-  { kode: 'BPKD', nama: 'BPKD', kategori: 'BADAN' as const },
-  { kode: 'SETDA', nama: 'Sekretariat Daerah', kategori: 'SEKRETARIAT' as const },
-  { kode: 'DINPERTAN', nama: 'Dinas Pertanian', kategori: 'DINAS' as const },
-  { kode: 'DINPU', nama: 'Dinas PU', kategori: 'DINAS' as const },
-];
 
 const DATASET_LIST = [
   { slug: 'stunting', nama: 'Data Stunting', skpdKode: 'DINKES', endpoint: 'sapa/dataset/stunting' },
@@ -29,15 +19,6 @@ const DATASET_LIST = [
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Seed SKPD
-  for (const skpd of SKPD_LIST) {
-    await prisma.skpd.upsert({
-      where: { kode: skpd.kode },
-      update: {},
-      create: skpd,
-    });
-  }
-  console.log(`✅ ${SKPD_LIST.length} SKPD created`);
 
   // Seed Dataset
   for (const ds of DATASET_LIST) {
