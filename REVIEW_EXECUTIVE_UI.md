@@ -277,3 +277,27 @@ Investigasi live Vercel menemukan 3 masalah; semuanya diperbaiki, dideploy ke
 **Jejak commit:** hotfix `7c342e7` + docs `0368fda` + dedupe `dab2da1`/docs `c3937ae`
 (live di main); v3 menerima cherry-pick → `309d122` + `7dcc8a2` (test gabungan 218/218).
 Branch v1/v2 tidak disentuh. Detail lengkap: seksi "Hotfix LLM Reliability" di AGENTS.md (sisi main).
+
+## 12. Eksekusi Checklist Pasca-Deploy (Scope B) — 2026-08-26 12:40
+
+Dieksekusi terhadap PRODUKSI (main @ `016818e`, setelah rangkaian hotfix LLM).
+Catatan penting: Executive UI **belum ada di main** (flag + renderer executive
+hanya di v3), sehingga item checklist yang menyangkut Executive Answer
+divalidasi terhadap kemampuan yang SUDAH live, dan jalur rollback divalidasi
+di build lokal v3.
+
+| # | Item | Hasil |
+|---|------|-------|
+| 1a | `/api/health` | ✅ healthy, sapa=ok, ai=ok |
+| 1b/1c | Dashboard HTML | ✅ HTTP 200, badge "SAPA Connected" ada |
+| 2a | Stats | ✅ 2.032 record · 38 OPD · 1.793 indikator |
+| 2b | KPI panel | ✅ render (stunting 31,4% dst.) |
+| 2c | EWS panel | ✅ render (alerts [] — cron belum berjalan hari ini) |
+| 3a | Chip meta "OPD Teratas" | ✅ SSE status→narasi→result utuh |
+| 3b | Query substantif "Stunting" | ✅ narasi sebut sumber & OPD benar |
+| 3c | Anti-leak | ✅ 0 reasoning bocor; **rekomendasi kini terisi kontekstual di kedua jenis query** (fix 11:12) |
+| 3d | Format ribuan | ✅ aktif live ("44.132", "19.686") |
+| 4 | Rollback sekali-jalan | ⚠️ **TIDAK RELEVAN di main saat ini** — flag+Executive UI hanya di v3. Validasi ulang dilakukan di build lokal v3 flag=false: build sukses, legacy bundle ada. Latihan penuh otomatis tunda sampai v3 merge. Env produksi dikembalikan seperti semula (flag dihapus, redeploy, health 200). |
+| 5 | Build CI/Vercel | ⚠️ Fix turbopack-root belum di main (tidak dibutuhkan — 2x deploy production terakhir Ready 34s/43s). Ada 1 preview deployment Error 13m lalu (bukan dari push kita); log hanya bisa dilihat via dashboard web — perlu dicek manual jika relevan. |
+
+**Status akhir:** LULUS untuk penggunaan normal dengan 2 catatan non-blokir.
