@@ -175,13 +175,54 @@ export function isGrounded(
   return { ok: reasons.length === 0, reasons };
 }
 
+/**
+ * Hotfix Aug 26 (laporan user): angka besar tanpa pemisah ribuan (mis. 19686)
+ * sulit dibaca — tampilkan sebagai 19.686 (konvensi Indonesia). Aman thd grounding:
+ * normalizeNumber menghapus pemisah sebelum validasi, jadi nilai tetap cocok evidence.
+ */
+export function formatRibuan(text: string): string {
+  return text
+    .replace(/\b(\d{1,3}(?:\.\d{3})*),(\d{1,2})\b/g, '_$1k$2_')
+    .replace(/\b(\d{4,})(?!\d)\b/g, (_full, digits: string) => {
+      // Jangan sentuh tahun plausibel (1900-2100): "2025" bukan "2.025"
+      if (/^\d{4}$/.test(digits) && Number(digits) >= 1900 && Number(digits) <= 2100) return digits;
+      return new Intl.NumberFormat('id-ID').format(Number(digits));
+    })
+    .replace(/_(\d{1,3}(?:\.\d{3})*)k(\d{1,2})_/g, '$1,$2');
+}
+
+/**
+ * Format presentasi jawaban akhir: narasi + sel tabel + metric string.
+ * Dipanggil SETELAH grounding selesai — hanya kosmetik, tak memengaruhi validasi.
+ */
+export function formatAngkaPresentasi(parsed: HybridResponse): HybridResponse {
+  const narasi = parsed.narasi ? formatRibuan(parsed.narasi) : parsed.narasi;
+  let visualisasi = parsed.visualisasi;
+  if (visualisasi?.tipe === 'table' && visualisasi.konfigurasi && Array.isArray(visualisasi.konfigurasi.rows)) {
+    const cfg = { ...visualisasi.konfigurasi } as { columns?: unknown[]; rows?: unknown[][] };
+    cfg.rows = (cfg.rows ?? []).map((row) =>
+      Array.isArray(row) ? row.map((cell) => (typeof cell === 'string' ? formatRibuan(cell) : cell)) : row,
+    );
+    visualisasi = { ...visualisasi, konfigurasi: cfg };
+  }
+  if (visualisasi?.tipe === 'metric' && visualisasi.konfigurasi && Array.isArray(visualisasi.konfigurasi.metrics)) {
+    const cfg = { ...visualisasi.konfigurasi } as { metrics?: Record<string, unknown>[] };
+    cfg.metrics = (cfg.metrics ?? []).map((m) => {
+      const v = m.value;
+      return typeof v === 'string' ? { ...m, value: formatRibuan(v) } : m;
+    });
+    visualisasi = { ...visualisasi, konfigurasi: cfg };
+  }
+  return { ...parsed, narasi, visualisasi };
+}
+
 export function buildDeterministicNarasi(evidence: EvidenceItem[], query: string): string {
   if (evidence.length === 0) return 'Data untuk pertanyaan ini tidak ditemukan di SAPA.';
   const top = evidence.slice(0, 3);
   const parts = top.map((e) => {
     const tahunStr = e.tahun && /^\d{4}$/.test(e.tahun.trim()) ? e.tahun.trim() : 'tahun tidak tercantum di SAPA';
     const satuanStr = e.satuan ? ` ${e.satuan}` : '';
-    return `${e.indikator} ${e.nilai}${satuanStr} (${e.opd}, ${tahunStr})`;
+    return `${e.indikator} ${formatRibuan(String(e.nilai))}${satuanStr} (${e.opd}, ${tahunStr})`;
   });
   const q = query.trim().slice(0, 120);
   return `Berdasarkan data SAPA untuk "${q}", ditemukan ${evidence.length} indikator terkait: ${parts.join('; ')}.`;
