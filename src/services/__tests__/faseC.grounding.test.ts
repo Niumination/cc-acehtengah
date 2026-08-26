@@ -45,12 +45,16 @@ describe('Fase C — grounding SoT', () => {
     const p = mk('Jumlah ASN 9610 orang', ['Tambah 1000 guru']);
     expect(isGrounded(p, ev).ok).toBe(false);
   });
-  it('groundOutput replace → narasi deterministik + viz dari evidence', () => {
+  it('groundOutput replace → narasi deterministik + viz dari evidence + fallback rekomendasi (hotfix Aug 26: panel tak boleh kosong)', () => {
     const p = mk('Terdapat 84 pegawai', ['Tambah 500 orang'], { tipe: 'chart', konfigurasi: { data: [{ nilai: 84 }] } });
     const { response, grounding } = groundOutput(p, ev, 'berapa asn');
     expect(grounding).toBe('replaced');
     expect(response.narasi).toMatch(/Jumlah ASN/);
-    expect(response.rekomendasi).toEqual([]);
+    // Kontrak baru: rekomendasi asli yang lolos grounding dipertahankan;
+    // jika kosong semua, diisi fallback deterministik tanpa angka baru.
+    expect(response.rekomendasi.length).toBeGreaterThan(0);
+    // Rekomendasi halusinatif ('Tambah 500 orang') TIDAK dibawa ke hasil.
+    expect(response.rekomendasi.join(' ')).not.toMatch(/500/);
   });
   it('groundOutput pass → tidak replace', () => {
     const p = mk('Jumlah ASN 9610 orang (BKPSDM, 2024)');
