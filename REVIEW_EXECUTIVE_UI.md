@@ -261,3 +261,19 @@ lalu dikembalikan ke build normal untuk verifikasi fitur v3.
   manifest.json 69 skill) — tidak menyentuh services/cc-acehtengah.
 - Kesepakatan dicatat: saat migrasi/rebase/push root nanti, commit tersebut
   WAJIB dipertahankan; working tree root yang dirty sengaja tidak disentuh.
+
+## 11. Hotfix Produksi Live — LLM Reliability + SSE (2026-08-26)
+
+Investigasi live Vercel menemukan 3 masalah; semuanya diperbaiki, dideploy ke
+`main` (production) dengan persetujuan user, dan terverifikasi di produksi.
+
+| # | Masalah | Fix | Bukti pasca-deploy |
+|---|---------|-----|--------------------|
+| 1 | Jawaban jatuh ke template, rekomendasi kosong — model reasoning habiskan token di `reasoning_content`, JSON terpotong @800 | `max_tokens` 2500 (`callLLM`+`streamLLM`) | Query live: tabel LLM asli 12 baris, finish=stop |
+| 2 | Provider 503 intermiten (~1/3 request; sempat outage penuh 4/4) | Retry 3x backoff eksponensial 500→1500ms utk 5xx/network | Provider pulih; fallback `nemotron-3-ultra-free` teruji siap dipakai via env |
+| 3 | Error mentah bocor ke user ("AI API error 503 {…}") | Pesan ramah generik; detail hanya log server | Tidak ada bocoran di capture live |
+| 4 | Snapshot narasi SSE kumulatif sama terkirim ulang 257x/query (~180KB) | Guard `partial !== lastSentPartial` (`dab2da1`) | Event 476 → **136**, duplikat 257 → **0** |
+
+**Jejak commit:** hotfix `7c342e7` + docs `0368fda` + dedupe `dab2da1`/docs `c3937ae`
+(live di main); v3 menerima cherry-pick → `309d122` + `7dcc8a2` (test gabungan 218/218).
+Branch v1/v2 tidak disentuh. Detail lengkap: seksi "Hotfix LLM Reliability" di AGENTS.md (sisi main).
