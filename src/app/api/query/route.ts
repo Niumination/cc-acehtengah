@@ -64,13 +64,21 @@ export async function POST(req: NextRequest) {
       };
       try {
         let narasiBuffer = '';
+        let lastSentPartial = ''; // Hotfix Aug 26: cegah snapshot narasi kumulatif terkirim duplikat
         const result = await processAIQueryStreaming(
           query,
           (status) => send('status', { status }),
           (delta) => {
             narasiBuffer += delta;
             const partial = extractNarasiPartialSafe(narasiBuffer);
-            if (partial) send('narasi', { text: partial });
+            // Hotfix Aug 26: setelah field "narasi" JSON tertutup, snapshot kumulatif
+            // sama terus dikirim ulang utk tiap delta berikutnya (tercatat 257x per
+            // query di live) — boros bandwidth. Frontend menimpa state, jadi tak
+            // terlihat user; cukup guard: kirim hanya jika snapshot berubah.
+            if (partial && partial !== lastSentPartial) {
+              lastSentPartial = partial;
+              send('narasi', { text: partial });
+            }
           },
         );
         send('result', result);
