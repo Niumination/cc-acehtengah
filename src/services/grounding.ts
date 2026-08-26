@@ -243,10 +243,25 @@ export function groundOutput(
   const reason = check.reasons.join('; ');
   const narasi = buildDeterministicNarasi(evidence, query);
   const visualisasi = buildVizFromEvidence(evidence);
+  // Hotfix Aug 26 (laporan user: panel rekomendasi tak pernah tampil): sebelumnya
+  // penggantian template meng-hardcode rekomendasi:[]. Kini rekomendasi asli LLM
+  // dipertahankan jika teksnya sendiri lolos grounding (tanpa angka/tahun/OPD di
+  // luar evidence); sisanya difilter. Jika hasil kosong, isi fallback deterministik.
+  const safeRekomendasi = parsed.rekomendasi.filter(
+    (r) => isGrounded({ ...parsed, narasi: r, visualisasi: { tipe: 'none', konfigurasi: {} }, rekomendasi: [] }, evidence, options).ok,
+  );
+  const rekomendasi =
+    safeRekomendasi.length > 0
+      ? safeRekomendasi.slice(0, 3)
+      : evidence.length > 0
+        ? [
+            `Tindak lanjuti pertanyaan "${query}" dengan mengonsultasikan temuan di atas ke OPD pemilik indikator untuk verifikasi data terbaru dan dasar perencanaan program.`,
+          ]
+        : [];
   const replaced: HybridResponse = {
     narasi,
     visualisasi,
-    rekomendasi: [],
+    rekomendasi,
     dataSource: parsed.dataSource || 'SAPA Aceh Tengah (api-splp.layanan.go.id)',
     timestamp: new Date().toISOString(),
   };
