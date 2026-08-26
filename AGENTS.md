@@ -260,3 +260,8 @@ Investigasi produksi menemukan 3 masalah di live Vercel; semua diperbaiki di `sr
 
 **Rollback darurat UI** tetap: env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → redeploy.
 Kompatibilitas: cherry-pick `7c342e7` ke atas v3 teruji tanpa konflik (test gabungan 218/218).
+
+**Follow-up (`dab2da1`):** event SSE `narasi` terbukti mengirim snapshot kumulatif
+yang sama hingga 257x per query (~180KB terbuang) setelah field JSON tertutup —
+kini di-guard agar hanya terkirim saat snapshot berubah. Tidak berdampak ke tampilan
+(frontend menimpa state), murni efisiensi bandwidth.
