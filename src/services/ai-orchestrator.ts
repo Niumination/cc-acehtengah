@@ -46,6 +46,7 @@ import {
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
+import { fetchLatestBapoktingPrices } from '@/lib/bapokting-client';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
@@ -269,9 +270,36 @@ async function buildContext(query: string) {
     }
   }
 
+  // ─── Bapokting Integration (Harga Komoditas) ───
+  let bapoktingEvidence: EvidenceItem[] = [];
+  let bapoktingProvenance: { label: string } = { label: '' };
+
+  // Deteksi query harga komoditas
+  const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|beras|minyak|bawang)\b/i;
+  if (priceKeywords.test(query)) {
+    try {
+      const bapoktingData = await fetchLatestBapoktingPrices(20);
+      if (bapoktingData.length > 0) {
+        for (const p of bapoktingData.slice(0, 10)) {
+          bapoktingEvidence.push({
+            opd: 'Bapokting',
+            indikator: `Harga ${p.namaKomoditas}`,
+            nilai: p.hargaPerKg.toString(),
+            satuan: 'Rp/Kg',
+            tahun: null,
+            id: `bapokting:${p.namaKomoditas.toLowerCase()}`,
+          });
+        }
+        bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah' };
+      }
+    } catch (e) {
+      console.warn('[Orchestrator] Bapokting fetch failed:', e);
+    }
+  }
+
   // Payload LLM ringkas: top-5 saat evidence besar; visualisasi penuh tetap
   // dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
-  const allEvidence = [...evidence, ...dtsenEvidence];
+  const allEvidence = [...evidence, ...dtsenEvidence, ...bapoktingEvidence];
   const evidenceForLLM = allEvidence.length > 8 ? allEvidence.slice(0, 5) : allEvidence;
   const dataForLLM = {
     query,
@@ -288,6 +316,7 @@ async function buildContext(query: string) {
     ...(dtsenProvenance.label ? { dtsen_provenance: dtsenProvenance } : {}),
     ...(dtsenNarasi ? { dtsen_narasi: dtsenNarasi } : {}),
     ...(dtsenSensor.length > 0 ? { dtsen_sensor: dtsenSensor } : {}),
+    ...(bapoktingProvenance.label ? { bapokting_provenance: bapoktingProvenance } : {}),
   };
 
   const konteksRegulasi = await retrieveContext(query, intent.kategori);
@@ -311,6 +340,8 @@ async function buildContext(query: string) {
     dtsenEvidence,
     dtsenProvenance,
     dtsenNarasi,
+    bapoktingEvidence,
+    bapoktingProvenance,
     dataForLLM,
     konteksRegulasi,
     systemPrompt,
