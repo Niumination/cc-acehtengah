@@ -837,7 +837,9 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
   } catch (err) {
     console.error('[AI] Fallback triggered:', err);
     const errorResult: HybridResponse = {
-      narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
+      // Hotfix live Vercel Aug 2026: jangan bocorkan pesan error mentah (mis. body
+      // HTML/JSON provider) ke user — detail lengkap sudah ada di console.error di atas.
+      narasi: 'Maaf, layanan AI sedang sibuk atau tidak dapat dihubungi. Silakan coba lagi beberapa saat lagi.',
       visualisasi: { tipe: 'none', konfigurasi: {} },
       rekomendasi: [],
       dataSource: 'error',
@@ -961,7 +963,8 @@ export async function processAIQueryStreaming(
   } catch (err) {
     console.error('[AI] Streaming fallback triggered:', err);
     const errorResult: HybridResponse = {
-      narasi: `Maaf, terjadi kesalahan: ${err instanceof Error ? err.message : 'Unknown error'}. Silakan coba lagi.`,
+      // Hotfix live Vercel Aug 2026: sama dgn jalur non-streaming — tanpa bocoran error mentah.
+      narasi: 'Maaf, layanan AI sedang sibuk atau tidak dapat dihubungi. Silakan coba lagi beberapa saat lagi.',
       visualisasi: { tipe: 'none', konfigurasi: {} },
       rekomendasi: [],
       dataSource: 'error',
