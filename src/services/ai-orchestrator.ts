@@ -3,7 +3,7 @@
 import { detectIntent } from './intent-detector';
 import { callLLM, streamLLM, extractNarasiPartial, stripReasoningPrefix } from './llm-client';
 import { retrieveContext } from './rag-retriever';
-import { groundOutput, buildVizFromEvidence, buildDeterministicNarasi } from './grounding';
+import { groundOutput, buildVizFromEvidence, buildDeterministicNarasi, formatAngkaPresentasi } from './grounding';
 import type { EvidenceItem } from './grounding';
 import {
   fetchSapaData,
@@ -822,6 +822,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
       result = { ...grounded, visualisasi: buildVizFromEvidence(ctx.evidence) };
     }
 
+    // Hotfix Aug 26 (laporan user): format ribuan utk keterbacaan (19686 → 19.686)
+    // di narasi + sel tabel/metric. Kosmetik murni SETELAH grounding selesai.
+    result = formatAngkaPresentasi(result);
+
     // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
     const metadata = buildObservabilityMeta({
       opdFilter: ctx.opdFilter ?? null,
@@ -947,6 +951,9 @@ export async function processAIQueryStreaming(
     } else if (grounding === 'replaced') {
       result = { ...grounded, visualisasi: buildVizFromEvidence(ctx.evidence) };
     }
+
+    // Hotfix Aug 26: sama dgn jalur non-streaming — format ribuan presentasi.
+    result = formatAngkaPresentasi(result);
 
     // Step 4: Simpan ke DB (non-blocking)
     const metadata = buildObservabilityMeta({
