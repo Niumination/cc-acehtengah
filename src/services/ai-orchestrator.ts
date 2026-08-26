@@ -653,7 +653,16 @@ function sanitizeParsed(parsed: HybridResponse, evidence: EvidenceItem[], query:
   ) {
     narasi = buildDeterministicNarasi(evidence, query);
   }
-  const rekomendasi = (parsed.rekomendasi ?? []).filter((r) => !isPlaceholderText(r)).slice(0, 3);
+  let rekomendasi = (parsed.rekomendasi ?? []).filter((r) => !isPlaceholderText(r)).slice(0, 3);
+  // Hotfix Aug 26 (laporan user): model reasoning hampir selalu memilih "[]" meski
+  // prompt sudah minta diisi — panel rekomendasi tak pernah tampil di live.
+  // Prompt diperkuat ATURAN 6; ini garansi kedua: fallback deterministik tanpa
+  // angka baru agar panel tetap berguna.
+  if (rekomendasi.length === 0 && evidence.length > 0 && !narasi.startsWith('Maaf,')) {
+    rekomendasi = [
+      `Tindak lanjuti pertanyaan "${query}" dengan mengonsultasikan temuan di atas ke OPD pemilik indikator untuk verifikasi data terbaru dan dasar perencanaan program.`,
+    ];
+  }
   return { ...parsed, narasi, rekomendasi };
 }
 
@@ -920,7 +929,7 @@ ATURAN WAJIB:
 3. Tahun: gunakan nilai "tahun" dari evidence. Jika null/kosong → tulis "tahun tidak tercantum di SAPA".
 4. Selalu sebutkan OPD dan satuan dari evidence. Jangan menyebut OPD lain jika tidak ada di evidence.
 5. Bahasa Indonesia formal, lugas. Narasi = interpretasi evidence, bukan membaca ulang mentah. Maksimal 3 kalimat. DILARANG menulis literal "..." atau placeholder kosong.
-6. "rekomendasi": 0-3 kalimat TANPA angka baru. Jika tidak relevan, kosongkan ([]).
+6. "rekomendasi": WAJIB terisi 1-3 kalimat TANPA angka baru — tindakan lanjutan konkret yang berguna bagi pimpinan berdasarkan narasi & evidence (mis. fokus perhatian pada indikator tertentu, verifikasi data tahun terbaru ke OPD terkait, tindak lanjut program yang menyentuh indikator teratas). Kosongkan ([]) HANYA jika benar-benar tidak ada tindak lanjut yang bermakna.
 7. "visualisasi" HANYA dari evidence:
    - 1 item → "metric" {metrics:[{label, value, unit}]}
    - 2-8 item SATUAN SERAGAM → "chart" bar {type:"bar", xKey:"indikator", data:[{indikator, nilai}], bars:["nilai"]}
