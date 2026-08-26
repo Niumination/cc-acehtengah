@@ -97,8 +97,11 @@ export function extractNarasiPartial(raw: string): string {
 export type LLMResult = { text: string; finishReason: string | null; model: string };
 
 /**
- * Non-streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 800 (narasi 3 kalimat, tabel dibangun lokal).
- * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
+ * Non-streaming LLM call — temperature 0.1, max_tokens 2500.
+ * Hotfix live Vercel Aug 2026: model reasoning (x-preview-f-free) memakai ratusan token
+ * untuk reasoning_content sebelum content; max_tokens 800 membuat JSON terpotong
+ * (finish_reason=length) sehingga jawaban selalu jatuh ke template fallback.
+ * Eksperimen: 2500 → JSON utuh (finish=stop), latensi ~38s < timeout 60s.
  */
 export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LLMResult> {
   const config = getConfig();
@@ -121,18 +124,42 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LL
         messages,
         temperature: 0.1,
         top_p: 0.9,
-        max_tokens: 800,
+        max_tokens: 2500,
       }),
       signal: AbortSignal.timeout(60000), // 60s — sinkron dengan dashboard 65s + maxDuration 60
     });
   };
 
-  let res = await doFetch();
-  // Retry once on network/5xx errors before any content (idempotent-safe)
-  if (!res.ok && res.status >= 500) {
-    console.warn('[LLM] callLLM failed (retry 1x):', res.status);
-    await new Promise((r) => setTimeout(r, 500));
-    res = await doFetch();
+  // Hotfix live Vercel Aug 2026: provider (OpenCode Zen) kerap balas 503 intermiten
+  // (~1 dari 3 request, gagal cepat 1–3s). Retry lama cuma 1x — tidak cukup.
+  // Sekarang: maksimal 3 percobaan dgn backoff eksponensial 500ms → 1500ms
+  // untuk status 5xx maupun network/timeout error. Kegagalan cepat, jadi worst case
+  // tambahan ~5–10s — masih aman di dalam maxDuration 60s.
+  const MAX_ATTEMPTS = 3;
+  let res: Response | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      res = await doFetch();
+    } catch (err) {
+      // Network/timeout error — perlakukan seperti 5xx
+      if (attempt === MAX_ATTEMPTS) throw err;
+      const delayMs = 500 * Math.pow(3, attempt - 1);
+      console.warn(
+        `[LLM] callLLM network error (attempt ${attempt}/${MAX_ATTEMPTS}), retry dalam ${delayMs}ms:`,
+        err instanceof Error ? err.message : err,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
+    }
+    if (res.ok || res.status < 500) break;
+    if (attempt === MAX_ATTEMPTS) break;
+    const delayMs = 500 * Math.pow(3, attempt - 1); // 500 → 1500
+    console.warn(`[LLM] callLLM ${res.status} (attempt ${attempt}/${MAX_ATTEMPTS}), retry dalam ${delayMs}ms`);
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+
+  if (!res) {
+    throw new Error('AI API gagal setelah retry (tidak ada respons)');
   }
 
   if (!res.ok) {
@@ -164,7 +191,7 @@ export async function callLLM(systemPrompt: string, input: LLMInput): Promise<LL
 }
 
 /**
- * Streaming LLM call — SoT Fase C: temperature 0.1, max_tokens 800.
+ * Streaming LLM call — temperature 0.1, max_tokens 2500 (sama dgn callLLM, lihat catatan hotfix di atas).
  * Timeout 60s sinkron dengan dashboard 65s + maxDuration 60.
  */
 export async function streamLLM(
@@ -184,7 +211,7 @@ export async function streamLLM(
     messages,
     temperature: 0.1,
     top_p: 0.9,
-    max_tokens: 800,
+    max_tokens: 2500,
     stream: true,
   });
 
@@ -201,19 +228,40 @@ export async function streamLLM(
     return { res };
   };
 
-  let { res } = await doFetch();
+  // Hotfix live Vercel Aug 2026: retry 3x backoff eksponensial utk 5xx —
+  // hanya sebelum chunk pertama (idempotent-safe). Sama dgn callLLM.
+  const MAX_ATTEMPTS = 3;
+  let res: Response | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const attemptRes = await doFetch();
+      res = attemptRes.res;
+    } catch (err) {
+      if (attempt === MAX_ATTEMPTS) throw err;
+      const delayMs = 500 * Math.pow(3, attempt - 1);
+      console.warn(
+        `[LLM] Stream network error (attempt ${attempt}/${MAX_ATTEMPTS}), retry dalam ${delayMs}ms:`,
+        err instanceof Error ? err.message : err,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
+    }
+    if (!res.ok && res.status >= 500 && attempt < MAX_ATTEMPTS) {
+      const delayMs = 500 * Math.pow(3, attempt - 1); // 500 → 1500
+      console.warn(`[LLM] Stream ${res.status} (attempt ${attempt}/${MAX_ATTEMPTS}), retry dalam ${delayMs}ms`);
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
+    }
+    break;
+  }
 
-  // Retry once on network/5xx errors before any chunk was received
+  if (!res) {
+    throw new Error('AI streaming gagal setelah retry (tidak ada respons)');
+  }
+
   if (!res.ok) {
-    if (res.status >= 500) {
-      console.warn('[LLM] Stream failed (retry 1x):', res.status);
-      await new Promise((r) => setTimeout(r, 500));
-      ({ res } = await doFetch());
-    }
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      throw new Error(`AI API error ${res.status}: ${errBody.slice(0, 300)}`);
-    }
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`AI API error ${res.status}: ${errBody.slice(0, 300)}`);
   }
 
   if (!res.body) {
