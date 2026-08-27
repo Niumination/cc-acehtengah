@@ -13,13 +13,16 @@ interface QueryBarProps {
 // pipeline saat ini. Chip "Tren Data" dihapus sementara — tren per indikator
 // butuh data warehouse (roadmap Lapis 2); menjanjikannya di UI = menyesatkan.
 // "Semua OPD" & "Sebaran Tahun" dijawab deterministik (meta-query, tanpa LLM).
+// Chip Dokumen A/B/C merutekan ke sumber Excel deterministik (excel-doc-query),
+// tanpa LLM — pilih frasa yang cocok keyword di src/data/excelSources.ts.
 const KEYWORD_CHIPS = [
+  { label: '📚 BSM 2025 (Dok. A)', query: 'data bantuan siswa miskin pendidikan 2025' },
+  { label: '🎓 Santri Dalam (Dok. A)', query: 'jumlah santri dalam daerah aceh tengah 2025' },
+  { label: '🎓 Mahasiswa S1 (Dok. A)', query: 'data mahasiswa S1 luar daerah aceh tengah' },
+  { label: '👶 Stunting (Dok. B)', query: 'berapa jumlah balita stunting di aceh tengah' },
+  { label: '🤝 PPKS Kominfo (Dok. C)', query: 'berapa penerima bantuan sosial ppks diskominfo' },
   { label: '🏛️ Jumlah ASN', query: 'berapa jumlah ASN di aceh tengah' },
-  { label: '👶 Stunting', query: 'berapa jumlah balita stunting di aceh tengah' },
   { label: '🌾 Pertanian', query: 'bagaimana data pertanian di aceh tengah' },
-  { label: '📚 Pendidikan', query: 'bagaimana data pendidikan di aceh tengah' },
-  { label: '🏥 Kesehatan', query: 'bagaimana data kesehatan di aceh tengah' },
-  { label: '💼 Tenaga Kerja', query: 'berapa jumlah tenaga kerja di aceh tengah' },
   { label: '☕ Kopi', query: 'produksi kopi di aceh tengah' },
   { label: '📊 Semua OPD', query: 'apa saja OPD yang ada di aceh tengah' },
   { label: '📅 Sebaran Tahun', query: 'bagaimana sebaran data sapa per tahun' },
