@@ -8,7 +8,8 @@
 
 ## Features
 
-- 🤖 **AI Smart Query** — Tanya data SAPA dalam bahasa natural
+- 🤖 **AI Smart Query** — Tanya data SAPA + DTSEN + Bapokting + Dokumen A/B/C (Excel) dalam bahasa natural
+- 🔗 **Fusi Multi-Sumber** — topik yang muncul di beberapa sumber (mis. stunting di SAPA + Dokumen B) digabung jadi SATU jawaban deterministik
 - 📊 **Dashboard Analytics** — Visualisasi data OPD, indikator, tren
 - 🗺️ **Peta GIS** — Peta interaktif kabupaten Aceh Tengah
 - 📋 **Laporan AI** — Log otomatis setiap query AI (auth required)
@@ -24,7 +25,7 @@
 | Database | Supabase PostgreSQL (Supavisor pooler) |
 | Auth | bcryptjs + jose (JWT) + httpOnly cookie |
 | AI | OpenAI-compatible API (OpenCode Zen / OpenRouter / Groq) |
-| Data Source | SAPA public API (api-splp.layanan.go.id) |
+| Data Source | SAPA public API (api-splp.layanan.go.id), DTSEN + Bapokting (SPLP API), Dokumen A/B/C (agregat Excel bebas-PII di `src/data/excel`) |
 
 ## Quick Start
 
