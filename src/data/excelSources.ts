@@ -63,25 +63,39 @@ const KEYWORD_MAP: Record<string, DocKeyword> = {
   },
 };
 
-/** Temukan dokumen yang relevan dengan query. Balik null bila tak ada. */
+/**
+ * Temukan dokumen yang relevan dengan query. Balik null bila tak ada.
+ * Strategi: hitung "skor" tiap dokumen = total panjang keyword yang cocok
+ * (keyword lebih panjang = lebih spesifik). Dipilih dokumen dengan skor tertinggi
+ * agar "santri luar" menang atas "santri" saat keduanya cocok.
+ */
 export function matchExcelDoc(query: string): ExcelDoc | null {
   const q = query.toLowerCase();
-  // 1. Kecocokan keyword eksplisit per dokumen.
-  for (const doc of EXCEL_DOCS) {
+  const keywordScore = (doc: ExcelDoc): number => {
     const kw = KEYWORD_MAP[doc.judul]?.keywords ?? [];
-    if (kw.some((k) => q.includes(k))) return doc;
-  }
-  // 2. Kecocokan kategori dokumen lewat OPD.
-  const opdHints: Record<string, RegExp> = {
-    'Dinas Pendidikan': /(pendidikan|sekolah|santri|mahasiswa|kuliah|bsm|siswa)/,
-    'Dinas Kesehatan': /(stunting|gizi|balita|kesehatan anak)/,
-    'Diskominfo': /(ppks|disabilitas|lanjut usia|bantuan sosial|kominfo)/,
+    return kw.filter((k) => q.includes(k)).reduce((s, k) => s + k.length, 0);
   };
-  for (const doc of EXCEL_DOCS) {
+  const opdScore = (doc: ExcelDoc): number => {
+    const opdHints: Record<string, RegExp> = {
+      'Dinas Pendidikan': /(pendidikan|sekolah|santri|mahasiswa|kuliah|bsm|siswa)/,
+      'Dinas Kesehatan': /(stunting|gizi|balita|kesehatan anak)/,
+      'Diskominfo': /(ppks|disabilitas|lanjut usia|bantuan sosial|kominfo)/,
+    };
     const re = opdHints[doc.opd];
-    if (re && re.test(q)) return doc;
+    return re && re.test(q) ? 1 : 0;
+  };
+  let best: ExcelDoc | null = null;
+  let bestScore = 0;
+  for (const doc of EXCEL_DOCS) {
+    const score = keywordScore(doc);
+    // Keyword eksplisit selalu mengungguli OPD fallback (beri bobot besar).
+    const total = score > 0 ? 1000 + score : opdScore(doc);
+    if (total > bestScore) {
+      bestScore = total;
+      best = doc;
+    }
   }
-  return null;
+  return bestScore > 0 ? best : null;
 }
 
 /** Label sumber untuk ditampilkan di UI/chip. */
