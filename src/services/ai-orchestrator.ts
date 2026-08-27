@@ -34,6 +34,7 @@ import {
   type DtsenPlan,
   type PublicDeflectionKind,
 } from './dtsen-planner';
+import { tryExcelDocQuery } from './excel-doc-query';
 import {
   isTrendQuery,
   findTrendCandidate,
@@ -846,6 +847,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const deflected = await tryDtsenDeflection(query, startedAt, steps, false);
     if (deflected) return deflected;
 
+    // Sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik, tanpa LLM.
+    const excelDoc = tryExcelDocQuery(query);
+    if (excelDoc) return excelDoc;
+
     // Step 1-3: intent + fetch + filter (context build)
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
@@ -973,10 +978,12 @@ export async function processAIQueryStreaming(
     if (meta) return meta;
 
     // PR-4c: defleksi DTSEN (NIK/desil/per-orang) — konvensi jalur deterministik:
-    // tidak memakai onChunk (onChunk route mengharapkan fragmen JSON LLM);
-    // narasi utuh dikirim lewat event 'result' oleh route.
     const deflected = await tryDtsenDeflection(query, startedAt, steps, true);
     if (deflected) return deflected;
+
+    // Sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik, tanpa LLM.
+    const excelDoc = tryExcelDocQuery(query);
+    if (excelDoc) return excelDoc;
 
     // Step 1: Deteksi intent & ambil data
     const ctx = await buildContext(query);

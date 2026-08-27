@@ -99,6 +99,7 @@ export function dataSourceFromEvidence(evidence: { opd?: string }[]): string {
     const opd = e.opd || '';
     if (opd.includes('Bapokting')) opds.add('Bapokting Aceh Tengah (SPLP API)');
     else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS via SPLP API)');
+    else if (opd.includes('Dokumen')) opds.add(opd); // label "Dokumen A — <OPD>"
     else opds.add('SAPA Aceh Tengah');
   }
 
