@@ -69,26 +69,19 @@ export async function fetchBapoktingFromSplp(): Promise<BapoktingPrice[]> {
     const data = await res.json();
     const result: BapoktingPrice[] = [];
 
-    if (Array.isArray(data)) {
-      for (const item of data) {
+    // SPLP API: { status, sumber, tanggal, daftar_harga: [...] }
+    const arr = Array.isArray(data) ? data : (data?.daftar_harga || data?.data || []);
+
+    for (const item of arr) {
+      const harga = parseInt(item.harga_eceran || item.harga_borongan || item.harga || item.price || '0', 10);
+      if (harga > 0) {
         result.push({
-          namaBarang: item.nama_barang || item.nama || item.barang || 'Tidak diketahui',
-          harga: parseInt(item.harga || item.price || '0', 10),
+          namaBarang: item.komoditi || item.nama_barang || item.nama || item.barang || 'Tidak diketahui',
+          harga,
           satuan: item.satuan || item.unit || 'Kg',
           kecamatan: item.kecamatan || undefined,
           keterangan: item.keterangan || undefined,
-          updatedAt: item.updated_at || item.tanggal || new Date().toISOString(),
-        });
-      }
-    } else if (data?.data && Array.isArray(data.data)) {
-      for (const item of data.data) {
-        result.push({
-          namaBarang: item.nama_barang || item.nama || item.barang || 'Tidak diketahui',
-          harga: parseInt(item.harga || item.price || '0', 10),
-          satuan: item.satuan || item.unit || 'Kg',
-          kecamatan: item.kecamatan || undefined,
-          keterangan: item.keterangan || undefined,
-          updatedAt: item.updated_at || item.tanggal || new Date().toISOString(),
+          updatedAt: data?.tanggal || new Date().toISOString(),
         });
       }
     }
