@@ -27,12 +27,13 @@ Tidak ada perubahan file AI di `794b80a` selain `TableRenderer`. Fondasi retriev
 
 ## 1. Prinsip yang tidak boleh dilanggar
 
-1. **SoT = gabungan 4 sumber data terverifikasi.** LLM tidak boleh menambah angka di luar evidence berikut:
+1. **SoT = gabungan 5 sumber data terverifikasi.** LLM tidak boleh menambah angka di luar evidence berikut:
    - **SAPA** — statistik pemerintahan; field: `opds_nama_opd`, `kode_indikator_nama_indikator`, `variabel` (nilai), `satuan`, `tahun`, `jadwal_pemutakhirin`.
    - **DTSEN (Kemensos/BPS via SPLP API)** — agregat desil, bansos (PKH/BPNT/PBI), distribusi wilayah (k-anonim k≥5).
    - **Bapokting (SPLP API)** — harga beras & komoditas pangan di Aceh Tengah.
    - **Excel offline** — data STUNTING/KOMINFO/DTSEN_CSV (impor manual admin, role-gated, bukan via chat publik).
-2. **LLM adalah perumus bahasa + pemilih tampilan**, bukan sumber data. Jika semua sumber kosong: jawab "tidak tersedia (SAPA/DTSEN/Bapokting)", jangan isi.
+   - **Dokumen A/B/C (agregat Excel bebas-PII)** — 6 berkas pemberdayaan sosial (Dinas Pendidikan / Dinas Kesehatan / Diskominfo) yang diekstrak deterministik ke `src/data/excel`. Diambil via jalur deterministik `tryExcelDocQuery` **tanpa LLM**; tabel mengikuti format sumber asli. Lihat `src/data/excel/README.md`.
+2. **LLM adalah perumus bahasa + pemilih tampilan**, bukan sumber data. Jika semua sumber kosong: jawab "tidak tersedia (SAPA/DTSEN/Bapokting/Dokumen)", jangan isi.
 3. **Rekomendasi bukan fakta.** Jika diminta/ditampilkan, harus ditandai normatif dan hanya merujuk indikator yang **sudah dikutip** dari evidence. Dilarang menambah angka baru.
 4. **Konteks pertanyaan = token + intent + filter yang dipakai**, harus ikut ke prompt dan ke metadata log. Jangan buang token hanya karena OPD terdeteksi.
 5. **Jangan merusak yang sudah benar:** SSE, `TableRenderer` dual-format (`794b80a`), prioritas indikator di depan payload (`d1228c6`), Direct API + fallback SPLP (`2c8ad16`), strip thinking, parser yang menolak dump JSON mentah (`41d7386`).
