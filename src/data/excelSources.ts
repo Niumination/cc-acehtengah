@@ -42,27 +42,26 @@ export interface DocKeyword {
 }
 
 const KEYWORD_MAP: Record<string, DocKeyword> = {
-  'dok-a-01-pendidikan-pencapaian-2025': {
-    keywords: ['bsm', 'siswa miskin', 'miskin pendidikan', 'bantuan siswa', 'pencapaian pendidikan', 'realisasi pendidikan'],
+  // Dikey oleh `judul` (sesuai lookup di matchExcelDoc).
+  'Pencapaian Bantuan Siswa Miskin Pendidikan Kab. Aceh Tengah 2025': {
+    keywords: ['bsm', 'siswa miskin', 'miskin pendidikan', 'bantuan siswa', 'pencapaian pendidikan', 'realisasi pendidikan', 'pencapaian'],
   },
-  'dok-a-02-santri-dalam-daerah-2025': {
-    keywords: ['santri dalam', 'dhvi santri dalam', 'santri dalam daerah'],
+  'DHV Santri Dalam Daerah Kab. Aceh Tengah 2025': {
+    keywords: ['santri', 'santri dalam', 'dhvi santri dalam', 'santri dalam daerah'],
   },
-  'dok-a-03-santri-luar-daerah-2025': {
+  'DHV Santri Luar Daerah Kab. Aceh Tengah 2025': {
     keywords: ['santri luar', 'dhvi santri luar', 'santri luar daerah'],
   },
-  'dok-a-04-mahasiswa-s1-luar-daerah-2025': {
+  'DHV Mahasiswa S1 Luar Daerah Kab. Aceh Tengah 2025': {
     keywords: ['mahasiswa', 'dhvi mahasiswa', 'mahasiswa s1', 'mahasiswa luar daerah', 'kuliah'],
   },
-  'dok-b-01-stunting-2026-07': {
+  'Data Balita Stunting Kab. Aceh Tengah (per 2026-07)': {
     keywords: ['stunting', 'balita stunting', 'anak stunting', 'gizi buruk'],
   },
-  'dok-c-01-kominfo-ppks': {
+  'Data Penerima Bantuan Sosial PPKS (Diskominfo) Kab. Aceh Tengah': {
     keywords: ['ppks', 'disabilitas', 'lanjut usia', 'bantuan sosial kominfo', 'data kominfo', 'penerima bantuan sosial'],
   },
 };
-
-const docByTitle = (d: ExcelDoc) => d.judul;
 
 /** Temukan dokumen yang relevan dengan query. Balik null bila tak ada. */
 export function matchExcelDoc(query: string): ExcelDoc | null {
