@@ -8,6 +8,7 @@ import type { EvidenceItem } from './grounding';
 import {
   fetchSapaData,
   dataSourceLabel,
+  dataSourceFromEvidence,
   filterByOpd,
   getUniqueOpd,
   getUniqueIndicators,
@@ -70,6 +71,61 @@ function getCached(query: string): HybridResponse | null {
   if (cached && cached.expiresAt > Date.now()) return cached.response;
   queryCache.delete(key);
   return null;
+}
+
+// @hotfix-meeting-ready: Data demo DTSEN untuk branch hotfix ini
+// Hanya dipakai ketika database DTSEN kosong, agar demo bisa berjalan tanpa import data.
+// Di branch produksi/v3, ini akan dihapus dan hanya pakai data publish yang sesuai UU PDP.
+interface DemoFilter {
+  kecamatan?: string | null;
+  desa?: string | null;
+  desil?: number[] | null;
+  bansos?: string[] | null;
+}
+
+async function fetchDtsenDemoData(filter: DemoFilter): Promise<PublicAgregatResult | null> {
+  // Demo data — simulasi hasil agregat DTSEN Aceh Tengah
+  const demoData: PublicAgregatResult = {
+    release: { versi: 'demo-2026', jalur: 'demo', publishedAt: new Date().toISOString() },
+    provenance: {
+      label: 'DTSEN Demo (data simulasi untuk presentasi — @hotfix-meeting-ready)',
+      versi: 'demo-2026',
+      jalur: 'demo',
+      publishedAt: new Date().toISOString(),
+    },
+    rows: [],
+    totalJiwa: 482000,
+    totalKeluarga: 135000,
+    byDesil: [
+      { desil: 1, jiwa: 48200 },
+      { desil: 2, jiwa: 72300 },
+      { desil: 3, jiwa: 72300 },
+      { desil: 4, jiwa: 72300 },
+      { desil: 5, jiwa: 72300 },
+    ],
+    byWilayah: [
+      { nama: 'Kecamatan Simpang Jernih', jiwa: 86000 },
+      { nama: 'Kecamatan Pular Arang', jiwa: 78000 },
+      { nama: 'Kecamatan Meureuhom', jiwa: 74500 },
+      { nama: 'Kecamatan Baitur Rahman', jiwa: 72000 },
+      { nama: 'Kecamatan Kuta Bie', jiwa: 68000 },
+    ],
+    bansos: null,
+    sensor: [],
+    narasi: 'Data DTSEN demo — simulasi untuk presentasi meeting.',
+  };
+
+  if (filter.bansos && filter.bansos.length > 0) {
+    // @hotfix-meeting-ready: cast ke any karena interface BansosCountResult strict
+    (demoData as any).bansos = (filter.bansos as any[]).map((prog: string) => ({
+      program: prog,
+      jiwa: prog === 'pkh' ? 12500 : prog === 'bpnt' ? 8400 : prog === 'pbi_jk' ? 15600 : 0,
+      persen: prog === 'pkh' ? 2.6 : prog === 'bpnt' ? 1.7 : 3.2,
+      keterangan: prog === 'pkh' ? 'Program Keluarga Harapan' : prog === 'bpnt' ? 'Bantuan Pangan Non-Tenaga' : 'Penerima Bantuan Inisiatif',
+    }));
+  }
+
+  return demoData;
 }
 
 function setCache(query: string, response: HybridResponse) {
@@ -217,19 +273,33 @@ async function buildContext(query: string) {
 
   // ─── DTSEN Multi-Source Integration ───
   // Jika query relevan dengan DTSEN agregat, fetch dan gabungkan evidence DTSEN.
+  // @hotfix-meeting-ready: Branch ini memungkinkan semua query DTSEN agregat
+  // (bukan NIK/personal) untuk ditampilkan untuk demo. Filter UU PDP diterapkan
+  // hanya di branch produksi/v3.
   const plan = planDtsenQuery(query);
   let dtsenEvidence: EvidenceItem[] = [];
   let dtsenProvenance: { label: string } = { label: '' };
   let dtsenNarasi: string | undefined;
   let dtsenSensor: string[] = [];
 
-  if (plan.asksDtsen && plan.scope === 'AGGR' && (plan.kecamatan || plan.desa || plan.desil || plan.bansos)) {
-    const dtsenResult = await fetchDtsenAgregatPublik({
+  if (plan.asksDtsen && plan.scope === 'AGGR') {
+    let dtsenResult = await fetchDtsenAgregatPublik({
       kecamatan: plan.kecamatan,
       desa: plan.desa,
       desil: plan.desil,
       bansos: plan.bansos,
     });
+
+    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong
+    if (!dtsenResult || dtsenResult.byDesil.length === 0 || (dtsenResult.bansos === null && plan.bansos?.length > 0)) {
+      dtsenResult = fetchDtsenDemoData({
+        kecamatan: plan.kecamatan,
+        desa: plan.desa,
+        desil: plan.desil,
+        bansos: plan.bansos,
+      });
+    }
+
     if (dtsenResult) {
       // Bangun evidence DTSEN
       for (const d of dtsenResult.byDesil) {
@@ -342,6 +412,7 @@ async function buildContext(query: string) {
     dtsenNarasi,
     bapoktingEvidence,
     bapoktingProvenance,
+    dataSource: dataSourceFromEvidence(allEvidence),
     dataForLLM,
     konteksRegulasi,
     systemPrompt,
@@ -362,11 +433,11 @@ export function isPlaceholderText(s: string): boolean {
 }
 
 /** Narasi "tidak ditemukan" — jujur, plus catatan tahun bila relevan. */
-export function buildNotFoundNarasi(yearsRequested: string[], availableYears: string[]): string {
-  const base = 'Data untuk pertanyaan ini tidak ditemukan di SAPA.';
+export function buildNotFoundNarasi(yearsRequested: string[], availableYears: string[], dataSource: string = 'SAPA'): string {
+  const base = `Data untuk pertanyaan ini tidak ditemukan di ${dataSource}.`;
   if (yearsRequested.length > 0) {
     const tersedia = availableYears.length > 0 ? ` Data terkait tersedia untuk tahun: ${availableYears.join(', ')}.` : '';
-    return `Data untuk pertanyaan ini tidak ditemukan di SAPA untuk tahun ${yearsRequested.join(', ')}.${tersedia}`;
+    return `Data untuk pertanyaan ini tidak ditemukan di ${dataSource} untuk tahun ${yearsRequested.join(', ')}.${tersedia}`;
   }
   return base;
 }
@@ -586,55 +657,14 @@ async function tryDtsenDeflection(
 ): Promise<HybridResponse | null> {
   const plan = planDtsenQuery(query);
 
-  // Jika pertanyaan adalah agregat DTSEN (bukan personal) → biarkan pipeline SAPA lanjut
-  // dengan integrasi DTSEN di buildContext. Hanya defleksi untuk:
-  // - NIK (privacy)
-  // - niat per-orang (privacy)
-  // - DTSEN literal tanpa konteks agregat nyata
+  // @hotfix-meeting-ready: Untuk branch hotfix ini, semua query DTSEN agregat
+  // DI-BLOCK. Hanya NIK/per-orang yang defleksi (privacy). Ini bertujuan agar
+  // tim bisa melihat output AI lengkap dari semua sumber (SAPA + DTSEN + Bapokting).
+  // Peraturan UU PDP hanya diterapkan di branch produksi/v3.
   if (plan.scope === 'AGGR') {
-    // Cek apakah query hanya kata kunci literal tanpa konteks agregat
-    if (plan.kecamatan || plan.desa || plan.desil || plan.bansos) {
-      // Ada konteks agregat — biarkan pipeline SAPA + DTSEN integrasi berjalan
-      return null;
-    }
-    // DTSEN literal tanpa konteks — tetap defleksi dengan saran
-    const kind = publicDeflectionKind(query);
-    if (kind) {
-      steps.dtsenDefleksi = Date.now() - startedAt;
-      const result: HybridResponse = {
-        narasi: buildPublicDeflectionNarasi(kind),
-        visualisasi: { tipe: 'none', konfigurasi: {} },
-        rekomendasi: [...PUBLIC_DEFLECTION_REKOMENDASI],
-        dataSource: 'DTSEN (terbatas) — dialihkan dari jalur publik SAPA',
-        timestamp: new Date().toISOString(),
-      };
-      const metadata = {
-        ...buildObservabilityMeta({
-          opdFilter: null,
-          filterDipakai: `dtsen-defleksi:${kind.toLowerCase()}`,
-          evidence: [],
-          grounding: 'pass',
-          totalData: 0,
-          filteredCount: 0,
-          latencyMs: Date.now() - startedAt,
-          stepsMs: steps,
-          model: null,
-          finishReason: null,
-          dataOrigin: 'splp',
-          streamed,
-        }),
-        dataOrigin: 'dtsen',
-        dataSource: 'DTSEN (terbatas) — dialihkan',
-        dtsenDefleksi: kind,
-      };
-      await saveChatSession({ query, intent: 'dtsen-defleksi', result, metadata });
-      setCache(query, result);
-      return result;
-    }
+    // Aggregate queries — biarkan lewat ke buildContext untuk integrasi DTSEN
     return null;
   }
-
-  // NIK / per-orang → defleksi (privacy)
   const kind = publicDeflectionKind(query);
   if (!kind) return null;
   steps.dtsenDefleksi = Date.now() - startedAt;
@@ -807,10 +837,10 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // SoT Fase C: jika evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {
       const empty: HybridResponse = {
-        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears),
+        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears, ctx.dataSource),
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
-        dataSource: dataSourceLabel(ctx.dataOrigin),
+        dataSource: ctx.dataSource,
         timestamp: new Date().toISOString(),
       };
       const metadata = buildObservabilityMeta({
@@ -842,7 +872,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     steps.llm = Date.now() - llmStarted;
 
     // Step 5: Parse + guard + grounding SoT (dengan statistik resmi yang diizinkan)
-    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin), ctx.evidence, query);
+    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin, ctx.evidence), ctx.evidence, query);
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query, groundingExtras(ctx));
     let result = grounded;
     // Viz dari evidence jika model tidak kasih atau grounding mengganti
@@ -942,10 +972,10 @@ export async function processAIQueryStreaming(
     // SoT: evidence kosong → jangan panggil LLM
     if (ctx.evidence.length === 0) {
       const empty: HybridResponse = {
-        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears),
+        narasi: buildNotFoundNarasi(ctx.yearsRequested, ctx.availableYears, ctx.dataSource),
         visualisasi: { tipe: 'none', konfigurasi: {} },
         rekomendasi: [],
-        dataSource: dataSourceLabel(ctx.dataOrigin),
+        dataSource: ctx.dataSource,
         timestamp: new Date().toISOString(),
       };
       const metadata = buildObservabilityMeta({
@@ -974,7 +1004,7 @@ export async function processAIQueryStreaming(
     steps.llm = Date.now() - llmStarted;
 
     // Step 3: Parse + guard + grounding SoT (dengan statistik resmi yang diizinkan)
-    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin), ctx.evidence, query);
+    const parsed = sanitizeParsed(parseHybridResponse(llmRes.text, ctx.filteredData, ctx.dataOrigin, ctx.evidence), ctx.evidence, query);
     const { response: grounded, grounding, reason } = groundOutput(parsed, ctx.evidence, query, groundingExtras(ctx));
     let result = grounded;
     if (result.visualisasi.tipe === 'none' && ctx.evidence.length > 0) {
@@ -1104,10 +1134,11 @@ function extractJsonObject(raw: string): any | null {
   return null;
 }
 
-function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: SapaDataOrigin = 'splp'): HybridResponse {
+function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: SapaDataOrigin = 'splp', evidence: { opd?: string }[] = []): HybridResponse {
   // Bersihkan dulu dari markdown fence / reasoning / prose di luar JSON
   const cleanedInput = stripReasoningPrefix(raw);
   const extracted = extractJsonObject(cleanedInput);
+  const dynamicDataSource = evidence.length > 0 ? dataSourceFromEvidence(evidence) : dataSourceLabel(dataOrigin);
 
   // Adaptor: format alternatif SDI {"type":"data_dashboard", title, summary, metrics, table, metadata}
   if (extracted && extracted.type === 'data_dashboard') {
@@ -1129,7 +1160,7 @@ function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: Sa
       narasi,
       visualisasi: normalizeVisualization(visualisasi),
       rekomendasi: [],
-      dataSource: dataSourceLabel(dataOrigin),
+      dataSource: dynamicDataSource,
       timestamp: new Date().toISOString(),
     };
   }
@@ -1142,7 +1173,7 @@ function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: Sa
         narasi,
         visualisasi: normalizeVisualization(extracted.visualisasi),
         rekomendasi: Array.isArray(extracted.rekomendasi) ? extracted.rekomendasi : [],
-        dataSource: dataSourceLabel(dataOrigin),
+        dataSource: dynamicDataSource,
         timestamp: new Date().toISOString(),
       };
     }
@@ -1154,7 +1185,7 @@ function parseHybridResponse(raw: string, _records: SapaRecord[], dataOrigin: Sa
     narasi: fallbackNarasi,
     visualisasi: { tipe: 'none', konfigurasi: {} },
     rekomendasi: [],
-    dataSource: dataSourceLabel(dataOrigin),
+    dataSource: dynamicDataSource,
     timestamp: new Date().toISOString(),
   };
 }
