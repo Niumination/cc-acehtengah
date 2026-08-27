@@ -78,23 +78,52 @@ export function tryExcelDocQuery(query: string): HybridResponse | null {
 }
 
 /**
+ * Apakah evidence SAPA/DTSEN benar-benar se-topik dengan dokumen? Fusi multi-sumber
+ * hanya boleh terjadi bila indikator SAPA menyebut topik spesifik dokumen (mis.
+ * "stunting", "ppks"), bukan sekadar kecocokan OPD umum (mis. "pendidikan" untuk
+ * santri). Mencegah over-fusion: santri/mahasiswa tetap jawaban dokumen-sendiri.
+ */
+function topicTokensForDoc(doc: ExcelDoc): string[] {
+  switch (doc.dokumen) {
+    case 'A':
+      return ['santri', 'mahasiswa', 'bsm', 'siswa miskin'];
+    case 'B':
+      return ['stunting', 'gizi', 'balita'];
+    case 'C':
+      return ['ppks', 'disabilitas', 'lanjut usia', 'bansos', 'penerima bantuan'];
+    default:
+      return [];
+  }
+}
+
+function isTopicAligned(doc: ExcelDoc, evidence: EvidenceItem[]): boolean {
+  const tokens = topicTokensForDoc(doc);
+  if (tokens.length === 0) return false;
+  return evidence.some((e) => {
+    const text = `${e.indikator ?? ''} ${e.opd ?? ''}`.toLowerCase();
+    return tokens.some((t) => text.includes(t));
+  });
+}
+
+/**
  * Gabungkan sumber Dokumen (Excel deterministik) dengan evidence SAPA + DTSEN
  * bila topik yang sama muncul di banyak sumber. Menghasilkan SATU jawaban
  * utuh: narasi menyatukan sumber, tabel otoritatif dari Dokumen (format sumber),
  * serta daftar sumber eksplisit. Tanpa LLM — angka 100% dari evidence ter-commit.
  *
  * Syarat penggabungan: doc (Dokumen) ditemukan DAN ctx.evidence (SAPA/DTSEN)
- * tidak kosong untuk topik yang sama. `sapaSummary` = ringkasan singkat
- * indikator SAPA teratas (sudah diformat di orchestrator) agar 1 output
- * benar-benar menggabungkan kedua sumber.
+ * tidak kosong DAN evidence tersebut benar-benar se-topik (isTopicAligned).
+ * `sapaSummary` = ringkasan singkat indikator SAPA teratas (sudah diformat di
+ * orchestrator) agar 1 output benar-benar menggabungkan kedua sumber.
  */
 export function buildFusedMultiSourceResponse(
   query: string,
   doc: ExcelDoc,
   ctx: { evidence: EvidenceItem[]; dataSource: string; sapaSummary?: string },
 ): HybridResponse | null {
-  // Hanya gabung bila ada evidence SAPA/DTSEN yang relevan, agar tidak dobel.
+  // Hanya gabung bila ada evidence SAPA/DTSEN yang relevan & se-topik, agar tidak dobel.
   if (!ctx.evidence || ctx.evidence.length === 0) return null;
+  if (!isTopicAligned(doc, ctx.evidence)) return null;
 
   const { headers, rows } = docPrimaryTable(doc);
   const summary = buildSummaryLine(doc);
