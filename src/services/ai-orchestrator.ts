@@ -46,7 +46,7 @@ import {
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
-import { fetchLatestBapoktingPrices } from '@/lib/bapokting-client';
+import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp, type BapoktingPrice } from '@/lib/bapokting-client';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
@@ -270,27 +270,27 @@ async function buildContext(query: string) {
     }
   }
 
-  // ─── Bapokting Integration (Harga Komoditas) ───
+  // ─── Bapokting Integration (Harga Komoditas via SPLP API) ───
   let bapoktingEvidence: EvidenceItem[] = [];
   let bapoktingProvenance: { label: string } = { label: '' };
 
   // Deteksi query harga komoditas
-  const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|beras|minyak|bawang)\b/i;
+  const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|beras|minyak|bawang|bahan pokok)\b/i;
   if (priceKeywords.test(query)) {
     try {
       const bapoktingData = await fetchLatestBapoktingPrices(20);
       if (bapoktingData.length > 0) {
         for (const p of bapoktingData.slice(0, 10)) {
           bapoktingEvidence.push({
-            opd: 'Bapokting',
-            indikator: `Harga ${p.namaKomoditas}`,
-            nilai: p.hargaPerKg.toString(),
-            satuan: 'Rp/Kg',
+            opd: 'Bapokting (SPLP)',
+            indikator: `Harga ${p.namaBarang || p.namaKomoditas}`,
+            nilai: (p.harga || p.hargaPerKg || 0).toString(),
+            satuan: 'Rp',
             tahun: null,
-            id: `bapokting:${p.namaKomoditas.toLowerCase()}`,
+            id: `bapokting:${(p.namaBarang || p.namaKomoditas || '').toLowerCase()}`,
           });
         }
-        bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah' };
+        bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah via SPLP API' };
       }
     } catch (e) {
       console.warn('[Orchestrator] Bapokting fetch failed:', e);
