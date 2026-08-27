@@ -389,6 +389,7 @@ async function buildContext(query: string) {
   // Payload LLM ringkas: top-5 saat evidence besar; visualisasi penuh tetap
   // dibangun lokal via buildVizFromEvidence (tidak perlu LLM buat tabel besar).
   const allEvidence = [...evidence, ...dtsenEvidence, ...bapoktingEvidence];
+  console.log('[DEBUG] allEvidence:', allEvidence.length, 'dtsenProvenance:', dtsenProvenance, 'dtsenNarasi:', dtsenNarasi);
   const evidenceForLLM = allEvidence.length > 8 ? allEvidence.slice(0, 5) : allEvidence;
   const dataForLLM = {
     query,
