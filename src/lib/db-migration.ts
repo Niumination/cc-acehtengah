@@ -129,17 +129,11 @@ export async function ensureDtsenTables(): Promise<boolean> {
 
     // Seed registry (idempotent — slug sudah ada → tidak ditimpa)
     for (const seed of DATA_SOURCE_SEEDS) {
-      await prisma.dataSource.upsert({
-        where: { slug: seed.slug },
-        update: {}, // jangan timpa label provenance yang sudah dirawat admin
-        create: {
-          slug: seed.slug,
-          nama: seed.nama,
-          sensitivity: seed.sensitivity,
-          provenanceLabel: seed.provenanceLabel,
-          ownerInstansi: seed.ownerInstansi,
-        },
-      });
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "DataSource" ("slug", "nama", "sensitivity", "provenanceLabel", "ownerInstansi")
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT ("slug") DO NOTHING;
+      `, seed.slug, seed.nama, seed.sensitivity, seed.provenanceLabel, seed.ownerInstansi);
     }
 
     dtsenReady = true;

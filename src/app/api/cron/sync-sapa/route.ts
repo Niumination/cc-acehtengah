@@ -35,7 +35,7 @@ async function handler(req: NextRequest) {
   }
 
   try {
-    await prisma.sapaSnapshot.count();
+    await prisma.admin.count();
   } catch {
     return NextResponse.json(
       {

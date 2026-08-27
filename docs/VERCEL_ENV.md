@@ -14,17 +14,6 @@ AI_MODEL=nemotron-3-ultra-free
 # ─── Auth (Optional — auto-generated if not set) ───
 JWT_SECRET=random-secret-string-here
 
-# ─── Setup Protection ───
-ADMIN_SETUP_TOKEN=«random-string-≥16-char»
-CRON_SECRET=«random-string-≥16-char»
-DTSEN_NIK_KEY=«random-string-≥16-char»
-
-# ─── SPLP API Integration (DTSEN + Bapokting) ───
-# Token JWT Bearer untuk header AuthorizationSPLP ke api-splp.layanan.go.id
-# Diperlukan untuk: DTSEN agregat publik + Bapokting harga komoditas
-SPLP_API_KEY=«JWT-token-dari-splp-layanan-go-id»
-
-
 # ─── Mode ───
 USE_MOCK_DATA=false
 
