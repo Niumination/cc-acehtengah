@@ -866,8 +866,34 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // muncul pula di SAPA/DTSEN (mis. "stunting" ada di Dokumen B + SAPA).
     const matchedDoc = detectExcelDocQuery(query);
 
-    // Step 1-3: intent + fetch + filter (context build)
-    const ctx = await buildContext(query);
+    // Step 1-3: intent + fetch + filter (context build). Di-wrap agar kegagalan
+    // pembangunan konteks SAPA/DTSEN rapuh tidak menghalangi jawaban Dokumen.
+    let ctx: Awaited<ReturnType<typeof buildContext>>;
+    try {
+      ctx = await buildContext(query);
+    } catch (ctxErr) {
+      if (matchedDoc) {
+        const docResp = buildExcelDocResponse(query, matchedDoc);
+        const metadata = buildObservabilityMeta({
+          opdFilter: null,
+          filterDipakai: '-',
+          evidence: [],
+          grounding: 'excel-doc',
+          totalData: 0,
+          filteredCount: 0,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: process.env.AI_MODEL,
+          finishReason: null,
+          dataOrigin: 'direct',
+          streamed: false,
+        });
+        await saveChatSession({ query, intent: 'dokumen', result: docResp, metadata });
+        setCache(query, docResp);
+        return docResp;
+      }
+      throw ctxErr;
+    }
     steps.context = Date.now() - startedAt;
 
     // ─── Multi-Source Fusion (Dokumen A/B/C + SAPA/DTSEN) ───
@@ -1060,8 +1086,35 @@ export async function processAIQueryStreaming(
     // Dipakai untuk fusi multi-sumber bila topik sama muncul pula di SAPA/DTSEN.
     const matchedDoc = detectExcelDocQuery(query);
 
-    // Step 1: Deteksi intent & ambil data
-    const ctx = await buildContext(query);
+    // Step 1: Deteksi intent & ambil data. Di-wrap agar bila pembangunan konteks
+    // SAPA/DTSEN rapuh gagal, pertanyaan bertopik Dokumen tetap terjamah jalur
+    // deterministik (doc-only) dan tidak crash ke error generik.
+    let ctx: Awaited<ReturnType<typeof buildContext>>;
+    try {
+      ctx = await buildContext(query);
+    } catch (ctxErr) {
+      if (matchedDoc) {
+        const docResp = buildExcelDocResponse(query, matchedDoc);
+        const metadata = buildObservabilityMeta({
+          opdFilter: null,
+          filterDipakai: '-',
+          evidence: [],
+          grounding: 'excel-doc',
+          totalData: 0,
+          filteredCount: 0,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: process.env.AI_MODEL,
+          finishReason: null,
+          dataOrigin: 'direct',
+          streamed: true,
+        });
+        await saveChatSession({ query, intent: 'dokumen', result: docResp, metadata });
+        setCache(query, docResp);
+        return docResp;
+      }
+      throw ctxErr;
+    }
     steps.context = Date.now() - startedAt;
 
     // ─── Multi-Source Fusion (Dokumen A/B/C + SAPA/DTSEN) ───
