@@ -34,7 +34,7 @@ import {
   type DtsenPlan,
   type PublicDeflectionKind,
 } from './dtsen-planner';
-import { buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
+import { buildExcelDocResponse, buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
 import {
   isTrendQuery,
   findTrendCandidate,
@@ -494,7 +494,7 @@ export function buildObservabilityMeta(input: {
   opdFilter?: string | null;
   filterDipakai: string;
   evidence: EvidenceItem[];
-  grounding: 'pass' | 'replaced' | 'multi-source-fusion';
+  grounding: 'pass' | 'replaced' | 'excel-doc' | 'multi-source-fusion';
   groundingReason?: string | null;
   totalData: number;
   filteredCount: number;
