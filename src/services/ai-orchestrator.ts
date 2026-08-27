@@ -299,9 +299,7 @@ async function buildContext(query: string) {
 
     // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong/error/struktur rusak
     const hasValidDtsen = dtsenResult &&
-      Array.isArray(dtsenResult.byDesil) &&
-      dtsenResult.byDesil.length > 0 &&
-      Array.isArray(dtsenResult.byWilayah);
+      Array.isArray(dtsenResult.byDesil ?? dtsenResult.byWilayah ?? null);
     const hasBansos = plan.bansos?.length > 0 && dtsenResult?.bansos !== null;
 
     if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansos)) {
@@ -312,7 +310,6 @@ async function buildContext(query: string) {
         bansos: plan.bansos,
       });
     }
-    console.log('[DTSEN] result status:', dtsenResult ? `byDesil=${dtsenResult.byDesil?.length || 'N/A'}, byWilayah=${dtsenResult.byWilayah?.length || 'N/A'}` : 'null');
 
     if (dtsenResult) {
       // Bangun evidence DTSEN
