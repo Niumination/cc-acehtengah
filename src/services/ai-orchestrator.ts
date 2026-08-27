@@ -297,12 +297,16 @@ async function buildContext(query: string) {
       dtsenResult = null;
     }
 
-    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong/error/struktur rusak
+    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong/error/struktur rusak/timeout
     const hasValidDtsen = dtsenResult &&
-      Array.isArray(dtsenResult.byDesil ?? dtsenResult.byWilayah ?? null);
-    const hasBansos = plan.bansos?.length > 0 && dtsenResult?.bansos !== null;
+      dtsenResult.byDesil &&
+      Array.isArray(dtsenResult.byDesil) &&
+      dtsenResult.byDesil.length > 0 &&
+      dtsenResult.byWilayah &&
+      Array.isArray(dtsenResult.byWilayah);
+    const hasBansosNeeded = plan.bansos && plan.bansos.length > 0 && dtsenResult?.bansos !== null && dtsenResult?.bansos !== undefined;
 
-    if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansos)) {
+    if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansosNeeded)) {
       dtsenResult = fetchDtsenDemoData({
         kecamatan: plan.kecamatan,
         desa: plan.desa,
