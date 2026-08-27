@@ -5,6 +5,7 @@
 // dirender oleh AIDataWidget (format general mengikuti sumber asli).
 
 import { HybridResponse } from '@/types';
+import type { EvidenceItem } from './grounding';
 import {
   matchExcelDoc,
   docSourceLabel,
@@ -74,5 +75,56 @@ export function tryExcelDocQuery(query: string): HybridResponse | null {
   const doc = detectExcelDocQuery(query);
   if (!doc) return null;
   return buildExcelDocResponse(query, doc);
+}
+
+/**
+ * Gabungkan sumber Dokumen (Excel deterministik) dengan evidence SAPA + DTSEN
+ * bila topik yang sama muncul di banyak sumber. Menghasilkan SATU jawaban
+ * utuh: narasi menyatukan sumber, tabel otoritatif dari Dokumen (format sumber),
+ * serta daftar sumber eksplisit. Tanpa LLM — angka 100% dari evidence ter-commit.
+ *
+ * Syarat penggabungan: doc (Dokumen) ditemukan DAN ctx.evidence (SAPA/DTSEN)
+ * tidak kosong untuk topik yang sama. `sapaSummary` = ringkasan singkat
+ * indikator SAPA teratas (sudah diformat di orchestrator) agar 1 output
+ * benar-benar menggabungkan kedua sumber.
+ */
+export function buildFusedMultiSourceResponse(
+  query: string,
+  doc: ExcelDoc,
+  ctx: { evidence: EvidenceItem[]; dataSource: string; sapaSummary?: string },
+): HybridResponse | null {
+  // Hanya gabung bila ada evidence SAPA/DTSEN yang relevan, agar tidak dobel.
+  if (!ctx.evidence || ctx.evidence.length === 0) return null;
+
+  const { headers, rows } = docPrimaryTable(doc);
+  const summary = buildSummaryLine(doc);
+  const sapaProvenance = ctx.dataSource;
+
+  const narasi =
+    `Berdasarkan penggabungan beberapa sumber resmi untuk topik ini:\n` +
+    `1) ${docSourceLabel(doc)} (${doc.sumber_file}): ` +
+    (summary ? `${summary}. ` : '') +
+    `Tabel di bawah menampilkan agregat ${doc.dokumen === 'A' ? 'pemberdayaan' : doc.dokumen === 'B' ? 'kesehatan' : 'bantuan sosial'} menurut format sumber. ${doc.catatan}\n` +
+    (ctx.sapaSummary
+      ? `2) Sumber lain (${sapaProvenance}): ${ctx.sapaSummary}\n`
+      : `2) Sumber lain (${sapaProvenance}) turut menyajikan indikator terkait.\n`) +
+    `Semua angka berasal dari agregat resmi; tidak ada data per-orang (UU PDP).`;
+
+  const multiSource = [docSourceLabel(doc), sapaProvenance].filter(Boolean).join(' + ');
+
+  return {
+    narasi,
+    visualisasi: {
+      tipe: 'table',
+      // Tandai bahwa ini hasil gabungan multi-sumber.
+      konfigurasi: { columns: headers, rows, _multiSource: true, _sources: [docSourceLabel(doc), sapaProvenance] },
+    },
+    rekomendasi: [
+      `Verifikasi angka di atas dengan ${doc.opd} selaku produsen data untuk perencanaan lebih lanjut.`,
+      `Data ${sapaProvenance} melengkapi gambaran makro; gunakan keduanya bersama untuk analisis lintas sumber.`,
+    ],
+    dataSource: multiSource,
+    timestamp: new Date().toISOString(),
+  };
 }
 

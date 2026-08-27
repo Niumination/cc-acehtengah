@@ -9,23 +9,76 @@ interface QueryBarProps {
   isDefaultMode: boolean;
 }
 
-// PR Lapis-0/1: chip hanya berisi pertanyaan yang benar-benar bisa dijawab
-// pipeline saat ini. Chip "Tren Data" dihapus sementara — tren per indikator
-// butuh data warehouse (roadmap Lapis 2); menjanjikannya di UI = menyesatkan.
-// "Semua OPD" & "Sebaran Tahun" dijawab deterministik (meta-query, tanpa LLM).
-// Chip Dokumen A/B/C merutekan ke sumber Excel deterministik (excel-doc-query),
-// tanpa LLM — pilih frasa yang cocok keyword di src/data/excelSources.ts.
-const KEYWORD_CHIPS = [
-  { label: '📚 BSM 2025 (Dok. A)', query: 'data bantuan siswa miskin pendidikan 2025' },
-  { label: '🎓 Santri Dalam (Dok. A)', query: 'jumlah santri dalam daerah aceh tengah 2025' },
-  { label: '🎓 Mahasiswa S1 (Dok. A)', query: 'data mahasiswa S1 luar daerah aceh tengah' },
-  { label: '👶 Stunting (Dok. B)', query: 'berapa jumlah balita stunting di aceh tengah' },
-  { label: '🤝 PPKS Kominfo (Dok. C)', query: 'berapa penerima bantuan sosial ppks diskominfo' },
-  { label: '🏛️ Jumlah ASN', query: 'berapa jumlah ASN di aceh tengah' },
-  { label: '🌾 Pertanian', query: 'bagaimana data pertanian di aceh tengah' },
-  { label: '☕ Kopi', query: 'produksi kopi di aceh tengah' },
-  { label: '📊 Semua OPD', query: 'apa saja OPD yang ada di aceh tengah' },
-  { label: '📅 Sebaran Tahun', query: 'bagaimana sebaran data sapa per tahun' },
+interface Chip {
+  label: string;
+  query: string;
+}
+
+interface ChipGroup {
+  id: string;
+  source: string;
+  hint: string;
+  chips: Chip[];
+  /** Group yang sumber datanya belum tersedia — chip dirender nonaktif. */
+  disabled?: boolean;
+}
+
+// Chip dikelompokkan per sumber data agar pengguna tahu jawaban berasal dari mana.
+// - SAPA: indikator resmi OPD (katalog data pembangunan).
+// - DTSEN: agregat kemiskinan (desil, bansos) — k-anonymity.
+// - Dokumen A/B/C: agregat Excel per OPD (Diknas, Dinkes, Diskominfo), deterministik.
+// - Bapokting: harga bahan pokok (belum terhubung).
+// Meta-query (Semua OPD, OPD Teratas, Sebaran Tahun) dijawab deterministik.
+// Frasa tiap chip disesuaikan keyword di src/data/excelSources.ts agar merute ke sumber benar.
+const CHIP_GROUPS: ChipGroup[] = [
+  {
+    id: 'sapa',
+    source: 'SAPA',
+    hint: 'Indikator resmi OPD',
+    chips: [
+      { label: '🏛️ Jumlah ASN', query: 'berapa jumlah ASN di aceh tengah' },
+      { label: '👶 Stunting (SAPA)', query: 'berapa jumlah balita stunting di aceh tengah' },
+      { label: '🌾 Pertanian', query: 'bagaimana data pertanian di aceh tengah' },
+      { label: '📚 Pendidikan', query: 'bagaimana data pendidikan di aceh tengah' },
+      { label: '🏥 Kesehatan', query: 'bagaimana data kesehatan di aceh tengah' },
+      { label: '💼 Tenaga Kerja', query: 'berapa jumlah tenaga kerja di aceh tengah' },
+      { label: '☕ Kopi', query: 'produksi kopi di aceh tengah' },
+      { label: '📊 Semua OPD', query: 'apa saja OPD yang ada di aceh tengah' },
+      { label: '🏆 OPD Teratas', query: 'OPD mana yang memiliki indikator paling banyak di Aceh Tengah' },
+      { label: '📅 Sebaran Tahun', query: 'bagaimana sebaran data sapa per tahun' },
+    ],
+  },
+  {
+    id: 'dtsen',
+    source: 'DTSEN',
+    hint: 'Agregat kemiskinan · k-anonymity',
+    chips: [
+      { label: '🤝 Bansos PKH', query: 'berapa penerima bansos PKH di aceh tengah' },
+      { label: '💳 BPNT & PBI', query: 'berapa penerima BPNT dan PBI di aceh tengah' },
+    ],
+  },
+  {
+    id: 'dokumen',
+    source: 'Dokumen A/B/C',
+    hint: 'Agregat Excel per OPD · deterministik',
+    chips: [
+      { label: '📚 BSM 2025 (Dok. A)', query: 'data bantuan siswa miskin pendidikan 2025' },
+      { label: '🎓 Santri Dalam (Dok. A)', query: 'jumlah santri dalam daerah aceh tengah 2025' },
+      { label: '🎓 Mahasiswa S1 (Dok. A)', query: 'data mahasiswa S1 luar daerah aceh tengah' },
+      { label: '👶 Stunting (Dok. B)', query: 'data stunting balita di aceh tengah 2026' },
+      { label: '🤝 PPKS Kominfo (Dok. C)', query: 'berapa penerima bantuan sosial ppks diskominfo' },
+    ],
+  },
+  {
+    id: 'bapokting',
+    source: 'Bapokting',
+    hint: 'Harga bahan pokok — menunggu sumber data',
+    chips: [
+      { label: '🍚 Harga Beras', query: '' },
+      { label: '🌶️ Harga Cabai', query: '' },
+    ],
+    disabled: true,
+  },
 ];
 
 export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }: QueryBarProps) {
@@ -40,7 +93,7 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
   };
 
   const handleChipClick = (query: string) => {
-    if (!isLoading) {
+    if (!isLoading && query) {
       onQuery(query);
     }
   };
@@ -67,20 +120,28 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
         )}
       </div>
 
-      {/* Keyword Chips — centered */}
-      <div className="px-5 py-3">
-        <div className="flex flex-wrap gap-2 justify-center">
-          {KEYWORD_CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              onClick={() => handleChipClick(chip.query)}
-              disabled={isLoading}
-              className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {chip.label}
-            </button>
-          ))}
-        </div>
+      {/* Keyword Chips — grouped by source */}
+      <div className="px-5 py-3 space-y-2">
+        {CHIP_GROUPS.map((group) => (
+          <div key={group.id} className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5" role="group" aria-label={`Chip sumber ${group.source}`}>
+            <span className="mr-1 inline-flex items-baseline gap-1.5" title={group.hint}>
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#2D6A4F]">{group.source}</span>
+              <span className="hidden text-[9px] text-[#767D6F] sm:inline">· {group.hint}</span>
+            </span>
+            {group.chips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={() => !group.disabled && handleChipClick(chip.query)}
+                disabled={isLoading || group.disabled || !chip.query}
+                title={group.disabled ? `Sumber ${group.source} belum terhubung` : undefined}
+                className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        ))}
       </div>
 
       {/* Search Input + Button — centered, button di bawah */}
