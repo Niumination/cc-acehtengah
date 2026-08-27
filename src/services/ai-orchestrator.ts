@@ -34,7 +34,7 @@ import {
   type DtsenPlan,
   type PublicDeflectionKind,
 } from './dtsen-planner';
-import { tryExcelDocQuery, buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
+import { buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
 import {
   isTrendQuery,
   findTrendCandidate,
@@ -874,37 +874,60 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     // Bila topik sama ditemukan di Dokumen DAN di evidence SAPA/DTSEN, gabung
     // menjadi SATU jawaban deterministik (tanpa LLM). Tabel otoritatif dari Dokumen.
     if (matchedDoc && ctx.evidence.length > 0) {
-      const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
-        evidence: ctx.evidence,
-        dataSource: ctx.dataSource,
-        sapaSummary: summarizeEvidence(ctx.evidence),
-      });
-      if (fused) {
-        const metadata = buildObservabilityMeta({
-          opdFilter: ctx.opdFilter ?? null,
-          filterDipakai: ctx.filterDipakai,
+      try {
+        const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
           evidence: ctx.evidence,
-          grounding: 'multi-source-fusion',
-          totalData: ctx.allRecords.length,
-          filteredCount: ctx.filteredData.length,
-          latencyMs: Date.now() - startedAt,
-          stepsMs: steps,
-          model: process.env.AI_MODEL,
-          finishReason: null,
-          dataOrigin: ctx.dataOrigin,
-          streamed: false,
+          dataSource: ctx.dataSource,
+          sapaSummary: summarizeEvidence(ctx.evidence),
         });
-        await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
-        setCache(query, fused);
-        return fused;
+        if (fused) {
+          const metadata = buildObservabilityMeta({
+            opdFilter: ctx.opdFilter ?? null,
+            filterDipakai: ctx.filterDipakai,
+            evidence: ctx.evidence,
+            grounding: 'multi-source-fusion',
+            totalData: ctx.allRecords.length,
+            filteredCount: ctx.filteredData.length,
+            latencyMs: Date.now() - startedAt,
+            stepsMs: steps,
+            model: process.env.AI_MODEL,
+            finishReason: null,
+            dataOrigin: ctx.dataOrigin,
+            streamed: false,
+          });
+          await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
+          setCache(query, fused);
+          return fused;
+        }
+      } catch (fusionErr) {
+        // Fusi gagal → lanjut ke jalur normal (SAPA/LLM), jangan crash pipeline.
+        console.warn('[Orchestrator] fusion skipped:', fusionErr);
       }
     }
 
-    // Bila query spesifik hanya ke Dokumen (tanpa evidence SAPA/DTSEN yang cocok),
-    // jawab langsung dari Dokumen secara deterministik.
-    if (matchedDoc && ctx.evidence.length === 0) {
-      const excelOnly = tryExcelDocQuery(query);
-      if (excelOnly) return excelOnly;
+    // Bila query cocok dengan Dokumen (A/B/C) tetapi tidak memenuhi syarat fusi
+    // multi-sumber, jawab langsung dari Dokumen secara deterministik. Mengutamakan
+    // jalur Dokumen (deterministik, PII-aman) dan mencegah jatuh ke jalur SAPA/LLM
+    // yang rapuh untuk pertanyaan bertopik Dokumen.
+    if (matchedDoc) {
+      const docResp = buildExcelDocResponse(query, matchedDoc);
+      const metadata = buildObservabilityMeta({
+        opdFilter: ctx.opdFilter ?? null,
+        filterDipakai: ctx.filterDipakai,
+        evidence: ctx.evidence,
+        grounding: 'excel-doc',
+        totalData: ctx.allRecords.length,
+        filteredCount: ctx.filteredData.length,
+        latencyMs: Date.now() - startedAt,
+        stepsMs: steps,
+        model: process.env.AI_MODEL,
+        finishReason: null,
+        dataOrigin: ctx.dataOrigin,
+        streamed: false,
+      });
+      await saveChatSession({ query, intent: ctx.intent.kategori, result: docResp, metadata });
+      setCache(query, docResp);
+      return docResp;
     }
 
     // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM
@@ -1043,37 +1066,59 @@ export async function processAIQueryStreaming(
 
     // ─── Multi-Source Fusion (Dokumen A/B/C + SAPA/DTSEN) ───
     if (matchedDoc && ctx.evidence.length > 0) {
-      const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
-        evidence: ctx.evidence,
-        dataSource: ctx.dataSource,
-        sapaSummary: summarizeEvidence(ctx.evidence),
-      });
-      if (fused) {
-        const metadata = buildObservabilityMeta({
-          opdFilter: ctx.opdFilter ?? null,
-          filterDipakai: ctx.filterDipakai,
+      try {
+        const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
           evidence: ctx.evidence,
-          grounding: 'multi-source-fusion',
-          totalData: ctx.allRecords.length,
-          filteredCount: ctx.filteredData.length,
-          latencyMs: Date.now() - startedAt,
-          stepsMs: steps,
-          model: process.env.AI_MODEL,
-          finishReason: null,
-          dataOrigin: ctx.dataOrigin,
-          streamed: true,
+          dataSource: ctx.dataSource,
+          sapaSummary: summarizeEvidence(ctx.evidence),
         });
-        await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
-        setCache(query, fused);
-        return fused;
+        if (fused) {
+          const metadata = buildObservabilityMeta({
+            opdFilter: ctx.opdFilter ?? null,
+            filterDipakai: ctx.filterDipakai,
+            evidence: ctx.evidence,
+            grounding: 'multi-source-fusion',
+            totalData: ctx.allRecords.length,
+            filteredCount: ctx.filteredData.length,
+            latencyMs: Date.now() - startedAt,
+            stepsMs: steps,
+            model: process.env.AI_MODEL,
+            finishReason: null,
+            dataOrigin: ctx.dataOrigin,
+            streamed: true,
+          });
+          await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
+          setCache(query, fused);
+          return fused;
+        }
+      } catch (fusionErr) {
+        console.warn('[Orchestrator] fusion skipped:', fusionErr);
       }
     }
 
-    // Bila query spesifik hanya ke Dokumen (tanpa evidence SAPA/DTSEN yang cocok),
-    // jawab langsung dari Dokumen secara deterministik.
-    if (matchedDoc && ctx.evidence.length === 0) {
-      const excelOnly = tryExcelDocQuery(query);
-      if (excelOnly) return excelOnly;
+    // Bila query cocok dengan Dokumen (A/B/C) tetapi tidak memenuhi syarat fusi
+    // multi-sumber, jawab langsung dari Dokumen secara deterministik. Mengutamakan
+    // jalur Dokumen (deterministik, PII-aman) dan mencegah jatuh ke jalur SAPA/LLM
+    // streaming yang rapuh untuk pertanyaan bertopik Dokumen.
+    if (matchedDoc) {
+      const docResp = buildExcelDocResponse(query, matchedDoc);
+      const metadata = buildObservabilityMeta({
+        opdFilter: ctx.opdFilter ?? null,
+        filterDipakai: ctx.filterDipakai,
+        evidence: ctx.evidence,
+        grounding: 'excel-doc',
+        totalData: ctx.allRecords.length,
+        filteredCount: ctx.filteredData.length,
+        latencyMs: Date.now() - startedAt,
+        stepsMs: steps,
+        model: process.env.AI_MODEL,
+        finishReason: null,
+        dataOrigin: ctx.dataOrigin,
+        streamed: true,
+      });
+      await saveChatSession({ query, intent: ctx.intent.kategori, result: docResp, metadata });
+      setCache(query, docResp);
+      return docResp;
     }
 
     // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM.
