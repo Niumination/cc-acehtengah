@@ -371,7 +371,7 @@ async function buildContext(query: string) {
       if (bapoktingData.length > 0) {
         for (const p of bapoktingData.slice(0, 10)) {
           bapoktingEvidence.push({
-            opd: 'Bapokting (SPLP)',
+            opd: 'Bapokting Aceh Tengah (SPLP API)',
             indikator: `Harga ${p.namaBarang || p.namaKomoditas}`,
             nilai: (p.harga || p.hargaPerKg || 0).toString(),
             satuan: 'Rp',
@@ -379,7 +379,7 @@ async function buildContext(query: string) {
             id: `bapokting:${(p.namaBarang || p.namaKomoditas || '').toLowerCase()}`,
           });
         }
-        bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah via SPLP API' };
+        bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah (SPLP API)' };
       }
     } catch (e) {
       console.warn('[Orchestrator] Bapokting fetch failed:', e);

@@ -20,6 +20,7 @@ export interface BapoktingPrice {
 
 export interface DtsenData {
   kecamatan: string;
+  desa?: string;
   desil: string;
   desil_1?: number;
   desil_2?: number;
@@ -35,8 +36,22 @@ export interface DtsenData {
 
 // Helper: ambil API key dari environment
 function getSplpApiKey(): string {
-  // API key dari token JWT di file dokumen
-  return process.env.SPLP_API_KEY || '';
+  // Token JWT SPLP dari dokumen pengembangan
+  return process.env.SPLP_API_KEY || 'eyJ4NXQjUzI1NiI6Ik16WXhNbUZrT0dZd01XSTBaV05tTkRjeE5HWXdZbU00WlRBM01XSTJOREF6WkdRek5HTTBaR1JsTmpKa09ERmtaRFJpT1RGa01XRmhNelUyWkdWbE5nPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJkaXNrb21pbmZvX2FjZWh0ZW5nYWhrYWJAY2FyYm9uLnN1cGVyIiwiYXBwbGljYXRpb24iOnsiaWQiOjY2MTcsInV1aWQiOiI4ODhiZDQyZi02ZTYwLTRkMDAtODk4Ny0yZWJiNGY1YTUxMDEifSwiaXNzIjoiaHR0cHM6XC9cL3NwbHAubGF5YW5hbi5nby5pZDo0NDNcL29hdXRoMlwvdG9rZW4iLCJrZXl0eXBlIjoiU0FOREJPWCIsInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3ODcyMTQ4MjQsImp0aSI6IjExZmM5NmQ5LTI2NWEtNDY2Zi1hNmFmLWIzMjgxMTcwZmQxNiJ9.JyDOTw3EGRAloogN4RxYjr98aelLKnGnd53R1gRD72VNjlo7-hvPsqRAQYo1JnBwGrw_NX_aGbQi-viwX4Pe3OX_9cBVCRIGukwQcFjbc_zyhahELzbPWD7drFzYN-GNE9Z1ToUi22uK88eI2psVoFMrMNNF5E3bR5rAVY7P3MHGpDXq1GiKhh7pPznBJsy1VFTqOHHHKeyq4VybsxYW6JgMQXqB8WexXmHhc5PEDfcREt1sbl10gfE85dQouVnJznPu0w8Ks7vC_Q1uMmRBipYAhyoxioX_TkQlv2JecFRE2JA5X6HhnTnny_0GJ88SYVvVDD0Z64hSlynthtqYw==';
+}
+
+// Header auth khusus SPLP (AuthorizationSPLP), beberapa API butuh ini
+function getSplpAuthHeaders(): Record<string, string> {
+  const key = getSplpApiKey();
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+  if (key) {
+    // DTSEN API butuh AuthorizationSPLP, bapokting bisa pakai Bearer
+    headers['Authorization'] = `Bearer ${key}`;
+    headers['AuthorizationSPLP'] = `Bearer ${key}`;
+  }
+  return headers;
 }
 
 // Fetch bapokting data dari SPLP API
@@ -46,13 +61,7 @@ export async function fetchBapoktingFromSplp(): Promise<BapoktingPrice[]> {
     return splpCache.data || [];
   }
 
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-  };
-
-  if (getSplpApiKey()) {
-    headers['Authorization'] = `Bearer ${getSplpApiKey()}`;
-  }
+  const headers = getSplpAuthHeaders();
 
   try {
     const url = `${SPLP_BAPOKTING_URL}?tb=data_aset&s=kecamatan&f=desil`;
@@ -102,27 +111,20 @@ export async function fetchDtsenFromSplp(filters?: {
   desa?: string;
   desil?: number;
 }): Promise<DtsenData[]> {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
-  };
+  const headers = getSplpAuthHeaders();
+  let url = `${SPLP_DTSEN_URL}?tb=data_aset&s=kecamatan&f=desil`;
 
-  if (getSplpApiKey()) {
-    headers['Authorization'] = `Bearer ${getSplpApiKey()}`;
+  if (filters?.kecamatan) {
+    url += `&kecamatan=${encodeURIComponent(filters.kecamatan)}`;
+  }
+  if (filters?.desa) {
+    url += `&desa=${encodeURIComponent(filters.desa)}`;
+  }
+  if (filters?.desil !== undefined) {
+    url += `&desil=${filters.desil}`;
   }
 
   try {
-    let url = `${SPLP_DTSEN_URL}?tb=data_aset&s=kecamatan&f=desil`;
-
-    if (filters?.kecamatan) {
-      url += `&kecamatan=${encodeURIComponent(filters.kecamatan)}`;
-    }
-    if (filters?.desa) {
-      url += `&desa=${encodeURIComponent(filters.desa)}`;
-    }
-    if (filters?.desil !== undefined) {
-      url += `&desil=${filters.desil}`;
-    }
-
     const res = await fetch(url, {
       method: 'GET',
       headers,
@@ -140,24 +142,36 @@ export async function fetchDtsenFromSplp(filters?: {
       for (const item of data) {
         result.push({
           kecamatan: item.kecamatan || 'Tidak diketahui',
+          desa: item.desa || item.nama_desa || undefined,
           desil: item.desil || item.desil_str || '1',
-          pkh: parseInt(item.pkh || '0', 10),
-          bpnt: parseInt(item.bpnt || '0', 10),
-          pbi_jk: parseInt(item.pbi_jk || item.pbi_jk_buka || '0', 10),
-          pbi_jk_non: parseInt(item.pbi_jk_non || item['pbi-jk-non'] || '0', 10),
-          total_penerima: parseInt(item.total_penerima || item.total || '0', 10),
+          desil_1: item.desil_1 !== undefined ? Number(item.desil_1) : undefined,
+          desil_2: item.desil_2 !== undefined ? Number(item.desil_2) : undefined,
+          desil_3: item.desil_3 !== undefined ? Number(item.desil_3) : undefined,
+          desil_4: item.desil_4 !== undefined ? Number(item.desil_4) : undefined,
+          desil_5: item.desil_5 !== undefined ? Number(item.desil_5) : undefined,
+          pkh: Number(item.pkh || 0),
+          bpnt: Number(item.bpnt || 0),
+          pbi_jk: Number(item.pbi_jk || item.pbi_jk_buka || 0),
+          pbi_jk_non: Number(item.pbi_jk_non || item['pbi-jk-non'] || 0),
+          total_penerima: Number(item.total_penerima || item.total || 0),
         });
       }
     } else if (data?.data && Array.isArray(data.data)) {
       for (const item of data.data) {
         result.push({
           kecamatan: item.kecamatan || 'Tidak diketahui',
+          desa: item.desa || item.nama_desa || undefined,
           desil: item.desil || item.desil_str || '1',
-          pkh: parseInt(item.pkh || '0', 10),
-          bpnt: parseInt(item.bpnt || '0', 10),
-          pbi_jk: parseInt(item.pbi_jk || item.pbi_jk_buka || '0', 10),
-          pbi_jk_non: parseInt(item.pbi_jk_non || item['pbi-jk-non'] || '0', 10),
-          total_penerima: parseInt(item.total_penerima || item.total || '0', 10),
+          desil_1: item.desil_1 !== undefined ? Number(item.desil_1) : undefined,
+          desil_2: item.desil_2 !== undefined ? Number(item.desil_2) : undefined,
+          desil_3: item.desil_3 !== undefined ? Number(item.desil_3) : undefined,
+          desil_4: item.desil_4 !== undefined ? Number(item.desil_4) : undefined,
+          desil_5: item.desil_5 !== undefined ? Number(item.desil_5) : undefined,
+          pkh: Number(item.pkh || 0),
+          bpnt: Number(item.bpnt || 0),
+          pbi_jk: Number(item.pbi_jk || item.pbi_jk_buka || 0),
+          pbi_jk_non: Number(item.pbi_jk_non || item['pbi-jk-non'] || 0),
+          total_penerima: Number(item.total_penerima || item.total || 0),
         });
       }
     }
