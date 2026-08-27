@@ -312,9 +312,12 @@ async function buildContext(query: string) {
     }
 
     if (dtsenResult) {
-      // Bangun evidence DTSEN
-      console.log('[DTSEN] building evidence, byDesil:', dtsenResult.byDesil, 'byWilayah:', dtsenResult.byWilayah);
-      for (const d of dtsenResult.byDesil || []) {
+      // @hotfix-meeting-ready: Safety — pastikan semua field ada sebelum build evidence
+      dtsenResult.byDesil = dtsenResult.byDesil || [];
+      dtsenResult.byWilayah = dtsenResult.byWilayah || [];
+      dtsenResult.provenance = dtsenResult.provenance || { label: 'DTSEN (demo)' };
+      dtsenResult.bansos = dtsenResult.bansos || null;
+      for (const d of dtsenResult.byDesil) {
         dtsenEvidence.push({
           opd: 'DTSEN (Kemensos/BPS)',
           indikator: `Desil ${d.desil} — jiwa`,
