@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 26, 2026 — **Hotfix LLM reliability live** (`7c342e7`): `max_tokens` 800→2500 (JSON jawaban tak lagi terpotong oleh reasoning model), retry LLM 3x backoff eksponensial utk 5xx/network, pesan error ramah tanpa bocoran detail provider. Sebelumnya PR-4b impor DTSEN, PR-4a, PR-3, PR Lapis 0–2
+> **Last update:** Aug 27, 2026 — **Sumber Dokumen A/B/C (Excel) live** (`5581bf7`): 6 berkas Excel pemberdayaan sosial diekstrak jadi agregat bebas-PII (`src/data/excel`), dijawab deterministik via `excel-doc-query.ts` (tanpa LLM). Sebelumnya hotfix LLM reliability (`7c342e7`): `max_tokens` 800→2500, retry 3x, pesan error ramah.
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -24,6 +24,7 @@ SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
 DTSEN ─[SPLP API +]─
 BAPOKTING ─[SPLP API]─
 EXCEL (STUNTING/KOMINFO/DTSEN_CSV) ─[import manual]─
+DOKUMEN A/B/C (agregat Excel bebas-PII) ─[src/data/excel]─
 (Data Sources)     (Query Planner + Provenance + Sensor k-anon)
                           │
                           ├── ChatSession DB (auto-log)
@@ -47,6 +48,7 @@ EXCEL (STUNTING/KOMINFO/DTSEN_CSV) ─[import manual]─
 |-------|:------:|----------|
 | Dashboard utama | ✅ | `/dashboard` |
 | **AI Smart Query** | ✅ | `POST /api/query` — SAPA + DTSEN (SPLP API langsung) + Bapokting + Excel (one door, provenance tracked)
+| **Sumber Dokumen A/B/C (Excel)** | ✅ | Agregat 6 berkas Excel pemberdayaan sosial (Dinas Pendidikan / Dinas Kesehatan / Diskominfo) — deterministic, bebas PII, `src/data/excel` + `excel-doc-query.ts` |
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan Eksekutif (Auth)** | ✅ | `/dashboard/laporan` — generator naratif deterministik (bukan lagi sekadar log viewer) + `/api/report` |
@@ -201,7 +203,7 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
 | `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
 | `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `x-preview-f-free` | Dipakai PERSIS dari env; default `x-preview-f-free` jika kosong (tidak ada pemetaan tersembunyi) |
+| `AI_MODEL` | `nemotron-3-ultra-free` | Dipakai PERSIS dari env; produksi berjalan `nemotron-3-ultra-free` (bukan `x-preview-f-free`). Ubah via env Vercel + redeploy. |
 | `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
 | `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
 | `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
