@@ -4,7 +4,8 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 27, 2026 — **Sumber Dokumen A/B/C (Excel) live** (`5581bf7`): 6 berkas Excel pemberdayaan sosial diekstrak jadi agregat bebas-PII (`src/data/excel`), dijawab deterministik via `excel-doc-query.ts` (tanpa LLM). Sebelumnya hotfix LLM reliability (`7c342e7`): `max_tokens` 800→2500, retry 3x, pesan error ramah.
+> **Last update:** Aug 27, 2026 — **Fusi Multi-Sumber live** (`a8a6dc4`/`9279c6b`, prod): query yang topiknya muncul di Dokumen A/B/C **dan** SAPA/DTSEN digabung jadi SATU jawaban deterministik via `buildFusedMultiSourceResponse()` (tabel otoritatif dari Dokumen + narasi menyatukan sumber). UI chip dikelompokkan per sumber (`QueryBar.tsx`).
+> **Deploy state:** PROD = `9279c6b`. Fix PPKS (isolasi query bertopik Dokumen dari `buildContext` rapuh) sudah di `be486a0` **Lokal — BELUM push/deploy** (kredensial git/Vercel lepas dari sesi; lanjutkan nanti). `main` tertinggal 41 commit dari `hotfix/meeting-ready`.
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -226,13 +227,20 @@ Parser multi-sumber (`src/services/dtsen-multisource.ts`) sudah divalidasi melaw
 
 ### Integrasi DTSEN & Bapokting Multi-Sumber ke AI System (Aug 24–27, 2026)
 
-AI Smart Query (`POST /api/query`) kini menggabungkan keempat sumber data ke dalam evidence secara transparan, sehingga pertanyaan menjawab berdasarkan **gabungan SAPA + DTSEN + Bapokting + Excel** — bukan hanya SAPA.
+AI Smart Query (`POST /api/query`) kini menggabungkan keempat sumber data ke dalam evidence secara transparan, sehingga pertanyaan menjawab berdasarkan **gabungan SAPA + DTSEN + Bapokting + Dokumen A/B/C** — bukan hanya SAPA.
 
 **Keempat sumber data:**
 1. **SAPA** — statistik pemerintahan melalui SPLP API (warehouse Supabase, kena cache 10 mnt)
 2. **DTSEN** — agregat kemiskinan (desil, Bansos PKH/BPNT/PBI) langsung dari `api-splp.layanan.go.id/dtsen-aceh-tengah` (AuthorizationSPLP Bearer token) — _bypass DB kosong pada branch hotfix_
 3. **Bapokting** — harga beras dan komoditas pangan dari `api-splp.layanan.go.id/bahan-pokok-penting` (AuthorizationSPLP)
-4. **Excel offline** — data STUNTING/KOMINFO/DTSEN_CSV yang diimpor manual admin (role-gated)
+4. **Dokumen A/B/C** — agregat Excel bebas-PII (Dinas Pendidikan / Dinas Kesehatan / Diskominfo) di `src/data/excel`, dijawab deterministik via `excel-doc-query.ts`
+
+**Multi-Source Fusion (baru, `a8a6dc4`):**
+Saat topik yang SAMA muncul di Dokumen A/B/C **dan** di evidence SAPA/DTSEN, `buildFusedMultiSourceResponse()` menggabungkan keduanya jadi **SATU** `HybridResponse` deterministik (tanpa LLM):
+- Narasi menyatukan sumber ("Berdasarkan penggabungan beberapa sumber resmi…"); tabel otoritatif diambil dari Dokumen (format sumber); `dataSource` = `"Dokumen B — Dinas Kesehatan + SAPA Aceh Tengah"`.
+- Gate `isTopicAligned()`: fusi hanya terjadi bila indikator SAPA menyebut topik spesifik dokumen (`stunting`, `ppks`, `bansos`, dst.), **bukan** kecocokan OPD umum — agar santri/mahasiswa tetap dokumen-sendiri.
+- Diutamakan jalur Dokumen: bila `matchedDoc` terdeteksi, query bertopik Dokumen dijawab deterministik dari Dokumen (fused bila se-topik, doc-only bila tidak) **sebelum** jatuh ke jalur SAPA/LLM yang rapuh (`buildContext` DTSEN). Lihat `src/services/ai-orchestrator.ts` (`processAIQuery` + `processAIQueryStreaming`).
+- `grounding` di metadata: `'excel-doc'` (doc-only) atau `'multi-source-fusion'` (gabung).
 
 **Logika pipeline (di `src/services/ai-orchestrator.ts`):**
 
