@@ -27,9 +27,13 @@ Tidak ada perubahan file AI di `794b80a` selain `TableRenderer`. Fondasi retriev
 
 ## 1. Prinsip yang tidak boleh dilanggar
 
-1. **SoT = baris SAPA.** Field yang boleh dikutip: `opds_nama_opd`, `kode_indikator_nama_indikator`, `variabel` (nilai), `satuan`, `tahun`, `jadwal_pemutakhiran`, `kode_indikator_kode_indikator`. Tidak ada sumber lain untuk fakta kuantitatif.
-2. **LLM adalah perumus bahasa + pemilih tampilan**, bukan sumber data. Jika data kosong: jawab “tidak tersedia di SAPA”, jangan isi.
-3. **Rekomendasi bukan fakta.** Jika diminta/ditampilkan, harus ditandai normatif dan hanya merujuk indikator yang **sudah dikutip** dari SAPA. Dilarang menambah angka baru.
+1. **SoT = gabungan 4 sumber data terverifikasi.** LLM tidak boleh menambah angka di luar evidence berikut:
+   - **SAPA** — statistik pemerintahan; field: `opds_nama_opd`, `kode_indikator_nama_indikator`, `variabel` (nilai), `satuan`, `tahun`, `jadwal_pemutakhirin`.
+   - **DTSEN (Kemensos/BPS via SPLP API)** — agregat desil, bansos (PKH/BPNT/PBI), distribusi wilayah (k-anonim k≥5).
+   - **Bapokting (SPLP API)** — harga beras & komoditas pangan di Aceh Tengah.
+   - **Excel offline** — data STUNTING/KOMINFO/DTSEN_CSV (impor manual admin, role-gated, bukan via chat publik).
+2. **LLM adalah perumus bahasa + pemilih tampilan**, bukan sumber data. Jika semua sumber kosong: jawab "tidak tersedia (SAPA/DTSEN/Bapokting)", jangan isi.
+3. **Rekomendasi bukan fakta.** Jika diminta/ditampilkan, harus ditandai normatif dan hanya merujuk indikator yang **sudah dikutip** dari evidence. Dilarang menambah angka baru.
 4. **Konteks pertanyaan = token + intent + filter yang dipakai**, harus ikut ke prompt dan ke metadata log. Jangan buang token hanya karena OPD terdeteksi.
 5. **Jangan merusak yang sudah benar:** SSE, `TableRenderer` dual-format (`794b80a`), prioritas indikator di depan payload (`d1228c6`), Direct API + fallback SPLP (`2c8ad16`), strip thinking, parser yang menolak dump JSON mentah (`41d7386`).
 6. **Satu PR = satu lapisan.** Jangan campur theme, rebrand, GIS, EWS, dan AI SoT.

@@ -82,7 +82,7 @@ export function dataSourceLabel(origin: SapaDataOrigin): string {
     case 'direct': return 'SAPA Aceh Tengah (sapa.acehtengahkab.go.id)';
     case 'splp': return 'SAPA Aceh Tengah (api-splp.layanan.go.id)';
     case 'bapokting': return 'Bapokting Aceh Tengah (SPLP API)';
-    case 'dtsen': return 'DTSEN (Kemensos/BPS — restricted)';
+    case 'dtsen': return 'DTSEN (Kemensos/BPS via SPLP API)';
     default: return 'SAPA Aceh Tengah (api-splp.layanan.go.id)';
   }
 }
@@ -98,7 +98,7 @@ export function dataSourceFromEvidence(evidence: { opd?: string }[]): string {
   for (const e of evidence) {
     const opd = e.opd || '';
     if (opd.includes('Bapokting')) opds.add('Bapokting Aceh Tengah (SPLP API)');
-    else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS — restricted)');
+    else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS via SPLP API)');
     else opds.add('SAPA Aceh Tengah');
   }
 
