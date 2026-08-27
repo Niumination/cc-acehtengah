@@ -27,7 +27,7 @@ interface ChipGroup {
 // - SAPA: indikator resmi OPD (katalog data pembangunan).
 // - DTSEN: agregat kemiskinan (desil, bansos) — k-anonymity.
 // - Dokumen A/B/C: agregat Excel per OPD (Diknas, Dinkes, Diskominfo), deterministik.
-// - Bapokting: harga bahan pokok (belum terhubung).
+// - Bapokting: harga bahan pokok via SPLP API (76 komoditas, live).
 // Meta-query (Semua OPD, OPD Teratas, Sebaran Tahun) dijawab deterministik.
 // Frasa tiap chip disesuaikan keyword di src/data/excelSources.ts agar merute ke sumber benar.
 const CHIP_GROUPS: ChipGroup[] = [
@@ -72,12 +72,13 @@ const CHIP_GROUPS: ChipGroup[] = [
   {
     id: 'bapokting',
     source: 'Bapokting',
-    hint: 'Harga bahan pokok — menunggu sumber data',
+    hint: 'Harga bahan pokok · SPLP API 76 komoditas',
     chips: [
-      { label: '🍚 Harga Beras', query: '' },
-      { label: '🌶️ Harga Cabai', query: '' },
+      { label: '🍚 Harga Beras', query: 'berapa harga beras di aceh tengah' },
+      { label: '🌶️ Harga Cabai', query: 'berapa harga cabai di aceh tengah' },
+      { label: '🧅 Harga Bawang', query: 'berapa harga bawang di aceh tengah' },
+      { label: '🫒 Harga Minyak', query: 'berapa harga minyak goreng di aceh tengah' },
     ],
-    disabled: true,
   },
 ];
 
