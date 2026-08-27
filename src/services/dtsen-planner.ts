@@ -618,7 +618,7 @@ function buildResultFromSplp(splpData: DtsenData[], filter: PublicAgregatFilter)
 
   for (const item of splpData) {
     const kecamatan = fixKecamatanName(item.kecamatan);
-    const desa = item.desa || item.nama_desa || 'Tidak diketahui';
+    const desa = item.desa || 'Tidak diketahui';
 
     for (let i = 0; i < DESIL_KEYS.length; i++) {
       const d = requestedDesil.includes(i + 1) ? i + 1 : null;
