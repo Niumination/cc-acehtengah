@@ -147,3 +147,75 @@ enum ThresholdOperator {
   LT
   LTE
 }
+
+model DataSource {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  nama            String
+  sensitivity     String   @default("PUBLIC")
+  provenanceLabel String?
+  ownerInstansi   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DtsenRelease {
+  id            String    @id
+  releaseNumber String
+  status        String    @default("STAGING")
+  metadata      Json?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  individu      DtsenIndividu[]
+  aggregat      DtsenAgregatWilayah[]
+}
+
+model DtsenIndividu {
+  id           String   @id @default(cuid())
+  releaseId    String
+  nikHash      String
+  namaMasked   String
+  kecamatan    String?
+  desa         String?
+  desil        Int?
+  bansos       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  release      DtsenRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@index([releaseId, nikHash])
+}
+
+model DtsenAgregatWilayah {
+  id               String   @id @default(cuid())
+  releaseId        String
+  kecamatan        String?
+  desa             String?
+  desil            Int?
+  jiwa             Int?
+  kk               Int?
+  pkh              Int?
+  bpnt             Int?
+  pbi_kredit       Int?
+  pbi_nonkredit    Int?
+  createdAt        DateTime @default(now())
+
+  release          DtsenRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@index([releaseId, kecamatan])
+}
+
+model DataAccessAudit {
+  id         String   @id @default(cuid())
+  adminId    String?
+  action     String
+  detail     String   @default("")
+  rowCount   Int      @default(0)
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
