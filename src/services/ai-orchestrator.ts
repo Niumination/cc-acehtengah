@@ -312,6 +312,7 @@ async function buildContext(query: string) {
         bansos: plan.bansos,
       });
     }
+    console.log('[DTSEN] result status:', dtsenResult ? `byDesil=${dtsenResult.byDesil?.length || 'N/A'}, byWilayah=${dtsenResult.byWilayah?.length || 'N/A'}` : 'null');
 
     if (dtsenResult) {
       // Bangun evidence DTSEN
