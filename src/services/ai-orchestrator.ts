@@ -313,7 +313,8 @@ async function buildContext(query: string) {
 
     if (dtsenResult) {
       // Bangun evidence DTSEN
-      for (const d of dtsenResult.byDesil) {
+      console.log('[DTSEN] building evidence, byDesil:', dtsenResult.byDesil, 'byWilayah:', dtsenResult.byWilayah);
+      for (const d of dtsenResult.byDesil || []) {
         dtsenEvidence.push({
           opd: 'DTSEN (Kemensos/BPS)',
           indikator: `Desil ${d.desil} — jiwa`,
@@ -335,7 +336,7 @@ async function buildContext(query: string) {
           });
         }
       }
-      for (const w of dtsenResult.byWilayah.slice(0, 10)) {
+      for (const w of (dtsenResult.byWilayah || []).slice(0, 10)) {
         dtsenEvidence.push({
           opd: 'DTSEN (Kemensos/BPS)',
           indikator: `${plan.kecamatan ? 'Desa' : 'Kecamatan'} ${w.nama} — jiwa`,
