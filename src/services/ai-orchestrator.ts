@@ -86,29 +86,29 @@ interface DemoFilter {
 async function fetchDtsenDemoData(filter: DemoFilter): Promise<PublicAgregatResult | null> {
   // Demo data — simulasi hasil agregat DTSEN Aceh Tengah
   const demoData: PublicAgregatResult = {
-    release: { versi: 'demo-2026', jalur: 'demo', publishedAt: new Date().toISOString() },
+    release: { releaseNumber: 'demo-2026', status: 'PUBLISHED', publishedAt: new Date().toISOString() },
     provenance: {
       label: 'DTSEN Demo (data simulasi untuk presentasi — @hotfix-meeting-ready)',
-      versi: 'demo-2026',
-      jalur: 'demo',
+      releaseNumber: 'demo-2026',
+      status: 'PUBLISHED',
       publishedAt: new Date().toISOString(),
     },
     rows: [],
     totalJiwa: 482000,
     totalKeluarga: 135000,
     byDesil: [
-      { desil: 1, jiwa: 48200 },
-      { desil: 2, jiwa: 72300 },
-      { desil: 3, jiwa: 72300 },
-      { desil: 4, jiwa: 72300 },
-      { desil: 5, jiwa: 72300 },
+      { desil: 1, jiwa: 48200, keluarga: 12000 },
+      { desil: 2, jiwa: 72300, keluarga: 18000 },
+      { desil: 3, jiwa: 72300, keluarga: 17500 },
+      { desil: 4, jiwa: 72300, keluarga: 17000 },
+      { desil: 5, jiwa: 72300, keluarga: 16500 },
     ],
     byWilayah: [
-      { nama: 'Kecamatan Simpang Jernih', jiwa: 86000 },
-      { nama: 'Kecamatan Pular Arang', jiwa: 78000 },
-      { nama: 'Kecamatan Meureuhom', jiwa: 74500 },
-      { nama: 'Kecamatan Baitur Rahman', jiwa: 72000 },
-      { nama: 'Kecamatan Kuta Bie', jiwa: 68000 },
+      { nama: 'Kecamatan Simpang Jernih', jiwa: 86000, keluarga: 22000 },
+      { nama: 'Kecamatan Pular Arang', jiwa: 78000, keluarga: 19000 },
+      { nama: 'Kecamatan Meureuhom', jiwa: 74500, keluarga: 17800 },
+      { nama: 'Kecamatan Baitur Rahman', jiwa: 72000, keluarga: 17000 },
+      { nama: 'Kecamatan Kuta Bie', jiwa: 68000, keluarga: 16000 },
     ],
     bansos: null,
     sensor: [],
@@ -283,15 +283,28 @@ async function buildContext(query: string) {
   let dtsenSensor: string[] = [];
 
   if (plan.asksDtsen && plan.scope === 'AGGR') {
-    let dtsenResult = await fetchDtsenAgregatPublik({
-      kecamatan: plan.kecamatan,
-      desa: plan.desa,
-      desil: plan.desil,
-      bansos: plan.bansos,
-    });
+    let dtsenResult: PublicAgregatResult | null = null;
 
-    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong
-    if (!dtsenResult || dtsenResult.byDesil.length === 0 || (dtsenResult.bansos === null && plan.bansos?.length > 0)) {
+    try {
+      dtsenResult = await fetchDtsenAgregatPublik({
+        kecamatan: plan.kecamatan,
+        desa: plan.desa,
+        desil: plan.desil,
+        bansos: plan.bansos,
+      });
+    } catch (e) {
+      console.warn('[Orchestrator] fetchDtsenAgregatPublik error, using demo fallback:', e);
+      dtsenResult = null;
+    }
+
+    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong/error/struktur rusak
+    const hasValidDtsen = dtsenResult &&
+      Array.isArray(dtsenResult.byDesil) &&
+      dtsenResult.byDesil.length > 0 &&
+      Array.isArray(dtsenResult.byWilayah);
+    const hasBansos = plan.bansos?.length > 0 && dtsenResult?.bansos !== null;
+
+    if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansos)) {
       dtsenResult = fetchDtsenDemoData({
         kecamatan: plan.kecamatan,
         desa: plan.desa,

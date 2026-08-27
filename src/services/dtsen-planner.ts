@@ -216,8 +216,8 @@ export const PUBLIC_DEFLECTION_REKOMENDASI = [
 // ═══ D. PROVENANCE (3 tempat, desain §8) ═══
 
 export interface ReleaseRef {
-  versi: string;
-  jalur: string; // 'MANUAL' | 'API'
+  releaseNumber: string;
+  status: string;
   publishedAt: Date | string | null;
 }
 
@@ -232,13 +232,13 @@ export function formatTanggalId(d: Date | string | null): string {
   }).format(date);
 }
 
-export function jalurLabel(jalur: string): string {
-  return jalur === 'API' ? 'API resmi Portal SDI' : 'jalur impor manual';
+export function jalurLabel(status: string): string {
+  return status === 'API' ? 'API resmi Portal SDI' : 'jalur impor manual';
 }
 
 /** Label chip visual + nilai DataSource.provenanceLabel (ditulis saat publish). */
 export function buildProvenanceLabel(r: ReleaseRef): string {
-  return `DTSEN ${r.versi} — ${jalurLabel(r.jalur)} — rilis aktif ${formatTanggalId(r.publishedAt)}`;
+  return `DTSEN rilis ${r.releaseNumber} — ${jalurLabel(r.status)} — rilis aktif ${formatTanggalId(r.publishedAt)}`;
 }
 
 /** Kalimat pembuka narasi (tempat provenance #1, pola desain §8). */
@@ -469,7 +469,7 @@ export interface PublicAgregatFilter {
 /** Hasil agregat publik DTSEN yang sudah melalui sensor k-anonymity. */
 export interface PublicAgregatResult {
   release: ReleaseRef;
-  provenance: { label: string; versi: string; jalur: string; publishedAt: Date | string | null };
+  provenance: { label: string; releaseNumber: string; status: string; publishedAt: Date | string | null };
   rows: AgregatRow[];
   totalJiwa: number;
   totalKeluarga: number;
@@ -489,11 +489,11 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
   const release = await prisma.dtsenRelease.findFirst({
     where: { status: 'PUBLISHED' },
     orderBy: { publishedAt: 'desc' },
-    select: { id: true, versi: true, jalur: true, publishedAt: true },
+    select: { id: true, releaseNumber: true, status: true, publishedAt: true },
   });
   if (!release) return null;
 
-  const releaseRef: ReleaseRef = { versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt };
+  const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt };
 
   const where: any = { releaseId: release.id };
   if (filter.kecamatan) where.kecamatan = filter.kecamatan;
@@ -517,7 +517,7 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     });
     return {
       release: releaseRef,
-      provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+      provenance: { label: buildProvenanceLabel(releaseRef), releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt },
       rows: [],
       totalJiwa: 0,
       totalKeluarga: 0,
@@ -571,7 +571,7 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
 
   return {
     release: releaseRef,
-    provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+    provenance: { label: buildProvenanceLabel(releaseRef), releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt },
     rows,
     totalJiwa,
     totalKeluarga,
