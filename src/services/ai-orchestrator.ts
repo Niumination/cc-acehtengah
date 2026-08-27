@@ -34,7 +34,7 @@ import {
   type DtsenPlan,
   type PublicDeflectionKind,
 } from './dtsen-planner';
-import { tryExcelDocQuery } from './excel-doc-query';
+import { tryExcelDocQuery, buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
 import {
   isTrendQuery,
   findTrendCandidate,
@@ -494,7 +494,7 @@ export function buildObservabilityMeta(input: {
   opdFilter?: string | null;
   filterDipakai: string;
   evidence: EvidenceItem[];
-  grounding: 'pass' | 'replaced';
+  grounding: 'pass' | 'replaced' | 'multi-source-fusion';
   groundingReason?: string | null;
   totalData: number;
   filteredCount: number;
@@ -831,6 +831,20 @@ function sanitizeParsed(parsed: HybridResponse, evidence: EvidenceItem[], query:
   return { ...parsed, narasi, rekomendasi };
 }
 
+/** Ringkas evidence SAPA/DTSEN jadi 1-2 kalimat untuk narasi fusi multi-sumber. */
+function summarizeEvidence(evidence: EvidenceItem[]): string {
+  const top = evidence.slice(0, 3);
+  const parts = top
+    .map((e) => {
+      const v = e.nilai ? ` ${e.nilai}${e.satuan ? ' ' + e.satuan : ''}` : '';
+      const yr = e.tahun ? ` (${e.tahun})` : '';
+      return `${e.indikator}${v}${yr}`;
+    })
+    .filter(Boolean);
+  if (parts.length === 0) return '';
+  return `indikator terkait: ${parts.join('; ')}.`;
+}
+
 export async function processAIQuery(query: string): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
@@ -847,13 +861,51 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     const deflected = await tryDtsenDeflection(query, startedAt, steps, false);
     if (deflected) return deflected;
 
-    // Sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik, tanpa LLM.
-    const excelDoc = tryExcelDocQuery(query);
-    if (excelDoc) return excelDoc;
+    // Deteksi sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik.
+    // Tidak langsung di-return; dipakai untuk fusi multi-sumber bila topik sama
+    // muncul pula di SAPA/DTSEN (mis. "stunting" ada di Dokumen B + SAPA).
+    const matchedDoc = detectExcelDocQuery(query);
 
     // Step 1-3: intent + fetch + filter (context build)
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
+
+    // ─── Multi-Source Fusion (Dokumen A/B/C + SAPA/DTSEN) ───
+    // Bila topik sama ditemukan di Dokumen DAN di evidence SAPA/DTSEN, gabung
+    // menjadi SATU jawaban deterministik (tanpa LLM). Tabel otoritatif dari Dokumen.
+    if (matchedDoc && ctx.evidence.length > 0) {
+      const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
+        evidence: ctx.evidence,
+        dataSource: ctx.dataSource,
+        sapaSummary: summarizeEvidence(ctx.evidence),
+      });
+      if (fused) {
+        const metadata = buildObservabilityMeta({
+          opdFilter: ctx.opdFilter ?? null,
+          filterDipakai: ctx.filterDipakai,
+          evidence: ctx.evidence,
+          grounding: 'multi-source-fusion',
+          totalData: ctx.allRecords.length,
+          filteredCount: ctx.filteredData.length,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: process.env.AI_MODEL,
+          finishReason: null,
+          dataOrigin: ctx.dataOrigin,
+          streamed: false,
+        });
+        await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
+        setCache(query, fused);
+        return fused;
+      }
+    }
+
+    // Bila query spesifik hanya ke Dokumen (tanpa evidence SAPA/DTSEN yang cocok),
+    // jawab langsung dari Dokumen secara deterministik.
+    if (matchedDoc && ctx.evidence.length === 0) {
+      const excelOnly = tryExcelDocQuery(query);
+      if (excelOnly) return excelOnly;
+    }
 
     // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM
     const deterministic = await tryDeterministicDomainQuery(query, ctx, startedAt, steps, false);
@@ -981,13 +1033,48 @@ export async function processAIQueryStreaming(
     const deflected = await tryDtsenDeflection(query, startedAt, steps, true);
     if (deflected) return deflected;
 
-    // Sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik, tanpa LLM.
-    const excelDoc = tryExcelDocQuery(query);
-    if (excelDoc) return excelDoc;
+    // Deteksi sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik.
+    // Dipakai untuk fusi multi-sumber bila topik sama muncul pula di SAPA/DTSEN.
+    const matchedDoc = detectExcelDocQuery(query);
 
     // Step 1: Deteksi intent & ambil data
     const ctx = await buildContext(query);
     steps.context = Date.now() - startedAt;
+
+    // ─── Multi-Source Fusion (Dokumen A/B/C + SAPA/DTSEN) ───
+    if (matchedDoc && ctx.evidence.length > 0) {
+      const fused = buildFusedMultiSourceResponse(query, matchedDoc, {
+        evidence: ctx.evidence,
+        dataSource: ctx.dataSource,
+        sapaSummary: summarizeEvidence(ctx.evidence),
+      });
+      if (fused) {
+        const metadata = buildObservabilityMeta({
+          opdFilter: ctx.opdFilter ?? null,
+          filterDipakai: ctx.filterDipakai,
+          evidence: ctx.evidence,
+          grounding: 'multi-source-fusion',
+          totalData: ctx.allRecords.length,
+          filteredCount: ctx.filteredData.length,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: process.env.AI_MODEL,
+          finishReason: null,
+          dataOrigin: ctx.dataOrigin,
+          streamed: true,
+        });
+        await saveChatSession({ query, intent: ctx.intent.kategori, result: fused, metadata });
+        setCache(query, fused);
+        return fused;
+      }
+    }
+
+    // Bila query spesifik hanya ke Dokumen (tanpa evidence SAPA/DTSEN yang cocok),
+    // jawab langsung dari Dokumen secara deterministik.
+    if (matchedDoc && ctx.evidence.length === 0) {
+      const excelOnly = tryExcelDocQuery(query);
+      if (excelOnly) return excelOnly;
+    }
 
     // PR Lapis 2: tren & perbandingan → deterministik dari data, tanpa LLM.
     // Konvensi sama seperti meta-query: jalur deterministik tidak men-stream
