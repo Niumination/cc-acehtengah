@@ -4,6 +4,8 @@
 // (Desain §6.4 menyebut tenggang ~30 hari via cron; implementasi ini MEMPERKETAT:
 // purge langsung saat rilis baru terbit — data by-name tidak menumpuk.)
 // Role: RESTRICTED_PERSONAL (DTSEN_LOOKUP/SUPERADMIN). Audit sebelum sukses.
+// @hotfix 29-Agu-2026: schema baru — bansos Boolean, agregat jiwa/kk,
+// releaseNumber/metadata, DataSource tanpa lastSync.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -11,15 +13,17 @@ import { getAdminFromRequest } from '@/lib/auth';
 import { getClientIp } from '@/lib/rate-limit';
 import { decideDataAccess, buildAuditEntry } from '@/lib/data-gate';
 import { buildAgregatWilayah } from '@/services/dtsen-import';
-import { buildProvenanceLabel } from '@/services/dtsen-planner';
+import { buildProvenanceLabel, type ReleaseRef } from '@/services/dtsen-planner';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 function audit(admin: any, aksi: 'PUBLISH' | 'PUBLISH_DITOLAK', detail: string, ip: string, rowCount = 0) {
+  // @hotfix 29-Agu-2026: schema DB aktual — kolom `action`, tanpa `adminNama`.
+  const entry = buildAuditEntry({ admin, aksi, detail, ip, rowCount });
   return prisma.dataAccessAudit
-    .create({ data: buildAuditEntry({ admin, aksi, detail, ip, rowCount }) })
+    .create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } })
     .catch((e) => console.error('[dtsen/publish] audit gagal:', e));
 }
 
@@ -45,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const rows = await prisma.dtsenIndividu.findMany({
       where: { releaseId: id },
-      select: { nikHash: true, namaMasked: true, keluargaId: true, kecamatan: true, desa: true, desil: true, statusBansos: true },
+      select: { nikHash: true, namaMasked: true, kecamatan: true, desa: true, desil: true, bansos: true },
     });
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Rilis tidak memiliki baris individu — tidak bisa dipublish.' }, { status: 409 });
@@ -55,11 +59,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       rows.map((r) => ({
         nikHash: r.nikHash,
         namaMasked: r.namaMasked,
-        keluargaId: r.keluargaId,
-        kecamatan: r.kecamatan,
-        desa: r.desa,
+        keluargaId: null,
+        kecamatan: r.kecamatan ?? '',
+        desa: r.desa ?? '',
         desil: r.desil ?? 0,
-        statusBansos: { pkh: false, bpnt: false, pbi: false },
+        statusBansos: { pkh: false, bpnt: false, pbi: r.bansos },
       })),
     );
 
@@ -69,15 +73,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     const prevIds = previousPublished.map((p) => p.id);
 
-    // Satu transaksi: agregat baru + status baru + LABEL PROVENANCE registry
-    // diperbarui ke rilis aktif (PR-4c: jawaban selalu memberi label rilis yang
-    // benar — chip visual & header narasi membaca label yang sama).
-    // Purge individu lama terpisah setelah transaksi berhasil (purge gagal tidak
-    // boleh menggagalkan publish, tapi dicatat keras di log).
     const publishedAt = new Date();
+    const md = (release.metadata ?? {}) as Record<string, unknown>;
+    const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: 'PUBLISHED', publishedAt };
+    const provenanceLabel = buildProvenanceLabel(releaseRef);
+
     await prisma.$transaction([
+      // @hotfix 29-Agu-2026: schema baru — agregat pakai jiwa/kk (bukan jumlahJiwa/jumlahKeluarga)
       prisma.dtsenAgregatWilayah.createMany({
-        data: aggr.rows.map((a) => ({ releaseId: id, ...a })),
+        data: aggr.rows.map((a) => ({
+          releaseId: id,
+          kecamatan: a.kecamatan,
+          desa: a.desa,
+          desil: a.desil,
+          jiwa: a.jumlahJiwa,
+          kk: a.jumlahKeluarga,
+        })),
       }),
       prisma.dtsenRelease.update({
         where: { id },
@@ -89,10 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }),
       prisma.dataSource.updateMany({
         where: { slug: 'dtsen' },
-        data: {
-          provenanceLabel: buildProvenanceLabel({ versi: release.versi, jalur: release.jalur, publishedAt }),
-          lastSync: publishedAt,
-        },
+        data: { provenanceLabel },
       }),
     ]);
 
@@ -109,7 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await audit(
       admin!,
       'PUBLISH',
-      `release=${id} agregat=${aggr.rows.length} kelompokTersensor=${aggr.kelompokTerSensor} purgeIndividu=${purged}`,
+      `release=${id} agregat=${aggr.rows.length} kelompokTersensor=${aggr.kelompokTerSensor} purgeIndividu=${purged} (${md.versi ?? 'manual'})`,
       ip,
       rows.length,
     );
