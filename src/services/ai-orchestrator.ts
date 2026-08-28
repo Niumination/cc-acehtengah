@@ -308,7 +308,10 @@ async function buildContext(query: string) {
     const hasBansosNeeded = plan.bansos && plan.bansos.length > 0 && dtsenResult?.bansos !== null && dtsenResult?.bansos !== undefined;
 
     if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansosNeeded)) {
-      dtsenResult = fetchDtsenDemoData({
+      // @hotfix: wajib await — fetchDtsenDemoData async; tanpa await dtsenResult
+      // jadi Promise → field DTSEN undefined → evidence kosong → crash `.length`
+      // di jalur streaming (fallback "AI sibuk" di live).
+      dtsenResult = await fetchDtsenDemoData({
         kecamatan: plan.kecamatan,
         desa: plan.desa,
         desil: plan.desil,
