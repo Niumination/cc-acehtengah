@@ -18,6 +18,7 @@ import { KECAMATAN_ACEH_TENGAH, K_MIN, type AgregatRow } from '@/services/dtsen-
 import type { DataSensitivity } from '@/lib/data-gate';
 import { prisma } from '@/lib/prisma';
 import { fetchDtsenFromSplp, type DtsenData } from '@/lib/bapokting-client';
+import { fetchDtsenAgregatBappeda } from '@/data/dtsenBappedaSource';
 
 // ─── Normalisasi ringan (konsisten dgn dtsen-import.normalize) ───
 function norm(s: string): string {
@@ -500,6 +501,19 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     }
   } catch (e) {
     console.warn('[DTSEN] SPLP API fetch failed, falling back to DB:', (e as Error)?.message ?? String(e));
+  }
+
+  // ── @hotfix 28 Agu 2026: Sumber OFFLINE BAPPEDA (DTSEN Versi 4, Des 2025) ──
+  // SPLP API masih 401 (JWT expired). Agregat bebas-PII dari export BAPPEDA
+  // (src/data/dtsen-agregat-bappeda.json) dipakai sebagai sumber DTSEN sementara —
+  // data SAMA dengan API DTSEN (export resmi 18/02/2026, 71.370 keluarga).
+  try {
+    const bappeda = await fetchDtsenAgregatBappeda(filter);
+    if (bappeda) {
+      return bappeda;
+    }
+  } catch (e) {
+    console.warn('[DTSEN] BAPPEDA offline source failed, falling back to DB:', (e as Error)?.message ?? String(e));
   }
 
   // ── Fallback: query DB Prisma (jika warehouse sudah terisi) ──
