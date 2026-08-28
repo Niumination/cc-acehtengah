@@ -128,25 +128,45 @@ export function buildFusedMultiSourceResponse(
   const { headers, rows } = docPrimaryTable(doc);
   const summary = buildSummaryLine(doc);
   const sapaProvenance = ctx.dataSource;
+  const docSource = docSourceLabel(doc);
+
+  // ── Tabel GABUNGAN multi-sumber (hotfix 28 Agu 2026) ──
+  // Sebelumnya tabel hanya berisi baris Dokumen (format sumber); SAPA/DTSEN hanya
+  // disebut di narasi. User melaporkan output "klaim gabungan tapi tabel isi dokumen
+  // saja". Sekarang tabel memuat BUKTI dari SEMUA sumber: baris Dokumen (otoritatif,
+  // format sumber) + baris evidence SAPA/DTSEN — kolom seragam + kolom "Sumber".
+  const fusedColumns = ['Indikator / Area', 'Nilai', 'Satuan', 'Sumber'];
+  const docRows: (string | number)[][] = rows.slice(0, 14).map((r) => {
+    const area = r[0] ?? '';
+    const nilai = r[1] ?? r[r.length - 1] ?? '';
+    return [String(area), String(nilai), '', docSource];
+  });
+  const evRows: (string | number)[][] = ctx.evidence.slice(0, 8).map((e) => [
+    e.indikator ?? '',
+    e.nilai ?? '',
+    e.satuan ?? '',
+    sapaProvenance,
+  ]);
+  const fusedRows = [...docRows, ...evRows];
 
   const narasi =
     `Berdasarkan penggabungan beberapa sumber resmi untuk topik ini:\n` +
-    `1) ${docSourceLabel(doc)} (${doc.sumber_file}): ` +
+    `1) ${docSource} (${doc.sumber_file}): ` +
     (summary ? `${summary}. ` : '') +
-    `Tabel di bawah menampilkan agregat ${doc.dokumen === 'A' ? 'pemberdayaan' : doc.dokumen === 'B' ? 'kesehatan' : 'bantuan sosial'} menurut format sumber. ${doc.catatan}\n` +
+    `Tabel di bawah menampilkan agregat ${doc.dokumen === 'A' ? 'pemberdayaan' : doc.dokumen === 'B' ? 'kesehatan' : 'bantuan sosial'} menurut format sumber, dilengkapi baris indikator dari sumber lain.\n` +
     (ctx.sapaSummary
       ? `2) Sumber lain (${sapaProvenance}): ${ctx.sapaSummary}\n`
       : `2) Sumber lain (${sapaProvenance}) turut menyajikan indikator terkait.\n`) +
     `Semua angka berasal dari agregat resmi; tidak ada data per-orang (UU PDP).`;
 
-  const multiSource = [docSourceLabel(doc), sapaProvenance].filter(Boolean).join(' + ');
+  const multiSource = [docSource, sapaProvenance].filter(Boolean).join(' + ');
 
   return {
     narasi,
     visualisasi: {
       tipe: 'table',
-      // Tandai bahwa ini hasil gabungan multi-sumber.
-      konfigurasi: { columns: headers, rows, _multiSource: true, _sources: [docSourceLabel(doc), sapaProvenance] },
+      // Tabel gabungan: baris Dokumen + baris SAPA/DTSEN, kolom Sumber eksplisit.
+      konfigurasi: { columns: fusedColumns, rows: fusedRows, _multiSource: true, _sources: [docSource, sapaProvenance] },
     },
     rekomendasi: [
       `Verifikasi angka di atas dengan ${doc.opd} selaku produsen data untuk perencanaan lebih lanjut.`,
