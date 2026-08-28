@@ -71,6 +71,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 📡 SAPA Connected
               </span>
             </div>
+
+            {/* Akun & Logout — @hotfix 29-Agu: tersedia di SEMUA halaman dashboard */}
+            <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
+              <a
+                href="/dashboard/akun"
+                title="Pengaturan akun"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+              >
+                <span className="text-sm">👤</span>
+                <span className="text-[11px] font-medium text-[#52B788]">Akun</span>
+              </a>
+              <button
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
+                title="Keluar"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
+              >
+                <span className="text-sm">🚪</span>
+                <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
+              </button>
+            </div>
           </div>
         </header>
 

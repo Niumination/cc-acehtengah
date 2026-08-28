@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif' },
   { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Laporan & Riwayat' },
   { href: '/dashboard/admin/dtsen', label: 'Admin DTSEN', icon: '🔐', desc: 'Rilis data terbatas' },
+  { href: '/dashboard/akun', label: 'Akun', icon: '👤', desc: 'Password & sesi' },
 ];
 
 interface SidebarProps {
