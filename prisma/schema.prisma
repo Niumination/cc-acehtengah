@@ -127,6 +127,8 @@ model SapaSyncRun {
 enum AdminRole {
   ADMIN
   SUPERADMIN
+  DTSEN_ANALYST
+  DTSEN_LOOKUP
 }
 
 enum Severity {
