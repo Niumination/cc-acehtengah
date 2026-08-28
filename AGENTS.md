@@ -4,8 +4,8 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 27, 2026 — **Fusi Multi-Sumber live** (`a8a6dc4`/`9279c6b`, prod): query yang topiknya muncul di Dokumen A/B/C **dan** SAPA/DTSEN digabung jadi SATU jawaban deterministik via `buildFusedMultiSourceResponse()` (tabel otoritatif dari Dokumen + narasi menyatukan sumber). UI chip dikelompokkan per sumber (`QueryBar.tsx`).
-> **Deploy state:** PROD = `9279c6b`. Fix PPKS (isolasi query bertopik Dokumen dari `buildContext` rapuh) sudah di `be486a0` **Lokal — BELUM push/deploy** (kredensial git/Vercel lepas dari sesi; lanjutkan nanti). `main` tertinggal 41 commit dari `hotfix/meeting-ready`.
+> **Last update:** Aug 28, 2026 — **Model AI live: `huancheng auto`** (`https://api.hcnsec.cn/v1`, resolve → `agnes-2.5-flash`). Fusi Multi-Sumber v2: tabel fusion kini berisi baris Dokumen **+ baris SAPA/DTSEN** dengan kolom `Sumber` eksplisit (`buildFusedMultiSourceResponse`, hotfix `2257349`). Label DTSEN jujur: data demo berlabel `DTSEN (data demo — simulasi)`, bukan lagi klaim `via SPLP API` (API SPLP DTSEN masih 401; angka demo 48.200 jiwa sebelumnya mislabeled sebagai live).
+> **Deploy state:** PROD = `2257349` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -202,9 +202,9 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 | Variable | Contoh | Catatan |
 |----------|--------|---------|
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
-| `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
-| `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `nemotron-3-ultra-free` | Dipakai PERSIS dari env; produksi berjalan `nemotron-3-ultra-free` (bukan `x-preview-f-free`). Ubah via env Vercel + redeploy. |
+| `AI_BASE_URL` | `https://api.hcnsec.cn/v1` | OpenAI-compatible — **huancheng** (sejak 28 Agu 2026; sebelumnya `opencode.ai/zen/v1` yang sering 502) |
+| `AI_API_KEY` | `sk-...` | `HUANCHENG_API_KEY` — key huancheng |
+| `AI_MODEL` | `auto` | Dipakai PERSIS dari env; produksi berjalan `auto` (resolve → `agnes-2.5-flash`). Model alternatif yang bisa dipin (kimi-k3, MiniMax-M3, dll) rata-rata 429/timeout — `auto` paling stabil. Ubah via env Vercel + redeploy. |
 | `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
 | `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
 | `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
@@ -292,8 +292,22 @@ Investigasi produksi menemukan 3 masalah di live Vercel; semua diperbaiki di `sr
 | Error mentah bocor ke user ("AI API error 503 {…}") | `err.message` disisipkan langsung ke narasi fallback | Pesan ramah generik ke user; detail lengkap hanya `console.error` server |
 
 **Fallback model saat outage:** katalog provider berisi alternatif gratis yang teruji —
-`nemotron-3-ultra-free` (JSON utuh, ~36s), `laguna-s-2.1-free`. Cukup ubah env Vercel
-`AI_MODEL` + redeploy; tidak perlu deploy kode.
+`huancheng auto` (PRIMARY, resolve `agnes-2.5-flash`, JSON utuh, 3.6–4.5s, streaming TTFB 1.8s),
+`nemotron-3-ultra-free` (opencode, ~36s, sering 502 Nvidia), `laguna-s-2.1-free` (opencode, 11.5s, 503 intermiten).
+Cukup ubah env Vercel `AI_BASE_URL` + `AI_MODEL` + `AI_API_KEY` + redeploy; tidak perlu deploy kode.
+
+> ⚠️ **Catatan 28 Agu 2026 — konsistensi `auto`:** `auto` di huancheng resolve ke model
+> routing sisi provider (kini `agnes-2.5-flash`) dan TIDAK bisa dipin langsung (model_not_found).
+> Jika huancheng mengganti routing, gaya narasi bisa berubah — tetapi format/kejujuran output
+> tetap konsisten berkat lapisan pengaman pipeline: `extractJsonObject` (parse robust),
+> `sanitizeParsed` (buang placeholder), `groundOutput` (angka wajib dari evidence),
+> `buildVizFromEvidence` (visualisasi deterministik).
+
+> ⚠️ **Catatan 28 Agu 2026 — SPLP DTSEN API masih 401:** key `SPLP_API_KEY` (JWT) di Vercel
+> dan lokal sama-sama ditolak (`Invalid Credentials`). Jawaban DTSEN yang tampil di live saat
+> ini berasal dari **data demo** (`fetchDtsenDemoData`, label jujur `DTSEN (data demo — simulasi)`).
+> Untuk live DTSEN asli: butuh JWT baru dari tim SPLP → ganti env Vercel → label otomatis
+> `DTSEN (Kemensos/BPS via SPLP API)`.
 
 **Rollback darurat UI** tetap: env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → redeploy.
 Kompatibilitas: cherry-pick `7c342e7` ke atas v3 teruji tanpa konflik (test gabungan 218/218).
