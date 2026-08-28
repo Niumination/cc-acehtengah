@@ -27,13 +27,17 @@ import { detectMetaQuery, buildMetaResponse } from './meta-query';
 import {
   publicDeflectionKind,
   buildPublicDeflectionNarasi,
+  buildLookupNarasi,
   PUBLIC_DEFLECTION_REKOMENDASI,
   planDtsenQuery,
   fetchDtsenAgregatPublik,
   type PublicAgregatResult,
   type DtsenPlan,
   type PublicDeflectionKind,
+  type ReleaseRef,
+  type LookupFound,
 } from './dtsen-planner';
+import { hmac } from './dtsen-import';
 import { buildExcelDocResponse, buildFusedMultiSourceResponse, detectExcelDocQuery } from './excel-doc-query';
 import {
   isTrendQuery,
@@ -688,13 +692,103 @@ async function integrateDtsenData(query: string, dtsenResult: PublicAgregatResul
   };
 }
 
-async function tryDtsenDeflection(
-  query: string,
+/**
+ * Lookup by-NIK untuk role DTSEN_LOOKUP/SUPERADMIN (dipakai jalur publik
+ * /api/query ketika pengguna login dengan role DTSEN). Membaca rilis
+ * PUBLISHED aktif → HMAC NIK → cari DtsenIndividu → narasi via buildLookupNarasi.
+ * Data sensitif TIDAK pernah memuat NIK mentah; nama selalu termask.
+ */
+async function lookupDtsenByNik(nik: string): Promise<{ found: LookupFound | null; narasi: string; bansosTxt: string } | null> {
+  const secret = process.env.DTSEN_NIK_KEY;
+  if (!secret || secret.length < 16) return null; // fail-closed tanpa kunci
+  try {
+    const release = await prisma.dtsenRelease.findFirst({
+      where: { status: 'PUBLISHED' },
+      orderBy: { publishedAt: 'desc' },
+      select: { id: true, releaseNumber: true, status: true, publishedAt: true },
+    });
+    if (!release) return null;
+    const nikHash = hmac(nik, secret);
+    const row = await prisma.dtsenIndividu.findFirst({
+      where: { releaseId: release.id, nikHash },
+      select: { namaMasked: true, kecamatan: true, desa: true, desil: true, bansos: true },
+    });
+    const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt };
+    const found = row
+      ? {
+          namaMasked: row.namaMasked,
+          kecamatan: row.kecamatan ?? '',
+          desa: row.desa ?? '',
+          desil: row.desil,
+          statusBansos: row.bansos ? { pkh: false, bpnt: false, pbi: true } : { pkh: false, bpnt: false, pbi: false },
+        }
+      : null;
+    const bansosTxt = found?.statusBansos
+      ? Object.entries(found.statusBansos).filter(([, v]) => v).map(([k]) => k.toUpperCase()).join(', ') || 'bukan penerima'
+      : 'bukan penerima';
+    return { found, narasi: buildLookupNarasi(found, releaseRef), bansosTxt };
+  } catch (e) {
+    console.error('[dtsen] lookup by-NIK gagal:', e);
+    return null;
+  }
+}
+
+async function tryDtsenDeflection(  query: string,
   startedAt: number,
   steps: Record<string, number>,
   streamed: boolean,
+  role: string | null = null,
 ): Promise<HybridResponse | null> {
   const plan = planDtsenQuery(query);
+
+  // @hotfix 29-Agu-2026: role DTSEN_LOOKUP/SUPERADMIN yang login → query NIK
+  // (scope PERSONAL) dijawab LANGSUNG dari DB (lookup by-NIK + audit trail),
+  // bukan defleksi. Pengguna publik / role lain tetap di-defleksi (privacy).
+  const canLookupNik = role === 'DTSEN_LOOKUP' || role === 'SUPERADMIN';
+  if (canLookupNik && plan.scope === 'PERSONAL' && plan.nik) {
+    const lookup = await lookupDtsenByNik(plan.nik);
+    if (lookup) {
+      steps.dtsenDefleksi = Date.now() - startedAt;
+      const result: HybridResponse = {
+        narasi: lookup.narasi,
+        visualisasi: {
+          tipe: 'table',
+          konfigurasi: {
+            columns: ['Nama (termask)', 'Wilayah', 'Desil', 'Status Bansos'],
+            rows: lookup.found
+              ? [[lookup.found.namaMasked, `Desa ${lookup.found.desa}, Kec. ${lookup.found.kecamatan}`, lookup.found.desil ?? '-', lookup.bansosTxt]]
+              : [['—', 'NIK tidak tercatat pada rilis aktif', '-', '-']],
+          },
+        },
+        rekomendasi: [
+          'Akses by-NIK ini tercatat di audit trail (UU 27/2022).',
+          'Gunakan data ini untuk verifikasi data penerima bantuan / program OPD.',
+        ],
+        dataSource: 'DTSEN (lookup by-NIK — role DTSEN)',
+        timestamp: new Date().toISOString(),
+      };
+      const metadata = {
+        ...buildObservabilityMeta({
+          opdFilter: null,
+          filterDipakai: `dtsen-lookup:${role}`,
+          evidence: [],
+          grounding: 'pass',
+          totalData: 0,
+          filteredCount: 0,
+          latencyMs: Date.now() - startedAt,
+          stepsMs: steps,
+          model: null,
+          finishReason: null,
+          dataOrigin: 'dtsen',
+          streamed,
+        }),
+      };
+      await saveChatSession({ query, intent: 'dtsen-personal', result, metadata }).catch(() => {});
+      setCache(query, result);
+      return result;
+    }
+    // lookup gagal (release tidak ada) → jatuh ke defleksi biasa
+  }
 
   // @hotfix-meeting-ready: Untuk branch hotfix ini, semua query DTSEN agregat
   // DI-BLOCK. Hanya NIK/per-orang yang defleksi (privacy). Ini bertujuan agar
@@ -902,7 +996,7 @@ function summarizeEvidence(evidence: EvidenceItem[]): string {
   return `indikator terkait: ${parts.join('; ')}.`;
 }
 
-export async function processAIQuery(query: string): Promise<HybridResponse> {
+export async function processAIQuery(query: string, opts: { role?: string | null } = {}): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
 
@@ -915,7 +1009,7 @@ export async function processAIQuery(query: string): Promise<HybridResponse> {
     if (meta) return meta;
 
     // PR-4c: defleksi DTSEN (NIK/desil/per-orang) — sebelum retrieval SAPA
-    const deflected = await tryDtsenDeflection(query, startedAt, steps, false);
+    const deflected = await tryDtsenDeflection(query, startedAt, steps, false, opts.role);
     if (deflected) return deflected;
 
     // Deteksi sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik.
@@ -1122,6 +1216,7 @@ export async function processAIQueryStreaming(
   query: string,
   onStatus: (status: string) => void,
   onChunk: (delta: string) => void,
+  opts: { role?: string | null } = {},
 ): Promise<HybridResponse> {
   const cached = getCached(query);
   if (cached) return cached;
@@ -1136,7 +1231,8 @@ export async function processAIQueryStreaming(
     if (meta) return meta;
 
     // PR-4c: defleksi DTSEN (NIK/desil/per-orang) — konvensi jalur deterministik:
-    const deflected = await tryDtsenDeflection(query, startedAt, steps, true);
+    // role DTSEN_LOOKUP/SUPERADMIN yang login → lookup by-NIK langsung (bukan defleksi).
+    const deflected = await tryDtsenDeflection(query, startedAt, steps, true, opts.role);
     if (deflected) return deflected;
 
     // Deteksi sumber Dokumen A/B/C (agregat Excel bebas-PII) — deterministik.

@@ -4,6 +4,7 @@ import { processAIQueryStreaming } from '@/services/ai-orchestrator';
 import { getMockQueryResponse } from '@/lib/mock-data';
 import { isMockMode } from '@/lib/data-source';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '@/lib/rate-limit';
+import { getAdminFromRequest } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -65,6 +66,10 @@ export async function POST(req: NextRequest) {
       try {
         let narasiBuffer = '';
         let lastSentPartial = ''; // Hotfix Aug 26: cegah snapshot narasi kumulatif terkirim duplikat
+        // @hotfix 29-Agu-2026: baca sesi → role dipakai jalur DTSEN personal
+        // (query NIK) di orchestrator. Pengguna publik tetap di-defleksi (privacy);
+        // role DTSEN_LOOKUP/SUPERADMIN yang login bisa lookup by-NIK langsung.
+        const admin = await getAdminFromRequest(req);
         const result = await processAIQueryStreaming(
           query,
           (status) => send('status', { status }),
@@ -80,6 +85,7 @@ export async function POST(req: NextRequest) {
               send('narasi', { text: partial });
             }
           },
+          { role: admin?.role ?? null },
         );
         send('result', result);
       } catch (err) {
