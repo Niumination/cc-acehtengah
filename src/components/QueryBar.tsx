@@ -51,8 +51,13 @@ const CHIP_GROUPS: ChipGroup[] = [
   {
     id: 'dtsen',
     source: 'DTSEN',
-    hint: 'Agregat kemiskinan · k-anonymity',
+    hint: 'Agregat kemiskinan · BAPPEDA Des 2025 · k-anonymity',
     chips: [
+      { label: '👨‍👩‍👧 Desil 1 (termiskin)', query: 'berapa jumlah keluarga desil 1 di aceh tengah' },
+      { label: '👨‍👩‍👧‍👦 Desil 1–3', query: 'jumlah jiwa desil 1 sampai 3 di aceh tengah' },
+      { label: '📊 Sebaran Desil', query: 'berapa jumlah keluarga per desil di aceh tengah' },
+      { label: '🩺 Penerima PBI', query: 'berapa penerima PBI jaminan kesehatan di aceh tengah' },
+      { label: '🏘️ Desil per Kecamatan', query: 'berapa jumlah keluarga desil 1 di kecamatan Bebesen' },
       { label: '🤝 Bansos PKH', query: 'berapa penerima bansos PKH di aceh tengah' },
       { label: '💳 BPNT & PBI', query: 'berapa penerima BPNT dan PBI di aceh tengah' },
     ],

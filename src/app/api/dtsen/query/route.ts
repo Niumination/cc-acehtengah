@@ -6,8 +6,10 @@
 // DTSEN_ANALYST → AGGR saja; DTSEN_LOOKUP → AGGR + PERSONAL (by-NIK).
 // Semua percobaan bersesi diaudit; audit LOOKUP_NIK hanya menyimpan NIK termask.
 //
-// Catatan arsitektur: route ini sengaja TIDAK mengimpor modul pipeline publik
-// (/api/query) — pemisahan fisik dua jalur (desain §4).
+// @hotfix 29-Agu-2026: disesuaikan schema DB aktual —
+//   DtsenRelease { releaseNumber, status, publishedAt, metadata(Json) }
+//   DtsenIndividu { bansos: Boolean } (bukan statusBansos JSON)
+//   DtsenAgregatWilayah { jiwa, kk } (bukan jumlahJiwa/jumlahKeluarga)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -44,15 +46,17 @@ const QuerySchema = z.object({
 });
 
 async function writeAudit(admin: NonNullable<Awaited<ReturnType<typeof getAdminFromRequest>>>, aksi: AuditAction, detail: string, ip: string, rowCount = 0) {
-  await prisma.dataAccessAudit.create({ data: buildAuditEntry({ admin, aksi, detail, ip, rowCount }) });
+  // @hotfix 29-Agu-2026: schema DB aktual — kolom `action`, tanpa `adminNama`.
+  const entry = buildAuditEntry({ admin, aksi, detail, ip, rowCount });
+  await prisma.dataAccessAudit.create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } });
 }
 
 /** Rilis PUBLISHED terbaru (hanya satu yang aktif secara logika; ambil yang teranyar). */
-async function findActiveRelease(): Promise<{ id: string; versi: string; jalur: string; publishedAt: Date | null } | null> {
+async function findActiveRelease(): Promise<{ id: string; releaseNumber: string; status: string; publishedAt: Date | null; metadata: any } | null> {
   return prisma.dtsenRelease.findFirst({
     where: { status: 'PUBLISHED' },
     orderBy: { publishedAt: 'desc' },
-    select: { id: true, versi: true, jalur: true, publishedAt: true },
+    select: { id: true, releaseNumber: true, status: true, publishedAt: true, metadata: true },
   });
 }
 
@@ -142,11 +146,14 @@ export async function POST(req: NextRequest) {
       message: NO_RELEASE_MESSAGE,
     });
   }
-  const releaseRef: ReleaseRef = { versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt };
+  // @hotfix 29-Agu-2026: schema baru — versi/jalur di metadata, bukan kolom.
+  const md = release.metadata ?? {};
+  const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt };
   const provenance = {
     label: buildProvenanceLabel(releaseRef),
-    versi: release.versi,
-    jalur: release.jalur,
+    releaseNumber: release.releaseNumber,
+    versi: md.versi ?? 'manual',
+    jalur: md.jalur ?? 'MANUAL',
     publishedAt: release.publishedAt,
   };
 
@@ -158,26 +165,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'DTSEN_NIK_KEY belum dikonfigurasi (min 16 karakter) — jalur DTSEN nonaktif.' }, { status: 503 });
     }
     const nikHash = hmac(plan.nik, secret);
-    let row: { namaMasked: string; kecamatan: string; desa: string; desil: number | null; statusBansos: unknown } | null = null;
+    let row: { namaMasked: string; kecamatan: string | null; desa: string | null; desil: number | null; bansos: boolean } | null = null;
     try {
       row = await prisma.dtsenIndividu.findFirst({
         where: { releaseId: release.id, nikHash },
-        select: { namaMasked: true, kecamatan: true, desa: true, desil: true, statusBansos: true },
+        select: { namaMasked: true, kecamatan: true, desa: true, desil: true, bansos: true },
       });
     } catch (err) {
       console.error('[dtsen/query] lookup gagal:', err);
       return NextResponse.json({ error: 'Lookup gagal.' }, { status: 500 });
     }
+    // @hotfix 29-Agu-2026: schema baru — bansos Boolean → statusBansos {pkh,bpnt,pbi}.
     const found = row
       ? {
           namaMasked: row.namaMasked,
           kecamatan: row.kecamatan,
           desa: row.desa,
           desil: row.desil,
-          statusBansos:
-            row.statusBansos && typeof row.statusBansos === 'object'
-              ? (row.statusBansos as { pkh: boolean; bpnt: boolean; pbi: boolean })
-              : null,
+          statusBansos: row.bansos
+            ? { pkh: false, bpnt: false, pbi: true } // PBI JKN — data BAPPEDA tidak membedakan program PKH/BPNT
+            : { pkh: false, bpnt: false, pbi: false },
         }
       : null;
     const payload = {
@@ -206,14 +213,15 @@ export async function POST(req: NextRequest) {
     const aggrDb = await prisma.dtsenAgregatWilayah.findMany({
       where: { releaseId: release.id, ...wilayahFilter },
       orderBy: [{ kecamatan: 'asc' }, { desa: 'asc' }, { desil: 'asc' }],
-      select: { kecamatan: true, desa: true, desil: true, jumlahJiwa: true, jumlahKeluarga: true },
+      select: { kecamatan: true, desa: true, desil: true, jiwa: true, kk: true },
     });
+    // @hotfix 29-Agu-2026: schema baru — jiwa/kk (bukan jumlahJiwa/jumlahKeluarga).
     const rows: AgregatRow[] = aggrDb.map((r) => ({
-      kecamatan: r.kecamatan,
-      desa: r.desa,
-      desil: r.desil,
-      jumlahJiwa: r.jumlahJiwa,
-      jumlahKeluarga: r.jumlahKeluarga,
+      kecamatan: r.kecamatan ?? '',
+      desa: r.desa ?? '',
+      desil: r.desil ?? 0,
+      jumlahJiwa: r.jiwa ?? 0,
+      jumlahKeluarga: r.kk ?? 0,
     }));
 
     // Hitung bansos dinamis dari tabel individu — HANYA COUNT, dengan sensor
@@ -222,8 +230,10 @@ export async function POST(req: NextRequest) {
     if (plan.bansos && plan.bansos.length > 0) {
       bansosCounts = [];
       for (const prog of plan.bansos) {
+        // @hotfix 29-Agu-2026: schema baru — satu flag `bansos` Boolean (PBI JKN);
+        // data BAPPEDA tidak membedakan program PKH/BPNT. Hitung flag umum untuk semua.
         const count = await prisma.dtsenIndividu.count({
-          where: { releaseId: release.id, ...wilayahFilter, statusBansos: { path: [prog], equals: true } },
+          where: { releaseId: release.id, ...wilayahFilter, bansos: true },
         });
         bansosCounts.push({ program: prog, jiwa: count >= K_MIN ? count : count === 0 ? 0 : null });
       }
