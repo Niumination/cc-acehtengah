@@ -503,19 +503,30 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     console.warn('[DTSEN] SPLP API fetch failed, falling back to DB:', (e as Error)?.message ?? String(e));
   }
 
-  // ── @hotfix 28 Agu 2026: Sumber OFFLINE BAPPEDA (DTSEN Versi 4, Des 2025) ──
-  // SPLP API masih 401 (JWT expired). Agregat bebas-PII dari export BAPPEDA
-  // (src/data/dtsen-agregat-bappeda.json) dipakai sebagai sumber DTSEN sementara —
-  // data SAMA dengan API DTSEN (export resmi 18/02/2026, 71.370 keluarga).
+  // ── @hotfix 29 Agu 2026: DB (rilis PUBLISHED) didahulukan dari BAPPEDA offline ──
+  // Sejak 29-Agu-2026 warehouse DB terisi penuh (235.011 individu, release
+  // BAPPEDA-DES-2025 PUBLISHED) — sumber paling lengkap & konsisten dengan
+  // konsol DTSEN. BAPPEDA offline JSON (agregat CSV keluarga) jadi cadangan.
+  const dbResult = await fetchDtsenAgregatDb(filter);
+  if (dbResult) return dbResult;
+
+  // ── Cadangan: Sumber OFFLINE BAPPEDA (DTSEN Versi 4, Des 2025) ──
+  // Agregat bebas-PII dari export BAPPEDA (src/data/dtsen-agregat-bappeda.json)
+  // — dipakai bila DB kosong/belum ada rilis.
   try {
     const bappeda = await fetchDtsenAgregatBappeda(filter);
     if (bappeda) {
       return bappeda;
     }
   } catch (e) {
-    console.warn('[DTSEN] BAPPEDA offline source failed, falling back to DB:', (e as Error)?.message ?? String(e));
+    console.warn('[DTSEN] BAPPEDA offline source failed:', (e as Error)?.message ?? String(e));
   }
 
+  return null;
+}
+
+/** Query agregat dari rilis DTSEN PUBLISHED di warehouse DB. */
+async function fetchDtsenAgregatDb(filter: PublicAgregatFilter): Promise<PublicAgregatResult | null> {
   // ── Fallback: query DB Prisma (jika warehouse sudah terisi) ──
   const release = await prisma.dtsenRelease.findFirst({
     where: { status: 'PUBLISHED' },
@@ -527,7 +538,8 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
   const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt };
 
   const where: any = { releaseId: release.id };
-  if (filter.kecamatan) where.kecamatan = filter.kecamatan;
+  // @hotfix 29-Agu-2026: case-insensitive — data DB UPPERCASE, filter kamus "Linge".
+  if (filter.kecamatan) where.kecamatan = { equals: filter.kecamatan, mode: 'insensitive' };
   if (filter.desa) where.desa = { equals: filter.desa, mode: 'insensitive' };
   if (filter.desil && filter.desil.length > 0) where.desil = { in: filter.desil };
 
@@ -564,8 +576,9 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     kecamatan: r.kecamatan,
     desa: r.desa,
     desil: r.desil,
-    jumlahJiwa: r.jumlahJiwa,
-    jumlahKeluarga: r.jumlahKeluarga,
+    // @hotfix 29-Agu-2026: schema DB aktual pakai jiwa/kk (bukan jumlahJiwa/jumlahKeluarga)
+    jumlahJiwa: r.jiwa ?? 0,
+    jumlahKeluarga: r.kk ?? 0,
   }));
 
   // Hitung bansos dinamis — dengan sensor k-anonymity (< K_MIN → null/disensor)

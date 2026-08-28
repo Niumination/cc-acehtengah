@@ -203,12 +203,22 @@ export default function AdminDtsenPage() {
     <div className="max-w-5xl mx-auto space-y-4">
       <div>
         <div className="text-[0.78rem] font-bold uppercase tracking-wider text-[#8A6E1D] mb-1">🔐 Admin · Data Terbatas</div>
-        <h1 className="text-2xl font-extrabold text-[#1E2420]">Manajemen Rilis DTSEN</h1>
-        <p className="text-sm text-[#767D6F]">
-          Data by-name by-address (UU PDP): NIK disimpan HMAC, nama ter-mask, agregat disensor k&lt;5.
-          Role Anda: <b>{role ?? '…'}</b>
-          {!canRead && role && <span className="text-[#B3261E]"> — tidak berhak membaca jalur ini.</span>}
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h1 className="text-2xl font-extrabold text-[#1E2420]">Manajemen Rilis DTSEN</h1>
+            <p className="text-sm text-[#767D6F]">
+              Data by-name by-address (UU PDP): NIK disimpan HMAC, nama ter-mask, agregat disensor k&lt;5.
+              Role Anda: <b>{role ?? '…'}</b>
+              {!canRead && role && <span className="text-[#B3261E]"> — tidak berhak membaca jalur ini.</span>}
+            </p>
+          </div>
+          <a
+            href="/dashboard/admin/dtsen/status"
+            style={{ padding: '8px 16px', borderRadius: '10px', background: '#1B4332', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+          >
+            🗂️ Status Sumber & Rilis
+          </a>
+        </div>
       </div>
 
       {/* Upload */}
