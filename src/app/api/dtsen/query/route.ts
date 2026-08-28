@@ -206,7 +206,10 @@ export async function POST(req: NextRequest) {
   // ═══ JALUR AGGR — agregat siap-saji + hitung bansos dinamis (sensor k) ═══
   try {
     const wilayahFilter = {
-      ...(plan.kecamatan ? { kecamatan: plan.kecamatan } : {}),
+      // @hotfix 29-Agu-2026: case-insensitive — data DB UPPERCASE ("LINGE"),
+      // detectKecamatan mengembalikan bentuk kamus ("Linge") → tanpa mode
+      // insensitive filter Prisma tidak match (Postgres case-sensitive).
+      ...(plan.kecamatan ? { kecamatan: { equals: plan.kecamatan, mode: 'insensitive' as const } } : {}),
       ...(plan.desa ? { desa: { equals: plan.desa, mode: 'insensitive' as const } } : {}),
       ...(plan.desil && plan.desil.length > 0 ? { desil: { in: plan.desil } } : {}),
     };
