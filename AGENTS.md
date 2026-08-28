@@ -4,8 +4,8 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 29, 2026 — **Sumber DTSEN OFFLINE BAPPEDA live** (`4f875ea`): API SPLP masih 401, tapi pipeline kini memakai agregat bebas-PII dari export resmi BAPPEDA (DTSEN Versi 4 Des 2025, 71.370 KK/234.740 jiwa) → `src/data/dtsen-agregat-bappeda.json` + `dtsenBappedaSource.ts`. Urutan sumber: SPLP API → BAPPEDA offline → DB → demo. Query DTSEN murni (desil/dtsen/bpnt/pbi) dijawab DETERMINISTIK dari dtsenNarasi (tanpa LLM). Label jujur: `DTSEN (BAPPEDA Des 2025 — offline)`.
-> **Deploy state:** PROD = `4f875ea` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
+> **Last update:** Aug 29, 2026 — **Routes DTSEN restored + data BAPPEDA live di DB** (`4f95617`): 5 route DTSEN (import/query/releases/publish) diaktifkan ulang (sebelumnya .bak sejak `1c5809d`) disesuaikan schema DB aktual. **222.655 individu** (NIK HMAC + nama masked) + 2.060 kelompok agregat ter-import & PUBLISHED (`BAPPEDA-DES-2025`). Lookup NIK by role DTSEN_LOOKUP **berfungsi live** (audit trail tercatat). Chip DTSEN diperbarui (desil 1, sebaran desil, PBI, desil per kecamatan). `DTSEN_NIK_KEY` baru (32 char, Vercel + lokal, konsisten).
+> **Deploy state:** PROD = `4f95617` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
