@@ -4,8 +4,8 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 28, 2026 — **Model AI live: `huancheng auto`** (`https://api.hcnsec.cn/v1`, resolve → `agnes-2.5-flash`). Fusi Multi-Sumber v2: tabel fusion kini berisi baris Dokumen **+ baris SAPA/DTSEN** dengan kolom `Sumber` eksplisit (`buildFusedMultiSourceResponse`, hotfix `2257349`). Label DTSEN jujur: data demo berlabel `DTSEN (data demo — simulasi)`, bukan lagi klaim `via SPLP API` (API SPLP DTSEN masih 401; angka demo 48.200 jiwa sebelumnya mislabeled sebagai live).
-> **Deploy state:** PROD = `2257349` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
+> **Last update:** Aug 29, 2026 — **Sumber DTSEN OFFLINE BAPPEDA live** (`4f875ea`): API SPLP masih 401, tapi pipeline kini memakai agregat bebas-PII dari export resmi BAPPEDA (DTSEN Versi 4 Des 2025, 71.370 KK/234.740 jiwa) → `src/data/dtsen-agregat-bappeda.json` + `dtsenBappedaSource.ts`. Urutan sumber: SPLP API → BAPPEDA offline → DB → demo. Query DTSEN murni (desil/dtsen/bpnt/pbi) dijawab DETERMINISTIK dari dtsenNarasi (tanpa LLM). Label jujur: `DTSEN (BAPPEDA Des 2025 — offline)`.
+> **Deploy state:** PROD = `4f875ea` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -308,6 +308,17 @@ Cukup ubah env Vercel `AI_BASE_URL` + `AI_MODEL` + `AI_API_KEY` + redeploy; tida
 > ini berasal dari **data demo** (`fetchDtsenDemoData`, label jujur `DTSEN (data demo — simulasi)`).
 > Untuk live DTSEN asli: butuh JWT baru dari tim SPLP → ganti env Vercel → label otomatis
 > `DTSEN (Kemensos/BPS via SPLP API)`.
+
+> ✅ **UPDATE 29 Agu 2026 — Sumber DTSEN OFFLINE BAPPEDA AKTIF:** API SPLP masih 401, tapi
+> live kini menjawab dari **agregat resmi BAPPEDA** (DTSEN Versi 4 Des 2025 — export 18/02/2026,
+> 71.370 KK / 234.740 jiwa, 14 kecamatan / 295 desa) — data SAMA dengan API DTSEN.
+> - Raw CSV ber-PII (NIK/nama/alamat): `data/dtsen-raw/` — **git-ignored, JANGAN commit (UU PDP)**.
+> - Agregat bebas-PII: `src/data/dtsen-agregat-bappeda.json` (di-commit).
+> - Urutan sumber: SPLP API → `fetchDtsenAgregatBappeda` → DB → demo.
+> - Query DTSEN murni (desil/dtsen/bpnt/pbi) → jalur deterministik `isPureDtsenQuery`
+>   (jawab langsung dari `dtsenNarasi`, tanpa LLM — mencegah LLM memilih evidence SAPA
+>   yang tidak relevan). Label: `DTSEN (BAPPEDA Des 2025 — offline)`.
+> - Saat JWT SPLP valid nanti, SPLP otomatis menang (urutan pertama) tanpa perubahan kode.
 
 **Rollback darurat UI** tetap: env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → redeploy.
 Kompatibilitas: cherry-pick `7c342e7` ke atas v3 teruji tanpa konflik (test gabungan 218/218).
