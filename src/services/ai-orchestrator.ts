@@ -298,16 +298,19 @@ async function buildContext(query: string) {
       dtsenResult = null;
     }
 
-    // @hotfix-meeting-ready: Fallback ke data demo jika DB DTSEN kosong/error/struktur rusak/timeout
+    // @hotfix 28 Agu 2026: Fallback demo HANYA saat data DTSEN benar-benar kosong.
+    // Sebelumnya `!hasBansosNeeded` (bansos diminta tapi hasil null) juga memicu demo —
+    // itu menimpa data BAPPEDA/SPLP/DB yang valid (mis. query PKH: BAPPEDA tidak punya
+    // kolom pkh, hanya PBI) dengan angka simulasi. Kini hasil valid dipertahankan dan
+    // bansos yang tidak tersedia ditangani jujur oleh narasi (bukan demo).
     const hasValidDtsen = dtsenResult &&
       dtsenResult.byDesil &&
       Array.isArray(dtsenResult.byDesil) &&
       dtsenResult.byDesil.length > 0 &&
       dtsenResult.byWilayah &&
       Array.isArray(dtsenResult.byWilayah);
-    const hasBansosNeeded = plan.bansos && plan.bansos.length > 0 && dtsenResult?.bansos !== null && dtsenResult?.bansos !== undefined;
 
-    if (!hasValidDtsen || (plan.bansos && plan.bansos.length > 0 && !hasBansosNeeded)) {
+    if (!hasValidDtsen) {
       // @hotfix: wajib await — fetchDtsenDemoData async; tanpa await dtsenResult
       // jadi Promise → field DTSEN undefined → evidence kosong → crash `.length`
       // di jalur streaming (fallback "AI sibuk" di live).
@@ -328,8 +331,15 @@ async function buildContext(query: string) {
       // @hotfix 28 Agu 2026: label jujur — kalau data berasal dari demo (fallback saat
       // DB kosong / SPLP 401), beri opd "DTSEN (Demo — simulasi)" agar dataSourceFromEvidence
       // TIDAK mengklaim "via SPLP API". Sebelumnya demo dilabeli seperti data live asli.
-      const isDemoDtsen = (dtsenResult.provenance?.label ?? '').toLowerCase().includes('demo');
-      const dtsenOpd = isDemoDtsen ? 'DTSEN (Demo — simulasi)' : 'DTSEN (Kemensos/BPS)';
+      // @hotfix 29 Agu 2026: sumber OFFLINE BAPPEDA (Des 2025) juga diberi label sendiri.
+      const provLabel = dtsenResult.provenance?.label ?? '';
+      const isDemoDtsen = provLabel.toLowerCase().includes('demo');
+      const isBappedaDtsen = provLabel.toLowerCase().includes('bappeda');
+      const dtsenOpd = isDemoDtsen
+        ? 'DTSEN (Demo — simulasi)'
+        : isBappedaDtsen
+          ? 'DTSEN (BAPPEDA Des 2025 — offline)'
+          : 'DTSEN (Kemensos/BPS)';
       for (const d of dtsenResult.byDesil) {
         dtsenEvidence.push({
           opd: dtsenOpd,
@@ -787,6 +797,31 @@ async function tryDeterministicDomainQuery(
     }
   }
 
+  // @hotfix 29 Agu 2026 — Jalur DTSEN deterministik: query DTSEN murni (desil/dtsen/
+  // bpnt/pbi) dengan dtsenNarasi yang tersedia → jawab LANGSUNG dari narasi agregat
+  // (BAPPEDA offline / SPLP / DB), TANPA LLM. Sebelumnya query seperti "desil 1 di
+  // kecamatan Bebesen" diteruskan ke LLM yang memilih evidence SAPA tidak relevan
+  // (mis. jalan kabupaten) — padahal dtsenNarasi sudah berisi angka yang benar.
+  if (!result && ctx.dtsenNarasi && isPureDtsenQuery(query)) {
+    const evRows = ctx.evidence
+      .filter((e) => (e.opd ?? '').toLowerCase().includes('dtsen'))
+      .slice(0, 10)
+      .map((e) => [e.indikator ?? '', e.nilai ?? '', e.satuan ?? '']);
+    result = {
+      narasi: ctx.dtsenNarasi,
+      visualisasi: evRows.length > 0
+        ? { tipe: 'table', konfigurasi: { columns: ['Indikator', 'Nilai', 'Satuan'], rows: evRows } }
+        : { tipe: 'none', konfigurasi: {} },
+      rekomendasi: [
+        `Verifikasi angka DTSEN di atas dengan OPD terkait (Dinas Sosial/BAPPEDA) untuk perencanaan program.`,
+        `Data ini dari ${ctx.dataSource}; gunakan bersama data SAPA untuk analisis lintas sumber.`,
+      ],
+      dataSource: ctx.dataSource,
+      timestamp: new Date().toISOString(),
+    };
+    filterDipakai = 'dtsen-deterministik';
+  }
+
   if (!result) return null;
 
   steps.deterministic = Date.now() - startedAt;
@@ -837,6 +872,20 @@ function sanitizeParsed(parsed: HybridResponse, evidence: EvidenceItem[], query:
     ];
   }
   return { ...parsed, narasi, rekomendasi };
+}
+
+/**
+ * Query DTSEN murni (agregat): token desil/dtsen/bpnt/pbi sebagai kata kunci utama.
+ * Dipakai untuk jalur deterministik — jawab dari dtsenNarasi tanpa LLM.
+ */
+function isPureDtsenQuery(query: string): boolean {
+  const q = query.toLowerCase();
+  return (
+    /\bdesil\b/.test(q) ||
+    /\bdtsen\b/.test(q) ||
+    /\bbpnt\b/.test(q) ||
+    /\bpbi\b/.test(q)
+  );
 }
 
 /** Ringkas evidence SAPA/DTSEN jadi 1-2 kalimat untuk narasi fusi multi-sumber. */
