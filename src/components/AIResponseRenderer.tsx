@@ -73,6 +73,24 @@ export default function AIResponseRenderer({ response }: Props) {
   );
 }
 
+// ─── Format angka konsisten id-ID (ribuan pakai titik) ───
+// @hotfix 29-Agu-2026: angka dari seluruh sumber (SAPA/DTSEN/Bapokting/Excel)
+// ditampilkan konsisten "12.345" bukan "12345" — termasuk string numerik.
+function formatAngka(v: unknown): string {
+  if (v === null || v === undefined) return '-';
+  if (typeof v === 'number' && Number.isFinite(v)) return v.toLocaleString('id-ID');
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '' || t === '-' || t === '—') return t || '-';
+    // Sudah berformat id-ID ("12.345") atau punya koma/teks → biarkan
+    if (/[a-zA-Z(),]/.test(t) && !/^-?\d[\d.,]*$/.test(t)) return t;
+    const n = Number(t.replace(/\./g, '').replace(',', '.'));
+    if (Number.isFinite(n)) return n.toLocaleString('id-ID');
+    return t;
+  }
+  return String(v);
+}
+
 // ─── Metric Renderer ───
 function MetricRenderer({ config }: { config: any }) {
   const metrics = config?.metrics ?? [];
@@ -83,7 +101,7 @@ function MetricRenderer({ config }: { config: any }) {
       {metrics.map((m: any, i: number) => (
         <div key={i} className="bg-[#E9E6DA] rounded-xl p-4 text-center border border-[#C6C3B4]">
           <p className="text-[10px] text-[#767D6F] uppercase tracking-wider mb-1">{m.label}</p>
-          <p className="text-xl font-bold text-[#1B4332]">{m.value}</p>
+          <p className="text-xl font-bold text-[#1B4332]">{formatAngka(m.value)}</p>
           {m.unit && <p className="text-[10px] text-[#767D6F] mt-0.5">{m.unit}</p>}
         </div>
       ))}
@@ -120,7 +138,7 @@ function TableRenderer({ config }: { config: any }) {
             <tr key={i} className="border-b border-[#C6C3B4] hover:bg-[#E9E6DA] transition-colors">
               {colMeta.map((col: any, ci: number) => (
                 <td key={col.key} className="py-2 px-3 text-[#4B5249]">
-                  {Array.isArray(row) ? (row[ci] ?? '-') : (row[col.key] ?? row[col.name] ?? '-')}
+                  {formatAngka(Array.isArray(row) ? (row[ci] ?? '-') : (row[col.key] ?? row[col.name] ?? '-'))}
                 </td>
               ))}
             </tr>
@@ -211,7 +229,7 @@ function ChartTooltip({ active, payload, label }: any) {
       <p className="font-bold text-[#1B4332] mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} style={{ color: p.color || p.fill }}>
-          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
+          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString('id-ID') : formatAngka(p.value)}
         </p>
       ))}
     </div>

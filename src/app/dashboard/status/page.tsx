@@ -39,6 +39,93 @@ const SENS_LABEL: Record<string, string> = {
   RESTRICTED_PERSONAL: 'Terbatas (personal)',
 };
 
+// ─── Diagram relasi antar sumber (SVG) — kondisi aktual 29-Agu-2026 ───
+function SourceRelationDiagram() {
+  const box = (x: number, y: number, w: number, h: number, fill: string, stroke: string, title: string, sub?: string, textColor = '#1E2420') => (
+    <g key={`${x}-${y}`}>
+      <rect x={x} y={y} width={w} height={h} rx={10} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <text x={x + w / 2} y={y + (sub ? h / 2 - 2 : h / 2 + 4)} textAnchor="middle" fontSize={11.5} fontWeight={700} fill={textColor}>{title}</text>
+      {sub && <text x={x + w / 2} y={y + h / 2 + 14} textAnchor="middle" fontSize={9} fill="#767D6F">{sub}</text>}
+    </g>
+  );
+  const arrow = (x1: number, y1: number, x2: number, y2: number, label?: string, dashed = false) => (
+    <g key={`a-${x1}-${y1}-${x2}-${y2}`}>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#2D6A4F" strokeWidth={1.8} strokeDasharray={dashed ? '5,4' : undefined} markerEnd="url(#arr)" />
+      {label && (
+        <g>
+          <rect x={(x1 + x2) / 2 - 55} y={(y1 + y2) / 2 - 11} width={110} height={22} rx={6} fill="#F5F3EC" stroke="#C6C3B4" strokeWidth={0.8} />
+          <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 4} textAnchor="middle" fontSize={8.5} fill="#4B5249" fontWeight={600}>{label}</text>
+        </g>
+      )}
+    </g>
+  );
+
+  return (
+    <div style={{ background: '#FFFFFF', border: '1px solid #C6C3B4', borderRadius: '16px', padding: '20px', marginBottom: '20px', overflowX: 'auto' }}>
+      <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1B4332', margin: '0 0 4px' }}>🔗 Relasi Antar Sumber Data</h2>
+      <p style={{ margin: '0 0 14px', fontSize: '0.8rem', color: '#767D6F' }}>
+        Alur data aktual: sumber mentah → warehouse/rilis → query planner → output AI (fusion multi-sumber).
+      </p>
+      <svg viewBox="0 0 960 470" width="100%" style={{ minWidth: 760 }} role="img" aria-label="Diagram relasi antar sumber data DTSEN, SAPA, Bapokting, dan Dokumen">
+        <defs>
+          <marker id="arr" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 9 3.5, 0 7" fill="#2D6A4F" />
+          </marker>
+        </defs>
+
+        {/* ===== Kolom 1: Sumber Mentah (x=20) ===== */}
+        <text x={20} y={22} fontSize={10} fontWeight={800} fill="#8A6E1D" letterSpacing={1}>SUMBER MENTAH</text>
+        {box(20, 32, 220, 64, '#FDE8E8', '#B3261E', 'SAPA API', 'api-splp.layanan.go.id · publik')}
+        {box(20, 108, 220, 64, '#FFF4D6', '#8A6E1D', 'DTSEN BAPPEDA CSV', 'export Des 2025 · 235.011 jiwa')}
+        {box(20, 184, 220, 64, '#E9E6DA', '#767D6F', 'DTSEN SPLP API', 'JWT 401 · nonaktif sementara')}
+        {box(20, 260, 220, 64, '#DCE8DE', '#2D6A4F', 'Dokumen A/B/C Excel', 'Diknas · Dinkes · Kominfo')}
+        {box(20, 336, 220, 64, '#DCE8DE', '#2D6A4F', 'Bapokting SPLP', '76 komoditas · harga pangan')}
+
+        {/* ===== Kolom 2: Warehouse / Rilis (x=310) ===== */}
+        <text x={310} y={22} fontSize={10} fontWeight={800} fill="#8A6E1D" letterSpacing={1}>WAREHOUSE / RILIS</text>
+        {box(310, 32, 220, 64, '#F5F3EC', '#8A6E1D', 'DTSEN Release', 'BAPPEDA-DES-2025 · PUBLISHED')}
+        {box(310, 108, 220, 64, '#F5F3EC', '#C6C3B4', 'DtsenIndividu', 'NIK HMAC · nama termask')}
+        {box(310, 184, 220, 64, '#F5F3EC', '#C6C3B4', 'DtsenAgregatWilayah', '2.060 kelompok · k≥5')}
+        {box(310, 260, 220, 64, '#F5F3EC', '#C6C3B4', 'DataSource Registry', '7 sumber terdaftar')}
+        {box(310, 336, 220, 64, '#F5F3EC', '#C6C3B4', 'DataAccessAudit', 'lookup NIK tercatat')}
+
+        {/* ===== Kolom 3: Query Planner (x=600) ===== */}
+        <text x={600} y={22} fontSize={10} fontWeight={800} fill="#8A6E1D" letterSpacing={1}>QUERY PLANNER</text>
+        {box(600, 32, 220, 72, '#1B4332', '#1B4332', 'AI Query Planner', 'intent · filter · sensor k-anon', '#FFFFFF')}
+        {box(600, 122, 220, 72, '#1B4332', '#1B4332', 'Fusi Multi-Sumber', 'SAPA + DTSEN + Dokumen', '#FFFFFF')}
+        {box(600, 212, 220, 72, '#2D6A4F', '#2D6A4F', 'Lookup by-NIK', 'role DTSEN · audit wajib', '#FFFFFF')}
+        {box(600, 302, 220, 72, '#767D6F', '#767D6F', 'Defleksi Privasi', 'publik → NIK ditolak', '#FFFFFF')}
+
+        {/* ===== Kolom 4: Output (x=880) ===== */}
+        <text x={880} y={22} fontSize={10} fontWeight={800} fill="#8A6E1D" letterSpacing={1}>OUTPUT</text>
+        {box(860, 32, 90, 130, '#DCE8DE', '#2D6A4F', 'Chat AI', 'dashboard')}
+        {box(860, 180, 90, 130, '#DCE8DE', '#2D6A4F', 'Konsol DTSEN', 'admin')}
+
+        {/* ===== Panah: Sumber → Warehouse ===== */}
+        {arrow(240, 64, 310, 64, 'fetch')}
+        {arrow(240, 140, 310, 140, 'import → publish')}
+        {arrow(240, 216, 310, 216, '401 → skip', true)}
+        {arrow(240, 292, 310, 292, 'deterministik')}
+        {arrow(240, 368, 310, 368, 'fetch harga')}
+
+        {/* ===== Panah: Warehouse → Query ===== */}
+        {arrow(530, 64, 600, 68, 'rilis aktif')}
+        {arrow(530, 140, 600, 150, 'agregat')}
+        {arrow(530, 216, 600, 232, 'bansos')}
+        {arrow(530, 292, 600, 318, 'registri')}
+        {arrow(530, 368, 600, 368, 'audit', true)}
+
+        {/* ===== Panah: Query → Output ===== */}
+        {arrow(820, 68, 860, 70, 'SSE')}
+        {arrow(820, 158, 860, 160, 'JSON')}
+        {arrow(820, 248, 860, 250, 'restricted')}
+        {arrow(820, 338, 860, 340, 'tolak', true)}
+      </svg>
+    </div>
+  );
+}
+
+
 export default function StatusSumberPage() {
   const [data, setData] = useState<{ ringkasan: any; sumber: SumberInfo[]; rilis: RilisInfo[] } | null>(null);
   const [error, setError] = useState('');
@@ -61,6 +148,17 @@ export default function StatusSumberPage() {
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  // @hotfix 29-Agu-2026: halaman ini butuh login (role DTSEN/ADMIN/SUPERADMIN) —
+  // publik diarahkan ke /login. Sidebar juga menyembunyikan item ini untuk publik.
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.authenticated || !d?.admin) window.location.href = '/login';
+      })
+      .catch(() => (window.location.href = '/login'));
+  }, []);
 
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
@@ -90,6 +188,9 @@ export default function StatusSumberPage() {
           {error}
         </div>
       )}
+
+      {/* Diagram relasi antar sumber */}
+      <SourceRelationDiagram />
 
       {/* Ringkasan */}
       {data?.ringkasan && (
