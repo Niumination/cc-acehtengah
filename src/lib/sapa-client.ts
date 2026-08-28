@@ -98,6 +98,9 @@ export function dataSourceFromEvidence(evidence: { opd?: string }[]): string {
   for (const e of evidence) {
     const opd = e.opd || '';
     if (opd.includes('Bapokting')) opds.add('Bapokting Aceh Tengah (SPLP API)');
+    // @hotfix 28 Agu 2026: label jujur untuk DTSEN demo — jangan klaim "via SPLP API"
+    // padahal data simulasi (user: jawaban DTSEN muncul padahal API masih 401).
+    else if (opd.includes('DTSEN Demo') || opd.includes('DTSEN (Demo')) opds.add('DTSEN (data demo — simulasi)');
     else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS via SPLP API)');
     else if (opd.includes('Dokumen')) opds.add(opd); // label "Dokumen A — <OPD>"
     else opds.add('SAPA Aceh Tengah');

@@ -325,9 +325,14 @@ async function buildContext(query: string) {
       dtsenResult.byWilayah = dtsenResult.byWilayah || [];
       dtsenResult.provenance = dtsenResult.provenance || { label: 'DTSEN (demo)' };
       dtsenResult.bansos = dtsenResult.bansos || null;
+      // @hotfix 28 Agu 2026: label jujur — kalau data berasal dari demo (fallback saat
+      // DB kosong / SPLP 401), beri opd "DTSEN (Demo — simulasi)" agar dataSourceFromEvidence
+      // TIDAK mengklaim "via SPLP API". Sebelumnya demo dilabeli seperti data live asli.
+      const isDemoDtsen = (dtsenResult.provenance?.label ?? '').toLowerCase().includes('demo');
+      const dtsenOpd = isDemoDtsen ? 'DTSEN (Demo — simulasi)' : 'DTSEN (Kemensos/BPS)';
       for (const d of dtsenResult.byDesil) {
         dtsenEvidence.push({
-          opd: 'DTSEN (Kemensos/BPS)',
+          opd: dtsenOpd,
           indikator: `Desil ${d.desil} — jiwa`,
           nilai: String(d.jiwa),
           satuan: 'jiwa',
@@ -338,7 +343,7 @@ async function buildContext(query: string) {
       if (dtsenResult.bansos) {
         for (const b of dtsenResult.bansos) {
           dtsenEvidence.push({
-            opd: 'DTSEN (Kemensos/BPS)',
+            opd: dtsenOpd,
             indikator: `Penerima ${b.program.toUpperCase()}`,
             nilai: b.jiwa === null ? '(disensor)' : String(b.jiwa),
             satuan: 'jiwa',
@@ -349,7 +354,7 @@ async function buildContext(query: string) {
       }
       for (const w of (dtsenResult.byWilayah || []).slice(0, 10)) {
         dtsenEvidence.push({
-          opd: 'DTSEN (Kemensos/BPS)',
+          opd: dtsenOpd,
           indikator: `${plan.kecamatan ? 'Desa' : 'Kecamatan'} ${w.nama} — jiwa`,
           nilai: String(w.jiwa),
           satuan: 'jiwa',
