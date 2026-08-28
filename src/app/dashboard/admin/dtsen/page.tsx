@@ -69,6 +69,11 @@ const CONTOH_QUERY = [
   'berapa jiwa desil 1-2 di Kecamatan Linge',
   'sebaran desil seluruh kabupaten',
   'berapa penerima PKH di Kecamatan Laut Tawar',
+  'jumlah jiwa desil 1 di kecamatan Bebesen',
+  'berapa penerima PBI jaminan kesehatan di aceh tengah',
+  'jumlah keluarga desil 1 sampai 3 di aceh tengah',
+  'berapa jumlah keluarga per desil di aceh tengah',
+  'tempel NIK 16 digit di sini untuk lookup per-orang',
 ];
 
 export default function AdminDtsenPage() {
@@ -213,7 +218,7 @@ export default function AdminDtsenPage() {
             </p>
           </div>
           <a
-            href="/dashboard/admin/dtsen/status"
+            href="/dashboard/status"
             style={{ padding: '8px 16px', borderRadius: '10px', background: '#1B4332', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}
           >
             🗂️ Status Sumber & Rilis

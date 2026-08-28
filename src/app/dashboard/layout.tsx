@@ -7,6 +7,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [currentTime, setCurrentTime] = useState('');
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [adminName, setAdminName] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -14,6 +16,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     }, 1000);
+    // @hotfix 29-Agu-2026: tombol Akun/Logout hanya tampil saat SESI AKTIF.
+    // Sebelumnya tombol selalu render → setelah logout (client-side redirect)
+    // tombol masih terlihat sebentar/setelah navigasi. Cek /api/auth/me di mount.
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.authenticated && d?.admin) {
+          setIsAuthed(true);
+          setAdminName(d.admin.username ?? null);
+        }
+      })
+      .catch(() => {});
     return () => clearInterval(timer);
   }, []);
 
@@ -72,28 +86,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
             </div>
 
-            {/* Akun & Logout — @hotfix 29-Agu: tersedia di SEMUA halaman dashboard */}
-            <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
-              <a
-                href="/dashboard/akun"
-                title="Pengaturan akun"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
-              >
-                <span className="text-sm">👤</span>
-                <span className="text-[11px] font-medium text-[#52B788]">Akun</span>
-              </a>
-              <button
-                onClick={async () => {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                  window.location.href = '/login';
-                }}
-                title="Keluar"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
-              >
-                <span className="text-sm">🚪</span>
-                <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
-              </button>
-            </div>
+            {/* Akun & Logout — @hotfix 29-Agu: hanya tampil saat SESI AKTIF.
+                Publik (belum login) TIDAK melihat tombol ini. */}
+            {isAuthed && (
+              <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
+                {adminName && (
+                  <span className="hidden lg:inline text-[11px] font-medium text-[#C6C3B4] max-w-[110px] truncate" title={adminName}>
+                    👤 {adminName}
+                  </span>
+                )}
+                <a
+                  href="/dashboard/akun"
+                  title="Pengaturan akun"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+                >
+                  <span className="text-sm">👤</span>
+                  <span className="text-[11px] font-medium text-[#52B788]">Akun</span>
+                </a>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                  }}
+                  title="Keluar"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
+                >
+                  <span className="text-sm">🚪</span>
+                  <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 

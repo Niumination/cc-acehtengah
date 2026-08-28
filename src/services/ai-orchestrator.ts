@@ -78,61 +78,6 @@ function getCached(query: string): HybridResponse | null {
   return null;
 }
 
-// @hotfix-meeting-ready: Data demo DTSEN untuk branch hotfix ini
-// Hanya dipakai ketika database DTSEN kosong, agar demo bisa berjalan tanpa import data.
-// Di branch produksi/v3, ini akan dihapus dan hanya pakai data publish yang sesuai UU PDP.
-interface DemoFilter {
-  kecamatan?: string | null;
-  desa?: string | null;
-  desil?: number[] | null;
-  bansos?: string[] | null;
-}
-
-async function fetchDtsenDemoData(filter: DemoFilter): Promise<PublicAgregatResult | null> {
-  // Demo data — simulasi hasil agregat DTSEN Aceh Tengah
-  const demoData: PublicAgregatResult = {
-    release: { releaseNumber: 'demo-2026', status: 'PUBLISHED', publishedAt: new Date().toISOString() },
-    provenance: {
-      label: 'DTSEN Demo (data simulasi untuk presentasi — @hotfix-meeting-ready)',
-      releaseNumber: 'demo-2026',
-      status: 'PUBLISHED',
-      publishedAt: new Date().toISOString(),
-    },
-    rows: [],
-    totalJiwa: 482000,
-    totalKeluarga: 135000,
-    byDesil: [
-      { desil: 1, jiwa: 48200, keluarga: 12000 },
-      { desil: 2, jiwa: 72300, keluarga: 18000 },
-      { desil: 3, jiwa: 72300, keluarga: 17500 },
-      { desil: 4, jiwa: 72300, keluarga: 17000 },
-      { desil: 5, jiwa: 72300, keluarga: 16500 },
-    ],
-    byWilayah: [
-      { nama: 'Kecamatan Simpang Jernih', jiwa: 86000, keluarga: 22000 },
-      { nama: 'Kecamatan Pular Arang', jiwa: 78000, keluarga: 19000 },
-      { nama: 'Kecamatan Meureuhom', jiwa: 74500, keluarga: 17800 },
-      { nama: 'Kecamatan Baitur Rahman', jiwa: 72000, keluarga: 17000 },
-      { nama: 'Kecamatan Kuta Bie', jiwa: 68000, keluarga: 16000 },
-    ],
-    bansos: null,
-    sensor: [],
-    narasi: 'Data DTSEN demo — simulasi untuk presentasi meeting.',
-  };
-
-  if (filter.bansos && filter.bansos.length > 0) {
-    // @hotfix-meeting-ready: cast ke any karena interface BansosCountResult strict
-    (demoData as any).bansos = (filter.bansos as any[]).map((prog: string) => ({
-      program: prog,
-      jiwa: prog === 'pkh' ? 12500 : prog === 'bpnt' ? 8400 : prog === 'pbi_jk' ? 15600 : 0,
-      persen: prog === 'pkh' ? 2.6 : prog === 'bpnt' ? 1.7 : 3.2,
-      keterangan: prog === 'pkh' ? 'Program Keluarga Harapan' : prog === 'bpnt' ? 'Bantuan Pangan Non-Tenaga' : 'Penerima Bantuan Inisiatif',
-    }));
-  }
-
-  return demoData;
-}
-
 function setCache(query: string, response: HybridResponse) {
   const key = normalizeText(query);
   queryCache.set(key, { response, expiresAt: Date.now() + 5 * 60 * 1000 });
@@ -315,15 +260,11 @@ async function buildContext(query: string) {
       Array.isArray(dtsenResult.byWilayah);
 
     if (!hasValidDtsen) {
-      // @hotfix: wajib await — fetchDtsenDemoData async; tanpa await dtsenResult
-      // jadi Promise → field DTSEN undefined → evidence kosong → crash `.length`
-      // di jalur streaming (fallback "AI sibuk" di live).
-      dtsenResult = await fetchDtsenDemoData({
-        kecamatan: plan.kecamatan,
-        desa: plan.desa,
-        desil: plan.desil,
-        bansos: plan.bansos,
-      });
+      // @hotfix 29-Agu-2026: DEMO DATA DIHAPUS SEPENUHNYA — semua output murni
+      // dari sumber nyata (SPLP API → DB rilis BAPPEDA → BAPPEDA offline JSON).
+      // dtsenResult tetap null → narasi DTSEN jujur "tidak tersedia" + fallback
+      // ke evidence SAPA/Dokumen (tanpa angka simulasi).
+      console.warn('[DTSEN] Tidak ada data valid dari SPLP/DB/BAPPEDA — jawab tanpa klaim DTSEN.');
     }
 
     if (dtsenResult) {
@@ -982,12 +923,25 @@ function isPureDtsenQuery(query: string): boolean {
   );
 }
 
+/** Format nilai numerik ke id-ID (12.345) — teks/satuan dibiarkan apa adanya. */
+function fmtNilaiId(v: string): string {
+  const t = v.trim();
+  // Numerik murni (integer/desimal, boleh minus) → format ribuan id-ID
+  if (/^-?\d+(\.\d+)?$/.test(t)) {
+    const n = Number(t);
+    if (Number.isFinite(n)) return n.toLocaleString('id-ID');
+  }
+  // Sudah berformat "12.345" atau "12,5" → biarkan
+  return t;
+}
+
 /** Ringkas evidence SAPA/DTSEN jadi 1-2 kalimat untuk narasi fusi multi-sumber. */
 function summarizeEvidence(evidence: EvidenceItem[]): string {
   const top = evidence.slice(0, 3);
   const parts = top
     .map((e) => {
-      const v = e.nilai ? ` ${e.nilai}${e.satuan ? ' ' + e.satuan : ''}` : '';
+      // @hotfix 29-Agu-2026: format angka id-ID konsisten (12.345 bukan 12345)
+      const v = e.nilai ? ` ${fmtNilaiId(e.nilai)}${e.satuan ? ' ' + e.satuan : ''}` : '';
       const yr = e.tahun ? ` (${e.tahun})` : '';
       return `${e.indikator}${v}${yr}`;
     })
