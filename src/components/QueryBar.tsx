@@ -128,33 +128,9 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
                 type="button"
                 key={chip.label}
                 onClick={() => !group.disabled && handleChipClick(chip.query)}
-                disabled={isLoading || group.disabled}
-                title={group.disabled ? `Sumber ${group.source} belum terhubung` : undefined}
-                className="rounded-full border border-[var(--border)] bg-[var(--surface-container-low)] px-3 py-1.5 text-[10px] font-semibold text-[var(--text-body)] transition enabled:hover:border-[#B8D1BB] enabled:hover:bg-[var(--brand-tint)] enabled:hover:text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      {/* Keyword Chips — grouped by source */}
-      <div className="px-5 py-3 space-y-2">
-        {CHIP_GROUPS.map((group) => (
-          <div key={group.id} className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5" role="group" aria-label={`Chip sumber ${group.source}`}>
-            <span className="mr-1 inline-flex items-baseline gap-1.5" title={group.hint}>
-              <span className="text-[9px] font-black uppercase tracking-widest text-[#2D6A4F]">{group.source}</span>
-              <span className="hidden text-[9px] text-[#767D6F] sm:inline">· {group.hint}</span>
-            </span>
-            {group.chips.map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => !group.disabled && handleChipClick(chip.query)}
                 disabled={isLoading || group.disabled || !chip.query}
                 title={group.disabled ? `Sumber ${group.source} belum terhubung` : undefined}
-                className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="rounded-full border border-[var(--border)] bg-[var(--surface-container-low)] px-3 py-1.5 text-[10px] font-semibold text-[var(--text-body)] transition enabled:hover:border-[#B8D1BB] enabled:hover:bg-[var(--brand-tint)] enabled:hover:text-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {chip.label}
               </button>
