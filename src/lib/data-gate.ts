@@ -49,7 +49,8 @@ export type AuditAction =
   | 'IMPORT'
   | 'IMPORT_DITOLAK'
   | 'PUBLISH'
-  | 'PUBLISH_DITOLAK';
+  | 'PUBLISH_DITOLAK'
+  | 'BREAKDOWN_INDIVIDU';
 
 const AUDIT_DETAIL_MAX = 200;
 

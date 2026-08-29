@@ -41,6 +41,12 @@ export default function AIResponseRenderer({ response }: Props) {
         </div>
       </div>
 
+      {/* Pecah Jawaban — @hotfix 29-Agu-2026: PALING ATAS (setelah judul),
+          eksplorasi deterministik tanpa LLM (hemat usage model AI). */}
+      {showBreakdown && (
+        <BreakdownExplorer sourceLabel={response.dataSource} program={programHint} />
+      )}
+
       {/* Dynamic Visualization — SDI widget for table, else metric/chart */}
       {useSdi && sdiPayload ? (
         <AIDataWidget data={sdiPayload} />
@@ -76,11 +82,6 @@ export default function AIResponseRenderer({ response }: Props) {
             ))}
           </ul>
         </div>
-      )}
-
-      {/* Pecah Jawaban — eksplorasi deterministik (tanpa LLM) */}
-      {showBreakdown && (
-        <BreakdownExplorer sourceLabel={response.dataSource} program={programHint} />
       )}
     </div>
   );
