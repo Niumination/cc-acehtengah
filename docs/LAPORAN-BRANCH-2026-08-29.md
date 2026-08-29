@@ -1,20 +1,21 @@
 # Laporan Lengkap Branch — cc-acehtengah (29 Agu 2026)
 
 > **Repo:** `github.com/Niumination/cc-acehtengah` · **PROD live:** `https://cc-acehtengah.vercel.app`
-> **Branch produksi:** `hotfix/meeting-ready` @ `9004364`
+> **Branch produksi:** `main` = `hotfix/meeting-ready` @ `5dd47d7` — **SUDAH DISINKRONKAN** ✅
+> **Update 29-Agu:** main fast-forward ke hotfix; `hotfix/llm-reliability` & `pabrik-aplikasi` dihapus.
 
-## Ringkasan Eksekutif
+## Ringkasan Eksekutif (pasca-sinkronisasi)
 
-| Branch | Status | vs main | vs remote | Peran |
-|---|---|---|---|---|
-| **`hotfix/meeting-ready`** | 🟢 **PRODUKSI (live)** | **+60 / −0** | sinkron ✅ | Semua fitur terbaru (DTSEN, BNBA, Pecah Jawaban) |
-| `main` | 🟡 Baseline | — | sinkron ✅ | Kode dasar — **60 commit di belakang hotfix** |
-| `feat/ai-executive-answer-v1` | 🔵 Eksperimen lama | +3 / −7 | sinkron ✅ | Iterasi v1 — **sudah usang** |
-| `feat/ai-executive-answer-v2-live` | 🔵 Eksperimen lama | +12 / −7 | sinkron ✅ | Iterasi v2 — **sudah usang** |
-| `feat/ai-executive-answer-v3` | 🔵 Eksperimen lama | +27 / −7 | sinkron ✅ | Iterasi v3 — **sudah usang** |
-| `backup/feat-v3-saved` | 📦 Backup | +27 / −7 | sinkron ✅ | Snapshot v3 sebelum lanjut |
-| `hotfix/llm-reliability` | 🔵 Lama | +0 / −0 | sinkron ✅ | Sama dengan main (tidak ada commit unik) |
-| `origin/pabrik-aplikasi` | ⚪ Remote-only | +179 | sinkron ✅ | **Proyek lain** (GAS) — nyasar di repo ini |
+| Branch | Status | vs main | Peran |
+|---|---|---|---|
+| **`main`** | 🟢 **PRODUKSI (live)** | — | **Identik dengan hotfix** @ `5dd47d7` |
+| **`hotfix/meeting-ready`** | 🟢 Sinkron | +0 / −0 | Identik dengan main — dipertahankan sebagai jalur rilis |
+| `feat/ai-executive-answer-v1` | 🔵 Eksperimen lama | +3 / −7 | Iterasi v1 — **sudah usang** (arsip) |
+| `feat/ai-executive-answer-v2-live` | 🔵 Eksperimen lama | +12 / −7 | Iterasi v2 — **sudah usang** (arsip) |
+| `feat/ai-executive-answer-v3` | 🔵 Eksperimen lama | +27 / −7 | Iterasi v3 — **sudah usang** (arsip) |
+| `backup/feat-v3-saved` | 📦 Backup | +27 / −7 | Snapshot v3 — dipertahankan |
+| ~~`hotfix/llm-reliability`~~ | ❌ DIHAPUS | — | Tanpa commit unik |
+| ~~`origin/pabrik-aplikasi`~~ | ❌ DIHAPUS | — | Proyek GAS nyasar |
 
 ## Detail Per Branch
 
