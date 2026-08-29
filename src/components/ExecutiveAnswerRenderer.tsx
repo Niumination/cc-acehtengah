@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import type { ExecutivePresentation, HybridResponse } from '@/types';
 import { getExecutivePresentation } from '@/services/executive-presentation';
+import BreakdownExplorer from './BreakdownExplorer';
 
 interface Props {
   response: HybridResponse;
@@ -328,6 +329,8 @@ export default function ExecutiveAnswerRenderer({ response, onFollowUp }: Props)
   return (
     <div className="animate-fadeIn space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[var(--brand-deep)] to-[var(--brand-soft)] text-base text-white shadow-lg">✦</div><div><h2 className="text-sm font-black uppercase tracking-[0.08em] text-[var(--brand)]">Executive answer</h2><p className="text-[10px] text-[var(--text-muted)]">Visual dan narasi disesuaikan dengan bentuk evidence</p></div></div><AnswerBadge presentation={presentation} /></div>
+      {/* Tombol "Pecah Jawaban" — paling atas output AI (deterministik, tanpa LLM) */}
+      <BreakdownExplorer sourceLabel={response.dataSource} />
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <article className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-card)] shadow-sm">
           <div className="border-b border-[var(--border)] p-5 md:p-6"><div className="mb-4 flex items-start justify-between gap-3"><div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">Jawaban AI · {TYPE_LABEL[presentation.answerType]}</div><div className="text-right text-[10px] text-[var(--text-muted)]">{presentation.provenance.evidenceCount} evidence<br />{formatTimestamp(presentation.provenance.fetchedAt)}</div></div><h3 className="max-w-4xl text-2xl font-black leading-tight tracking-[-0.035em] text-[var(--brand-deep)] md:text-3xl">{presentation.title}</h3><p className="mt-3 max-w-4xl text-sm leading-relaxed text-[var(--text-body)]">{presentation.lead}</p><PrimaryMetric presentation={presentation} /></div>
