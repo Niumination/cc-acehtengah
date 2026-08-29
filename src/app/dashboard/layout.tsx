@@ -8,15 +8,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [adminName, setAdminName] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setCurrentDate(now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
-    };
-    updateClock();
-    const timer = setInterval(updateClock, 1000);
+    setMounted(true);
+    setCurrentTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    // @hotfix 29-Agu-2026: tombol Akun/Logout hanya tampil saat SESI AKTIF.
+    // Sebelumnya tombol selalu render → setelah logout (client-side redirect)
+    // tombol masih terlihat sebentar/setelah navigasi. Cek /api/auth/me di mount.
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.authenticated && d?.admin) {
+          setIsAuthed(true);
+          setAdminName(d.admin.username ?? null);
+        }
+      })
+      .catch(() => {});
     return () => clearInterval(timer);
   }, []);
 
@@ -36,10 +49,75 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p className="truncate text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--text-muted)]">Ruang kendali data Kabupaten Aceh Tengah</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="hidden text-right sm:block"><p className="font-mono text-[11px] font-bold text-[var(--brand)]">{currentTime || '--:--:--'}</p><p className="text-[9px] text-[var(--text-muted)]">{currentDate || 'Memuat waktu'}</p></div>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#D4E6D6] bg-[var(--brand-tint)] px-2.5 py-1.5 text-[10px] font-bold text-[var(--brand)]"><span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--brand-soft)] opacity-70" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--brand-soft)]" /></span>Online</div>
-            <div className="hidden rounded-full border border-[#E8DDBD] bg-[#FCF7E6] px-2.5 py-1.5 text-[10px] font-bold text-[#8A6E1D] sm:block">SAPA Connected</div>
+
+          <div className="flex items-center gap-3 text-sm">
+            {/* Live Clock */}
+            <div className="text-right">
+              <p className="font-mono text-xs text-[#C6C3B4]">
+                {mounted ? currentTime : '--:--:--'}
+              </p>
+              <p className="text-[10px] text-[#767D6F]">
+                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+
+            {/* Connection Status */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D6A4F]/30 border border-[#2D6A4F]/50">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#52B788] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#52B788]" />
+              </span>
+              <span className="text-[11px] font-medium text-[#52B788]">Online</span>
+            </div>
+
+            {/* SAPA Badge */}
+            <div className="px-3 py-1.5 rounded-full bg-[#D9C284]/15 border border-[#D9C284]/30">
+              <span className="text-[11px] font-medium text-[#D9C284]">
+                📡 SAPA Connected
+              </span>
+            </div>
+
+            {/* Akun & Logout — @hotfix 29-Agu: hanya tampil saat SESI AKTIF.
+                Publik (belum login) melihat tombol LOGIN sebagai gantinya. */}
+            {isAuthed ? (
+              <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
+                {adminName && (
+                  <span className="hidden lg:inline text-[11px] font-medium text-[#C6C3B4] max-w-[110px] truncate" title={adminName}>
+                    👤 {adminName}
+                  </span>
+                )}
+                <a
+                  href="/dashboard/akun"
+                  title="Pengaturan akun"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+                >
+                  <span className="text-sm">👤</span>
+                  <span className="text-[11px] font-medium text-[#52B788]">Akun</span>
+                </a>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    // @hotfix 29-Agu: setelah logout → kembali ke DASHBOARD (publik),
+                    // bukan ke halaman login.
+                    window.location.href = '/dashboard';
+                  }}
+                  title="Keluar"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
+                >
+                  <span className="text-sm">🚪</span>
+                  <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
+                </button>
+              </div>
+            ) : (
+              <a
+                href="/login"
+                title="Masuk sebagai admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+              >
+                <span className="text-sm">🔐</span>
+                <span className="text-[11px] font-medium text-[#52B788]">Login</span>
+              </a>
+            )}
           </div>
         </header>
 

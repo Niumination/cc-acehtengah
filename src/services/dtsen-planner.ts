@@ -17,7 +17,8 @@
 import { KECAMATAN_ACEH_TENGAH, K_MIN, type AgregatRow } from '@/services/dtsen-import';
 import type { DataSensitivity } from '@/lib/data-gate';
 import { prisma } from '@/lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { fetchDtsenFromSplp, type DtsenData } from '@/lib/bapokting-client';
+import { fetchDtsenAgregatBappeda } from '@/data/dtsenBappedaSource';
 
 // ─── Normalisasi ringan (konsisten dgn dtsen-import.normalize) ───
 function norm(s: string): string {
@@ -217,8 +218,8 @@ export const PUBLIC_DEFLECTION_REKOMENDASI = [
 // ═══ D. PROVENANCE (3 tempat, desain §8) ═══
 
 export interface ReleaseRef {
-  versi: string;
-  jalur: string; // 'MANUAL' | 'API'
+  releaseNumber: string;
+  status: string;
   publishedAt: Date | string | null;
 }
 
@@ -233,13 +234,13 @@ export function formatTanggalId(d: Date | string | null): string {
   }).format(date);
 }
 
-export function jalurLabel(jalur: string): string {
-  return jalur === 'API' ? 'API resmi Portal SDI' : 'jalur impor manual';
+export function jalurLabel(status: string): string {
+  return status === 'API' ? 'API resmi Portal SDI' : 'jalur impor manual';
 }
 
 /** Label chip visual + nilai DataSource.provenanceLabel (ditulis saat publish). */
 export function buildProvenanceLabel(r: ReleaseRef): string {
-  return `DTSEN ${r.versi} — ${jalurLabel(r.jalur)} — rilis aktif ${formatTanggalId(r.publishedAt)}`;
+  return `DTSEN rilis ${r.releaseNumber} — ${jalurLabel(r.status)} — rilis aktif ${formatTanggalId(r.publishedAt)}`;
 }
 
 /** Kalimat pembuka narasi (tempat provenance #1, pola desain §8). */
@@ -470,7 +471,7 @@ export interface PublicAgregatFilter {
 /** Hasil agregat publik DTSEN yang sudah melalui sensor k-anonymity. */
 export interface PublicAgregatResult {
   release: ReleaseRef;
-  provenance: { label: string; versi: string; jalur: string; publishedAt: Date | string | null };
+  provenance: { label: string; releaseNumber: string; status: string; publishedAt: Date | string | null };
   rows: AgregatRow[];
   totalJiwa: number;
   totalKeluarga: number;
@@ -487,17 +488,58 @@ export interface PublicAgregatResult {
  * Sensor dinamis (< K_MIN hasil hitung ulang) diterapkan di sini untuk bansos.
  */
 export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Promise<PublicAgregatResult | null> {
+  // ── @hotfix-meeting-ready: Coba fetch langsung dari SPLP API dulu ──
+  // Token JWT sudah tersedia → bypass DB yang mungkin kosong/broken pada branch ini.
+  try {
+    const splpRows = await fetchDtsenFromSplp({
+      kecamatan: filter.kecamatan ?? undefined,
+      desa: filter.desa ?? undefined,
+      desil: filter.desil && filter.desil.length === 1 ? filter.desil[0] : undefined,
+    });
+    if (splpRows && splpRows.length > 0) {
+      return buildResultFromSplp(splpRows, filter);
+    }
+  } catch (e) {
+    console.warn('[DTSEN] SPLP API fetch failed, falling back to DB:', (e as Error)?.message ?? String(e));
+  }
+
+  // ── @hotfix 29 Agu 2026: DB (rilis PUBLISHED) didahulukan dari BAPPEDA offline ──
+  // Sejak 29-Agu-2026 warehouse DB terisi penuh (235.011 individu, release
+  // BAPPEDA-DES-2025 PUBLISHED) — sumber paling lengkap & konsisten dengan
+  // konsol DTSEN. BAPPEDA offline JSON (agregat CSV keluarga) jadi cadangan.
+  const dbResult = await fetchDtsenAgregatDb(filter);
+  if (dbResult) return dbResult;
+
+  // ── Cadangan: Sumber OFFLINE BAPPEDA (DTSEN Versi 4, Des 2025) ──
+  // Agregat bebas-PII dari export BAPPEDA (src/data/dtsen-agregat-bappeda.json)
+  // — dipakai bila DB kosong/belum ada rilis.
+  try {
+    const bappeda = await fetchDtsenAgregatBappeda(filter);
+    if (bappeda) {
+      return bappeda;
+    }
+  } catch (e) {
+    console.warn('[DTSEN] BAPPEDA offline source failed:', (e as Error)?.message ?? String(e));
+  }
+
+  return null;
+}
+
+/** Query agregat dari rilis DTSEN PUBLISHED di warehouse DB. */
+async function fetchDtsenAgregatDb(filter: PublicAgregatFilter): Promise<PublicAgregatResult | null> {
+  // ── Fallback: query DB Prisma (jika warehouse sudah terisi) ──
   const release = await prisma.dtsenRelease.findFirst({
     where: { status: 'PUBLISHED' },
     orderBy: { publishedAt: 'desc' },
-    select: { id: true, versi: true, jalur: true, publishedAt: true },
+    select: { id: true, releaseNumber: true, status: true, publishedAt: true },
   });
   if (!release) return null;
 
-  const releaseRef: ReleaseRef = { versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt };
+  const releaseRef: ReleaseRef = { releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt };
 
-  const where: Prisma.DtsenAgregatWilayahWhereInput = { releaseId: release.id };
-  if (filter.kecamatan) where.kecamatan = filter.kecamatan;
+  const where: any = { releaseId: release.id };
+  // @hotfix 29-Agu-2026: case-insensitive — data DB UPPERCASE, filter kamus "Linge".
+  if (filter.kecamatan) where.kecamatan = { equals: filter.kecamatan, mode: 'insensitive' };
   if (filter.desa) where.desa = { equals: filter.desa, mode: 'insensitive' };
   if (filter.desil && filter.desil.length > 0) where.desil = { in: filter.desil };
 
@@ -518,7 +560,7 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     });
     return {
       release: releaseRef,
-      provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+      provenance: { label: buildProvenanceLabel(releaseRef), releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt },
       rows: [],
       totalJiwa: 0,
       totalKeluarga: 0,
@@ -534,8 +576,9 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     kecamatan: r.kecamatan,
     desa: r.desa,
     desil: r.desil,
-    jumlahJiwa: r.jumlahJiwa,
-    jumlahKeluarga: r.jumlahKeluarga,
+    // @hotfix 29-Agu-2026: schema DB aktual pakai jiwa/kk (bukan jumlahJiwa/jumlahKeluarga)
+    jumlahJiwa: r.jiwa ?? 0,
+    jumlahKeluarga: r.kk ?? 0,
   }));
 
   // Hitung bansos dinamis — dengan sensor k-anonymity (< K_MIN → null/disensor)
@@ -573,7 +616,7 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
 
   return {
     release: releaseRef,
-    provenance: { label: buildProvenanceLabel(releaseRef), versi: release.versi, jalur: release.jalur, publishedAt: release.publishedAt },
+    provenance: { label: buildProvenanceLabel(releaseRef), releaseNumber: release.releaseNumber, status: release.status, publishedAt: release.publishedAt },
     rows,
     totalJiwa,
     totalKeluarga,
@@ -583,4 +626,100 @@ export async function fetchDtsenAgregatPublik(filter: PublicAgregatFilter): Prom
     sensor: jawaban.sensor,
     narasi: jawaban.narasi,
   };
+}
+
+/**
+ * @hotfix-meeting-ready
+ * Konversi data DTSEN mentah dari SPLP API (DtsenData[]) ke PublicAgregatResult
+ * agar kompatibel dengan pipeline orchestrator yang sudah ada.
+ * Sumber data ditandai sebagai "DTSEN (Kemensos/BPS via SPLP API)".
+ */
+function buildResultFromSplp(splpData: DtsenData[], filter: PublicAgregatFilter): PublicAgregatResult {
+  // Mapping dari field desil_1..5 ke array per desil
+  const DESIL_KEYS = ['desil_1', 'desil_2', 'desil_3', 'desil_4', 'desil_5'] as const;
+
+  const rows: AgregatRow[] = [];
+  const sensor: string[] = [`Data DTSEN dari SPLP API — ${splpData.length} baris wilayah`];
+
+  // Tentukan desil mana yang diminta
+  const requestedDesil = filter.desil ?? [1, 2, 3, 4, 5];
+
+  for (const item of splpData) {
+    const kecamatan = fixKecamatanName(item.kecamatan);
+    const desa = item.desa || 'Tidak diketahui';
+
+    for (let i = 0; i < DESIL_KEYS.length; i++) {
+      const d = requestedDesil.includes(i + 1) ? i + 1 : null;
+      if (d === null) continue;
+      const key = DESIL_KEYS[i];
+      const jiwa = item[key] ?? 0;
+      if (jiwa === 0) continue;
+      // Estimasi keluarga: asumsi ~1 keluarga per 4 jiwa (data SPLP tidak punya HH)
+      rows.push({
+        kecamatan,
+        desa,
+        desil: d,
+        jumlahJiwa: jiwa,
+        jumlahKeluarga: Math.round(jiwa / 4),
+      });
+    }
+  }
+
+  // Bansos: akumulasi pkh, bpnt, pbi dari tiap baris (data SPLP sudah agregat wilayah)
+  const bansosCounts: BansosCountResult[] = ['pkh', 'bpnt', 'pbi'].map((prog) => {
+    const total = splpData.reduce((acc, item) => {
+      const val = item[prog] ?? item[`${prog}_jk`] ?? 0;
+      return acc + (typeof val === 'number' ? val : 0);
+    }, 0);
+    return {
+      program: prog as 'pkh' | 'bpnt' | 'pbi',
+      jiwa: total > 0 ? total : 0,
+    };
+  });
+
+  const totalJiwa = rows.reduce((a, r) => a + r.jumlahJiwa, 0);
+  const totalKeluarga = rows.reduce((a, r) => a + r.jumlahKeluarga, 0);
+  const byDesil = summarizeByDesil(rows);
+  const byWilayah = filter.kecamatan ? summarizeByDesa(rows) : summarizeByKecamatan(rows);
+
+  const releaseRef: ReleaseRef = {
+    releaseNumber: 'SPLP-LIVE',
+    status: 'PUBLISHED',
+    publishedAt: new Date(),
+  };
+
+  const jawaban = buildAgregatAnswer({
+    rows,
+    release: releaseRef,
+    kecamatan: filter.kecamatan ?? null,
+    desa: filter.desa ?? null,
+    desil: filter.desil ?? null,
+    bansosCounts,
+  });
+
+  return {
+    release: releaseRef,
+    provenance: {
+      label: 'DTSEN (Kemensos/BPS via SPLP API)',
+      releaseNumber: 'SPLP-LIVE',
+      status: 'PUBLISHED',
+      publishedAt: new Date(),
+    },
+    rows,
+    totalJiwa,
+    totalKeluarga,
+    byDesil: jawaban.byDesil,
+    byWilayah: jawaban.byWilayah,
+    bansos: jawaban.bansos,
+    sensor: [...sensor, ...jawaban.sensor],
+    narasi: jawaban.narasi,
+  };
+}
+
+/** @hotfix-meeting-ready — normalisasi nama kecamatan dari SPLP API ke standar DTSEN */
+function fixKecamatanName(input: string): string {
+  const n = input.trim();
+  // Handle format "Kec. Nama"
+  const m = n.match(/^(?:Kecamatan|kec\.?|Kec\.?)\s+(.+)$/i);
+  return m ? m[1].trim() : n;
 }

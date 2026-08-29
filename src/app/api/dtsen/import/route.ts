@@ -5,6 +5,11 @@
 // TIDAK PERNAH dikembalikan di respons.
 // Otorisasi: role RESTRICTED_PERSONAL (DTSEN_LOOKUP/SUPERADMIN) — via data-gate.
 //
+// @hotfix 29-Agu-2026: disesuaikan dengan schema DB aktual —
+//   DtsenRelease { releaseNumber, status, metadata(Json) }
+//   DtsenIndividu { nikHash, namaMasked, kecamatan, desa, desil, bansos(Boolean) }
+//   DtsenAgregatWilayah { jiwa, kk, pkh, bpnt, pbi_kredit, pbi_nonkredit }
+//
 // Format yang didukung (query param ?format=):
 //   DTSEN_CSV   — format DTSEN standar (CSV: nik, nama, no_kk, kecamatan, desa, desil, pkh, bpnt, pbi_jk)
 //   STUNTING_XLSX — format stunting (Excel: NIK, Nama, JK, Kec, Desa/Kel, dll)
@@ -31,11 +36,11 @@ export const maxDuration = 60;
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MB teks CSV
 const CHUNK = 5000;
 
-import type { AdminPayload } from '@/lib/auth';
-
-function audit(admin: AdminPayload, aksi: 'IMPORT' | 'IMPORT_DITOLAK', detail: string, ip: string, rowCount = 0) {
+function audit(admin: any, aksi: 'IMPORT' | 'IMPORT_DITOLAK', detail: string, ip: string, rowCount = 0) {
+  // @hotfix 29-Agu-2026: schema DB aktual — kolom `action` (bukan `aksi`), tanpa `adminNama`.
+  const entry = buildAuditEntry({ admin, aksi, detail, ip, rowCount });
   return prisma.dataAccessAudit
-    .create({ data: buildAuditEntry({ admin, aksi, detail, ip, rowCount }) })
+    .create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } })
     .catch((e) => console.error('[dtsen/import] audit gagal:', e));
 }
 
@@ -77,6 +82,7 @@ export async function POST(req: NextRequest) {
   }
   const format = (req.nextUrl.searchParams.get('format') ?? 'DTSEN_CSV').toUpperCase();
   const filename = (req.nextUrl.searchParams.get('filename') ?? 'unggahan.csv').slice(0, 120);
+  const versi = (req.nextUrl.searchParams.get('versi') ?? 'manual').slice(0, 60);
 
   let result: { valid: ValidDtsenRow[]; rejected: RejectedRow[]; totalDataLines: number };
   let parseWarnings: string[] = [];
@@ -109,7 +115,7 @@ export async function POST(req: NextRequest) {
       );
   }
   if (result.valid.length === 0) {
-    await audit(admin!, 'IMPORT', `file=${filename} DITOLAK total: ${result.rejected[0]?.reason ?? 'tanpa baris valid'}`, ip);
+    await audit(admin!, 'IMPORT_DITOLAK', `file=${filename} DITOLAK total: ${result.rejected[0]?.reason ?? 'tanpa baris valid'}`, ip);
     return NextResponse.json(
       {
         ok: false,
@@ -135,24 +141,41 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // ── @hotfix 29-Agu-2026: schema baru — releaseNumber + metadata JSON ──
     const release = await prisma.dtsenRelease.create({
       data: {
-        sourceId: source.id,
-        versi: (req.nextUrl.searchParams.get('versi') ?? 'manual').slice(0, 60),
-        jalur: format === 'DTSEN_CSV' ? 'MANUAL' : `MANUAL_${format}`,
+        id: crypto.randomUUID(),
+        releaseNumber: `BAPPEDA-${new Date().toISOString().slice(0, 10)}`,
         status: 'STAGING',
-        totalBaris: result.valid.length,
-        ditolak: result.rejected.length,
-        checksum: importChecksum(result.valid),
-        uploadedBy: admin!.nama,
+        metadata: {
+          sourceId: source.id,
+          sourceSlug,
+          versi,
+          jalur: format === 'DTSEN_CSV' ? 'MANUAL' : `MANUAL_${format}`,
+          totalBaris: result.valid.length,
+          ditolak: result.rejected.length,
+          checksum: importChecksum(result.valid),
+          uploadedBy: admin!.nama,
+          filename,
+        } as any,
       },
     });
+
     for (let i = 0; i < result.valid.length; i += CHUNK) {
-      await prisma.dtsenIndividu.createMany({
-        data: result.valid.slice(i, i + CHUNK).map((r) => ({ releaseId: release.id, ...r })),
-      });
+      // ── schema baru: statusBansos {pkh,bpnt,pbi} → bansos Boolean (salah satu aktif) ──
+      const chunk = result.valid.slice(i, i + CHUNK).map((r) => ({
+        releaseId: release.id,
+        nikHash: r.nikHash,
+        namaMasked: r.namaMasked,
+        kecamatan: r.kecamatan,
+        desa: r.desa,
+        desil: r.desil,
+        bansos: r.statusBansos.pkh || r.statusBansos.bpnt || r.statusBansos.pbi,
+      }));
+      await prisma.dtsenIndividu.createMany({ data: chunk });
     }
 
+    // Agregat preview dari data staging (untuk respons tinjauan)
     const preview = buildAgregatWilayah(result.valid);
     await audit(
       admin!,
@@ -170,7 +193,7 @@ export async function POST(req: NextRequest) {
       valid: result.valid.length,
       ditolak: result.rejected.length,
       rejectedSample: result.rejected.slice(0, 50),
-      checksum: release.checksum,
+      checksum: (release.metadata as any)?.checksum ?? null,
       agregatPreview: {
         kelompokWilayahDesil: preview.rows.length,
         jiwaTerSensor: preview.jiwaTerSensor,

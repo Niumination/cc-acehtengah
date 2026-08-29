@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Pre-commit guard: blokir commit yang menyertakan PII di src/data/excel.
+# Hanya aktif bila ada berkas di bawah src/data/excel yang di-stage, agar commit
+# lain tetap cepat. Memanggil scripts/pii-gate.sh dengan ROOT=repo root
+# (skrip akan memindai $ROOT/src/data/excel).
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+SCRIPT="$ROOT/scripts/pii-gate.sh"
+
+# Lewati bila tidak ada perubahan pada src/data/excel.
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q '^src/data/excel/'; then
+  exit 0
+fi
+
+if [ ! -f "$SCRIPT" ]; then
+  echo "[pre-commit] scripts/pii-gate.sh tidak ditemukan; lewati guard PII."
+  exit 0
+fi
+
+echo "[pre-commit] memeriksa kebocoran PII di src/data/excel ..."
+if bash "$SCRIPT" "$ROOT"; then
+  echo "[pre-commit] OK: tidak ada kebocoran PII."
+  exit 0
+else
+  echo "[pre-commit] GAGAL: terdeteksi PII (NIK16/nama per-orang) di src/data/excel."
+  echo "[pre-commit] Batalkan pembersihan data, atau jalankan ulang ekstraksi agregat."
+  echo "[pre-commit] Untuk override darurat (TIDAK disarankan): git commit --no-verify"
+  exit 1
+fi

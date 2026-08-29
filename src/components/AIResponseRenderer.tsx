@@ -8,6 +8,8 @@ import type { TooltipContentProps } from 'recharts';
 import { HybridResponse } from '@/types';
 import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
 import ExecutiveAnswerRenderer from './ExecutiveAnswerRenderer';
+import BreakdownExplorer from './BreakdownExplorer';
+
 
 const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
@@ -28,6 +30,13 @@ export default function AIResponseRenderer({ response, onFollowUp }: Props) {
   const sdiPayload = visualisasi && visualisasi.tipe !== 'none' ? toAIDataPayload(response) : null;
   const useSdi = !!sdiPayload && sdiPayload.table.rows.length > 0;
 
+  // @hotfix 29-Agu-2026: tombol "Pecah Jawaban" muncul untuk jawaban berangka
+  // (metric/table) — eksplorasi deterministik tanpa LLM (hemat usage model AI).
+  // Deteksi program PBI otomatis dari narasi (chip PBI → metric "Penerima PBI").
+  const isDtsen = (response.dataSource ?? '').toLowerCase().includes('dtsen');
+  const programHint = /pbi|jaminan kesehatan|bantuan iuran|bantuan inisiatif/i.test(narasi ?? '') ? 'pbi' : null;
+  const showBreakdown = (isDtsen || programHint) && visualisasi && visualisasi.tipe !== 'none';
+
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Query Title */}
@@ -42,6 +51,12 @@ export default function AIResponseRenderer({ response, onFollowUp }: Props) {
           </p>
         </div>
       </div>
+
+      {/* Pecah Jawaban — @hotfix 29-Agu-2026: PALING ATAS (setelah judul),
+          eksplorasi deterministik tanpa LLM (hemat usage model AI). */}
+      {showBreakdown && (
+        <BreakdownExplorer sourceLabel={response.dataSource} program={programHint} />
+      )}
 
       {/* Dynamic Visualization — SDI widget for table, else metric/chart */}
       {useSdi && sdiPayload ? (
@@ -83,6 +98,24 @@ export default function AIResponseRenderer({ response, onFollowUp }: Props) {
   );
 }
 
+// ─── Format angka konsisten id-ID (ribuan pakai titik) ───
+// @hotfix 29-Agu-2026: angka dari seluruh sumber (SAPA/DTSEN/Bapokting/Excel)
+// ditampilkan konsisten "12.345" bukan "12345" — termasuk string numerik.
+function formatAngka(v: unknown): string {
+  if (v === null || v === undefined) return '-';
+  if (typeof v === 'number' && Number.isFinite(v)) return v.toLocaleString('id-ID');
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '' || t === '-' || t === '—') return t || '-';
+    // Sudah berformat id-ID ("12.345") atau punya koma/teks → biarkan
+    if (/[a-zA-Z(),]/.test(t) && !/^-?\d[\d.,]*$/.test(t)) return t;
+    const n = Number(t.replace(/\./g, '').replace(',', '.'));
+    if (Number.isFinite(n)) return n.toLocaleString('id-ID');
+    return t;
+  }
+  return String(v);
+}
+
 // ─── Metric Renderer ───
 interface MetricItem { label?: string; value?: string | number; unit?: string }
 
@@ -95,7 +128,7 @@ function MetricRenderer({ config }: { config: Record<string, unknown> }) {
       {metrics.map((m, i) => (
         <div key={i} className="bg-[#E9E6DA] rounded-xl p-4 text-center border border-[#C6C3B4]">
           <p className="text-[10px] text-[#767D6F] uppercase tracking-wider mb-1">{m.label}</p>
-          <p className="text-xl font-bold text-[#1B4332]">{m.value}</p>
+          <p className="text-xl font-bold text-[#1B4332]">{formatAngka(m.value)}</p>
           {m.unit && <p className="text-[10px] text-[#767D6F] mt-0.5">{m.unit}</p>}
         </div>
       ))}
@@ -133,16 +166,11 @@ function TableRenderer({ config }: { config: Record<string, unknown> }) {
         <tbody>
           {rawRows.map((row, i) => (
             <tr key={i} className="border-b border-[#C6C3B4] hover:bg-[#E9E6DA] transition-colors">
-              {colMeta.map((col, ci) => {
-                const cell = Array.isArray(row)
-                  ? (row[ci] ?? '-')
-                  : (row[col.key] ?? row[col.name] ?? '-');
-                return (
-                  <td key={col.key} className="py-2 px-3 text-[#4B5249]">
-                    {String(cell)}
-                  </td>
-                );
-              })}
+              {colMeta.map((col: any, ci: number) => (
+                <td key={col.key} className="py-2 px-3 text-[#4B5249]">
+                  {formatAngka(Array.isArray(row) ? (row[ci] ?? '-') : (row[col.key] ?? row[col.name] ?? '-'))}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -231,7 +259,7 @@ function ChartTooltip({ active, payload, label }: TooltipContentProps) {
       <p className="font-bold text-[#1B4332] mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color || p.fill }}>
-          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString() : p.value}
+          {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString('id-ID') : formatAngka(p.value)}
         </p>
       ))}
     </div>

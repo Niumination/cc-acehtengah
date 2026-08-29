@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       if (e instanceof Error && e.message.includes('AdminRole')) {
         await prisma.$executeRawUnsafe(`
           DO $$ BEGIN
-            CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'SUPERADMIN');
+            CREATE TYPE "AdminRole" AS ENUM ('ADMIN', 'SUPERADMIN', 'DTSEN_ANALYST', 'DTSEN_LOOKUP', 'DTSEN_ROOT');
           EXCEPTION
             WHEN duplicate_object THEN null;
           END $$;

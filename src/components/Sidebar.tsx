@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { LogoMark } from '@/components/brand/Logo';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA' },
-  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & analitik' },
-  { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta interaktif' },
-  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Brief & riwayat' },
-  { href: '/dashboard/admin/dtsen', label: 'Admin DTSEN', icon: '🔐', desc: 'Rilis data terbatas' },
+  { href: '/dashboard', label: 'Beranda', icon: '📊', desc: 'Overview SAPA', public: true },
+  { href: '/dashboard/analytics', label: 'Analitik', icon: '📈', desc: 'Tren & Analitik', public: true },
+  { href: '/dashboard/gis', label: 'Peta GIS', icon: '🗺️', desc: 'Peta Interaktif', public: true },
+  { href: '/dashboard/laporan', label: 'Laporan AI', icon: '📋', desc: 'Laporan & Riwayat', public: false },
+  { href: '/dashboard/status', label: 'Status Sumber', icon: '🗂️', desc: 'Sumber & relasi data', public: false },
+  { href: '/dashboard/admin/dtsen', label: 'Admin DTSEN', icon: '🔐', desc: 'Rilis data terbatas', public: false },
+  { href: '/dashboard/akun', label: 'Akun', icon: '👤', desc: 'Password & sesi', public: false },
 ];
 
 interface SidebarProps {
@@ -19,6 +22,18 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    // @hotfix 29-Agu-2026: publik hanya lihat Beranda/Analitik/GIS (public: true).
+    // Semua akun yang login melihat SEMUA halaman (termasuk Laporan/Status/Admin DTSEN/Akun).
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setIsAuthed(!!(d?.authenticated && d?.admin)))
+      .catch(() => setIsAuthed(false));
+  }, []);
+
+  const visibleItems = NAV_ITEMS.filter((item) => item.public || isAuthed);
 
   return (
     <aside
@@ -58,7 +73,7 @@ export default function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
         <p className={`mb-3 text-[9px] font-black uppercase tracking-[0.16em] text-[#809286] ${collapsed ? 'text-center' : 'px-3'}`}>
           {collapsed ? '•' : 'Ruang kendali'}
         </p>
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link

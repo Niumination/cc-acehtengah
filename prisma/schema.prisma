@@ -7,79 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Metadata SKPK/OPD ───
-model Skpd {
-  id        String   @id @default(cuid())
-  kode      String   @unique
-  nama      String
-  kategori  KategoriSkpd
-  alamat    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  datasets  Dataset[]
-}
-
-enum KategoriSkpd {
-  DINAS
-  BADAN
-  KANTOR
-  SEKRETARIAT
-  KECAMATAN
-  PUSKESMAS
-  LAINNYA
-}
-
-model Dataset {
-  id              String          @id @default(cuid())
-  skpdId          String
-  skpd            Skpd            @relation(fields: [skpdId], references: [id])
-  nama            String
-  slug            String          @unique
-  deskripsi       String?
-  schema          Json
-  endpointSplp    String?
-  refreshInterval Int?
-  isActive        Boolean         @default(true)
-  lastSync        DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  records         DatasetRecord[]
-  indicators      Indicator[]
-}
-
-model DatasetRecord {
-  id        String   @id @default(cuid())
-  datasetId String
-  dataset   Dataset  @relation(fields: [datasetId], references: [id])
-  data      Json
-  periode   String
-  checksum  String?
-  fetchedAt DateTime @default(now())
-}
-
-model Indicator {
-  id          String      @id @default(cuid())
-  datasetId   String
-  dataset     Dataset     @relation(fields: [datasetId], references: [id])
-  nama        String
-  satuan      String
-  threshold   Float?
-  direction   Direction   @default(STABLE)
-  isKunci     Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  alerts      EwsAlert[]
-
-  // PR Lapis 2: identitas katalog yang stabil untuk upsert (EWS menaut ke sini)
-  @@unique([datasetId, nama, satuan])
-}
-
-enum Direction {
-  UP_BAD
-  UP_GOOD
-  STABLE
-}
-
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model ChatSession {
   id         String   @id @default(cuid())
   userId     String?
@@ -88,73 +16,120 @@ model ChatSession {
   aiResponse Json?
   metadata   Json?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([intent])
 }
 
-// ─── Admin Auth ───
 model Admin {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String   // bcrypt hash
+  id        String    @id @default(dbgenerated("gen_random_uuid()"))
+  username  String    @unique
+  password  String
   nama      String
   role      AdminRole @default(ADMIN)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
+
+model EwsAlert {
+  id                 String             @id @default(cuid())
+  thresholdId        String
+  indicatorId        Int
+  nilaiAktual        Float
+  batas              Float
+  pesan              String
+  severity           Severity           @default(WARNING)
+  tahun              String?
+  resolvedAt         DateTime?
+  createdAt          DateTime           @default(now())
+  indicator          SapaIndicator      @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  IndicatorThreshold IndicatorThreshold @relation(fields: [thresholdId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([indicatorId])
+  @@index([resolvedAt, severity])
+}
+
+model IndicatorThreshold {
+  id            String            @id
+  indicatorId   Int
+  operator      ThresholdOperator
+  nilai         Float
+  severity      Severity          @default(WARNING)
+  pesan         String?
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @default(now())
+  EwsAlert      EwsAlert[]
+  SapaIndicator SapaIndicator     @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([indicatorId, operator, nilai])
+  @@index([isActive])
+}
+
+model SapaIndicator {
+  id                 Int                  @id
+  kode               String?
+  nama               String
+  satuan             String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @default(now())
+  alerts             EwsAlert[]
+  IndicatorThreshold IndicatorThreshold[]
+  SapaObservation    SapaObservation[]
+
+  @@index([nama])
+}
+
+model SapaObservation {
+  id            String        @id
+  indicatorId   Int
+  opdId         Int
+  tahun         String?
+  nilaiTeks     String
+  nilaiNumerik  Float?
+  satuan        String?
+  jadwal        String?
+  fetchedAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now())
+  SapaIndicator SapaIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  SapaOpd       SapaOpd       @relation(fields: [opdId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([indicatorId, opdId, tahun])
+  @@index([indicatorId, tahun])
+  @@index([opdId])
+}
+
+model SapaOpd {
+  id              Int               @id
+  nama            String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now())
+  SapaObservation SapaObservation[]
+
+  @@index([nama])
+}
+
+model SapaSyncRun {
+  id             String     @id
+  startedAt      DateTime   @default(now())
+  finishedAt     DateTime?
+  status         SyncStatus @default(RUNNING)
+  recordCount    Int        @default(0)
+  opdCount       Int        @default(0)
+  indicatorCount Int        @default(0)
+  alertsCreated  Int        @default(0)
+  durationMs     Int?
+  error          String?
+
+  @@index([startedAt])
 }
 
 enum AdminRole {
   ADMIN
   SUPERADMIN
-  // PR-4a (Lapis 3): klasifikasi hak akses DTSEN sesuai Permen Bappenas 7/2025
-  DTSEN_ANALYST  // query agregat DTSEN (desil per kecamatan/desa)
-  DTSEN_LOOKUP   // query individu by-NIK (eselon II/III, maks 4 akun aktif)
-}
-
-// ─── Data Warehouse SAPA (PR Lapis 2) ───
-// Snapshot append-only dari payload SAPA: satu baris SapaSnapshot per sinkronisasi
-// yang BERUBAH (checksum), plus satu baris SapaIndicatorValue per record.
-// Inilah fondasi tren historis, EWS, dan (Lapis 3) provenance multi-sumber.
-model SapaSnapshot {
-  id           String              @id @default(cuid())
-  origin       String // 'direct' | 'splp'
-  totalRecords Int
-  checksum     String
-  createdAt    DateTime            @default(now())
-  values       SapaIndicatorValue[]
-
-  @@index([createdAt])
-}
-
-model SapaIndicatorValue {
-  id                 String       @id @default(cuid())
-  snapshotId         String
-  snapshot           SapaSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  idKodeIndikator    Int
-  kodeIndikator      String?
-  indikator          String
-  opd                String
-  idOpd              Int
-  nilai              String
-  nilaiNumber        Float?
-  satuan             String
-  tahun              String?
-  tahunNumber        Int?
-  jadwalPemutakhiran String?
-
-  @@index([snapshotId])
-  @@index([idKodeIndikator, snapshotId])
-  @@index([opd])
-}
-
-model EwsAlert {
-  id          String   @id @default(cuid())
-  indicatorId String
-  indicator   Indicator @relation(fields: [indicatorId], references: [id])
-  nilaiAktual Float
-  threshold   Float
-  pesan       String
-  severity    Severity @default(WARNING)
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
+  DTSEN_ANALYST
+  DTSEN_LOOKUP
+  DTSEN_ROOT
 }
 
 enum Severity {
@@ -163,85 +138,92 @@ enum Severity {
   CRITICAL
 }
 
-// ─── Multi-Sumber & DTSEN (PR-4a: Fondasi Lapis 3) ───
-// Pemisahan fisik dari pipeline publik: tabel-tabel ini tidak pernah diimpor
-// modul pipeline /api/query — lihat DESAIN_LAPIS3_MULTISUMBER_DTSEN.md §4.
-// Registry sumber data. sensitivity mengendalikan gerbang akses (fail-closed).
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum ThresholdOperator {
+  GT
+  GTE
+  LT
+  LTE
+}
+
 model DataSource {
   id              String   @id @default(cuid())
   slug            String   @unique
   nama            String
-  sensitivity     String // 'PUBLIC' | 'RESTRICTED_AGGR' | 'RESTRICTED_PERSONAL'
-  provenanceLabel String // tampil di jawaban: "DTSEN v2.0 Apr 2026 via Portal SDI"
+  sensitivity     String   @default("PUBLIC")
+  provenanceLabel String?
   ownerInstansi   String?
-  isActive        Boolean  @default(true)
-  config          Json?
-  lastSync        DateTime?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
-// Rilis DTSEN (append-only): satu rilis tidak pernah menimpa rilis lain.
 model DtsenRelease {
-  id          String    @id @default(cuid())
-  sourceId    String
-  versi       String // 'v2.0-2026-04'
-  wilayahIso  String    @default("11.03") // kode Kab. Aceh Tengah
-  jalur       String // 'API' | 'MANUAL'
-  status      String    @default("STAGING") // 'STAGING' | 'PUBLISHED' | 'SUPERSEDED'
-  totalBaris  Int       @default(0)
-  ditolak     Int       @default(0) // baris gagal validasi impor
-  checksum    String? // sha256 kanonik (pola warehouse SAPA)
-  uploadedBy  String?
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
+  id            String    @id
+  releaseNumber String
+  status        String    @default("STAGING")
+  metadata      Json?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  @@index([status, createdAt])
+  individu      DtsenIndividu[]
+  aggregat      DtsenAgregatWilayah[]
 }
 
-// Data individu (by-name) — TABEL PALING SENSITIF di sistem.
-// Minimasi (UU PDP): NIK disimpan HMAC hash, nama ter-mask sejak ingesti;
-// alamat lengkap, tanggal lahir, no KK mentah, kondisi kesehatan TIDAK disimpan.
 model DtsenIndividu {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   releaseId    String
-  nikHash      String // HMAC-SHA256(NIK, env DTSEN_NIK_KEY) — NIK mentah tak pernah disimpan
-  namaMasked   String // "S*****a" sejak ingesti
-  keluargaId   String?
-  kecamatan    String
-  desa         String
-  desil        Int? // 1..10
-  statusBansos Json? // { pkh, bpnt, pbi }
+  nikHash      String
+  // @hotfix 29-Agu-2026: nama asli & NIK lengkap disimpan TERENKRIPSI (AES-256-GCM)
+  // dengan DTSEN_DATA_KEY — hanya role DTSEN_ROOT yang bisa mendekripsi.
+  // Role lain tetap memakai namaMasked (nama pribadi tidak pernah plaintext).
+  namaAsliEnc  String?
+  nikEnc       String?
+  namaMasked   String
+  kecamatan    String?
+  desa         String?
+  desil        Int?
+  bansos       Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
-  @@index([releaseId, kecamatan, desa])
+  release      DtsenRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
   @@index([releaseId, nikHash])
 }
 
-// Agregat siap-saji per wilayah — dihitung saat publish rilis; K_MIN (5):
-// kelompok < 5 jiwa tidak pernah dibuat barisnya (k-anonymity).
 model DtsenAgregatWilayah {
-  id              String @id @default(cuid())
-  releaseId       String
-  kecamatan       String
-  desa            String
-  desil           Int
-  jumlahJiwa      Int
-  jumlahKeluarga  Int
+  id               String   @id @default(cuid())
+  releaseId        String
+  kecamatan        String?
+  desa             String?
+  desil            Int?
+  jiwa             Int?
+  kk               Int?
+  pkh              Int?
+  bpnt             Int?
+  pbi_kredit       Int?
+  pbi_nonkredit    Int?
+  createdAt        DateTime @default(now())
 
-  @@unique([releaseId, kecamatan, desa, desil])
+  release          DtsenRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
   @@index([releaseId, kecamatan])
 }
 
-// Audit akses data restricted — append-only, wajib (akuntabilitas UU PDP).
 model DataAccessAudit {
-  id        String   @id @default(cuid())
-  adminId   String
-  adminNama String
-  aksi      String // 'QUERY_DTSEN' | 'LOOKUP_NIK' | 'IMPORT' | 'PUBLISH' | '..._DITOLAK'
-  detail    String // teks query/ringkasan target (BUKAN data hasil)
-  rowCount  Int      @default(0)
-  ip        String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  adminId    String?
+  action     String
+  detail     String   @default("")
+  rowCount   Int      @default(0)
+  ip         String?
+  createdAt  DateTime @default(now())
 
-  @@index([adminId, createdAt])
-  @@index([createdAt])
+  @@index([adminId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }

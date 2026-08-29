@@ -4,7 +4,8 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 23, 2026 — PR-4b: jalur impor manual DTSEN (CSV→validasi→staging→publish atomik, purge rilis lama, UI admin `/dashboard/admin/dtsen`, env DTSEN_NIK_KEY); sebelumnya PR-4a fondasi, PR-3 Laporan Eksekutif, PR Lapis 0–2
+> **Last update:** Aug 29, 2026 — **Role `DTSEN_ROOT` (otoritas tertinggi) + identitas lengkap BNBA**: SUPERADMIN melihat nama termask; `DTSEN_ROOT` (akun `dtsen_root`) melihat **nama asli + NIK lengkap terdekripsi** di breakdown per-orang. Nama asli & NIK disimpan **terenkripsi AES-256-GCM** (`namaAsliEnc`/`nikEnc`, key `DTSEN_DATA_KEY` 43-char, Vercel + .env.local) — tidak pernah plaintext. Tombol **🔐 Login** muncul di blocker BNBA (publik → login → lanjut pecah jawaban). Tombol "Pecah Jawaban" di PALING ATAS output AI (mindmap ala NotebookLM: kabupaten → kecamatan → desa → desil → BNBA). `DTSEN_ROOT` = role tertinggi (di atas SUPERADMIN).
+> **Deploy state:** PROD = `4f95617` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
@@ -21,7 +22,10 @@
 
 ```
 SAPA ──[SPLP API]──→ AI Middleware ──→ Dashboard CC
-DTSEN ─[publish]────┘ (gabungan evidence: SAPA + agregat DTSEN publik)
+DTSEN ─[SPLP API +]─
+BAPOKTING ─[SPLP API]─
+EXCEL (STUNTING/KOMINFO/DTSEN_CSV) ─[import manual]─
+DOKUMEN A/B/C (agregat Excel bebas-PII) ─[src/data/excel]─
 (Data Sources)     (Query Planner + Provenance + Sensor k-anon)
                           │
                           ├── ChatSession DB (auto-log)
@@ -44,7 +48,8 @@ DTSEN ─[publish]────┘ (gabungan evidence: SAPA + agregat DTSEN publi
 | Fitur | Status | Endpoint |
 |-------|:------:|----------|
 | Dashboard utama | ✅ | `/dashboard` |
-| **AI Smart Query** | ✅ | `POST /api/query` — SAPA + DTSEN agregat publik (one door, provenance tracked)
+| **AI Smart Query** | ✅ | `POST /api/query` — SAPA + DTSEN (SPLP API langsung) + Bapokting + Excel (one door, provenance tracked)
+| **Sumber Dokumen A/B/C (Excel)** | ✅ | Agregat 6 berkas Excel pemberdayaan sosial (Dinas Pendidikan / Dinas Kesehatan / Diskominfo) — deterministic, bebas PII, `src/data/excel` + `excel-doc-query.ts` |
 | Analitik SAPA | ✅ | `/dashboard/analytics` |
 | Peta GIS | ✅ | `/dashboard/gis` |
 | **Laporan Eksekutif (Auth)** | ✅ | `/dashboard/laporan` — generator naratif deterministik (bukan lagi sekadar log viewer) + `/api/report` |
@@ -54,7 +59,8 @@ DTSEN ─[publish]────┘ (gabungan evidence: SAPA + agregat DTSEN publi
 | **Sinkronisasi Warehouse** | ✅ | `/api/cron/sync-sapa` (Vercel Cron harian) |
 | **Fondasi DTSEN (role-gated)** | ✅ | `POST /api/dtsen/query` — 401/403 fail-closed + audit (data via PR-4b/4d) |
 | **Impor Manual DTSEN Multi-Sumber (role-gated)** | ✅ | `/dashboard/admin/dtsen` + `POST /api/dtsen/import?format=DTSEN_CSV|STUNTING_XLSX|KOMINFO_XLSX`, `release/[id]/publish` |
-| **DTSEN SPLP API Source** | ✅ | `GET /api/dtsen/source` — fetch agregat DTSEN langsung dari api-splp.layanan.go.id |
+| **DTSEN SPLP API Source** | ✅ | `GET /api/dtsen/source` — fetch agregat DTSEN langsung dari api-splp.layanan.go.id (AuthorizationSPLP) |
+| **Bapokting Harga Komoditas** | ✅ | `GET /api/bapokting` — fetch harga beras/komoditas dari SPLP API (AuthorizationSPLP) |
 | Admin Login | ✅ | `/login` |
 | Health Check | ✅ | `/api/health` |
 
@@ -196,13 +202,14 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 | Variable | Contoh | Catatan |
 |----------|--------|---------|
 | `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
-| `AI_BASE_URL` | `https://opencode.ai/zen/v1` | OpenAI-compatible |
-| `AI_API_KEY` | `sk-...` | |
-| `AI_MODEL` | `x-preview-f-free` | Dipakai PERSIS dari env; default `x-preview-f-free` jika kosong (tidak ada pemetaan tersembunyi) |
+| `AI_BASE_URL` | `https://api.hcnsec.cn/v1` | OpenAI-compatible — **huancheng** (sejak 28 Agu 2026; sebelumnya `opencode.ai/zen/v1` yang sering 502) |
+| `AI_API_KEY` | `sk-...` | `HUANCHENG_API_KEY` — key huancheng |
+| `AI_MODEL` | `auto` | Dipakai PERSIS dari env; produksi berjalan `auto` (resolve → `agnes-2.5-flash`). Model alternatif yang bisa dipin (kimi-k3, MiniMax-M3, dll) rata-rata 429/timeout — `auto` paling stabil. Ubah via env Vercel + redeploy. |
 | `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
 | `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
 | `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
 | `DTSEN_NIK_KEY` | random string ≥16 | Kunci HMAC NIK jalur DTSEN; tanpa ini impor menolak (409) |
+| `SPLP_API_KEY` | JWT token string | Token Bearer untuk ACCES `AuthorizationSPLP` ke api-splp.layanan.go.id (DTSEN + Bapokting)
 
 ### Catatan Real-World Data Handling (PR-4c+ patch)
 
@@ -218,28 +225,105 @@ Parser multi-sumber (`src/services/dtsen-multisource.ts`) sudah divalidasi melaw
 | Desil kosong/null | Di-set ke 1 + warning |
 | Baris kosong di Excel (header offset, blank rows) | Dihandle oleh frontend parser sebelum kirim JSON ke API |
 
-### Integrasi DTSEN Multi-Source ke AI System (Aug 24, 2026)
+### Integrasi DTSEN & Bapokting Multi-Sumber ke AI System (Aug 24–27, 2026)
 
-AI Smart Query (`POST /api/query`) kini menggabungkan data DTSEN agregat publik ke dalam evidence, sehingga pertanyaan tentang desil, bansos, dan pembagian wilayah menjawab berdasarkan **gabungan SAPA + DTSEN** — bukan hanya SAPA.
+AI Smart Query (`POST /api/query`) kini menggabungkan keempat sumber data ke dalam evidence secara transparan, sehingga pertanyaan menjawab berdasarkan **gabungan SAPA + DTSEN + Bapokting + Dokumen A/B/C** — bukan hanya SAPA.
+
+**Keempat sumber data:**
+1. **SAPA** — statistik pemerintahan melalui SPLP API (warehouse Supabase, kena cache 10 mnt)
+2. **DTSEN** — agregat kemiskinan (desil, Bansos PKH/BPNT/PBI) langsung dari `api-splp.layanan.go.id/dtsen-aceh-tengah` (AuthorizationSPLP Bearer token) — _bypass DB kosong pada branch hotfix_
+3. **Bapokting** — harga beras dan komoditas pangan dari `api-splp.layanan.go.id/bahan-pokok-penting` (AuthorizationSPLP)
+4. **Dokumen A/B/C** — agregat Excel bebas-PII (Dinas Pendidikan / Dinas Kesehatan / Diskominfo) di `src/data/excel`, dijawab deterministik via `excel-doc-query.ts`
+
+**Multi-Source Fusion (baru, `a8a6dc4`):**
+Saat topik yang SAMA muncul di Dokumen A/B/C **dan** di evidence SAPA/DTSEN, `buildFusedMultiSourceResponse()` menggabungkan keduanya jadi **SATU** `HybridResponse` deterministik (tanpa LLM):
+- Narasi menyatukan sumber ("Berdasarkan penggabungan beberapa sumber resmi…"); tabel otoritatif diambil dari Dokumen (format sumber); `dataSource` = `"Dokumen B — Dinas Kesehatan + SAPA Aceh Tengah"`.
+- Gate `isTopicAligned()`: fusi hanya terjadi bila indikator SAPA menyebut topik spesifik dokumen (`stunting`, `ppks`, `bansos`, dst.), **bukan** kecocokan OPD umum — agar santri/mahasiswa tetap dokumen-sendiri.
+- Diutamakan jalur Dokumen: bila `matchedDoc` terdeteksi, query bertopik Dokumen dijawab deterministik dari Dokumen (fused bila se-topik, doc-only bila tidak) **sebelum** jatuh ke jalur SAPA/LLM yang rapuh (`buildContext` DTSEN). Lihat `src/services/ai-orchestrator.ts` (`processAIQuery` + `processAIQueryStreaming`).
+- `grounding` di metadata: `'excel-doc'` (doc-only) atau `'multi-source-fusion'` (gabung).
 
 **Logika pipeline (di `src/services/ai-orchestrator.ts`):**
 
 1. **NIK / per-orang** → defleksi ke konsol DTSEN terbatas (privacy, audit trail, UU 27/2022)
 2. **DTSEN agregat** (desil, bansos, pembagian wilayah) →
-   - Fetch agregat publik via `fetchDtsenAgregatPublik()` (k≥5 sudah disensor saat publish)
-   - Evidence DTSEN digabung ke evidence SAPA → dikirim ke LLM
-   - Narasi WAJIB menyertakan provenance: "Menurut DTSEN (Kemensos/BPS)…"
-3. **DTSEN literal** (kata kunci tanpa konteks agregat) → defleksi dengan rekomendasi agregat
+   - Fetch langsung via `fetchDtsenFromSplp()` (token JWT SPLP) — _prioritas utama_
+   - Fallback ke `fetchDtsenAgregatPublik()` (DB Prisma warehouse) jika SPLP gagal
+   - Evidence DTSEN digabung ke evidence SAPA+Bapokting → dikirim ke LLM
+   - Narasi WAJIB menyertakan provenance: "Menurut DTSEN (Kemensos/BPS via SPLP API)…"
+3. **Bapokting** (kata kunci harga/beras/komoditas) →
+   - Fetch via `fetchDtsenFromSplp()` dengan parameter harga
+   - Evidence ditandai `opd: "Bapokting Aceh Tengah (SPLP API)"`
+4. **DTSEN literal** (kata kunci tanpa konteks agregat) → defleksi dengan rekomendasi agregat
+5. **Excel offline** → hanya tersedia di narasi admin role-gated (bukan via chat publik)
 
 **Data flow:**
 ```
 /api/query → buildContext()
   ├── SAPA retrieval (existing)
-  └── DTSEN integration (baru):
-       planDtsenQuery → fetchDtsenAgregatPublik()
-       → evidence DTSEN (desil, bansos, wilayah)
-       → provenance label → system prompt + dataForLLM
-  → Evidence gabungan (SAPA + DTSEN) → LLM → grounding SoT → response
+  ├── DTSEN integration (baru):
+  │    planDtsenQuery → fetchDtsenFromSplp() → SPLP API (live)
+  │    → fallback fetchDtsenAgregatPublik() → DB warehouse
+  │    → evidence DTSEN (desil, bansos, wilayah)
+  │    → provenance label → system prompt + dataForLLM
+  ├── Bapokting integration (baru):
+  │    planDtsenQuery → fetchBapoktingFromSplp()
+  │    → evidence harga (beras, komoditas)
+  │    → provenance label → system prompt + dataForLLM
+  └── Excel offline (role-gated admin):
+       planDtsenQuery → fetchDtsenExcelData()
+       → evidence DTSEN eksternal (hanya untuk admin)
+
+→ Evidence gabungan (SAPA + DTSEN + Bapokting) → LLM → grounding SoT → response
 ```
 
-**Provenance tracking:** setiap evidence DTSEN dilabeli `opd="DTSEN (Kemensos/BPS)"`, `id="dtsen:..."`, dan `dataOrigin: 'dtsen'` di metadata.
+**Provenance tracking:** setiap evidence dilabeli `opd` sesuai sumber, `id` unik, dan `dataOrigin` di metadata:
+- DTSEN: `opd="DTSEN (Kemensos/BPS via SPLP API)"`, `id="dtsen:..."`, `dataOrigin: 'dtsen'`
+- Bapokting: `opd="Bapokting Aceh Tengah (SPLP API)"`, `id="bapokting:..."`, `dataOrigin: 'bapokting'`
+- SAPA: `opd="SAPA"`, `id="sapa:..."`, `dataOrigin: 'sapa'`
+
+### Hotfix LLM Reliability (Aug 26, 2026 — `7c342e7`, live)
+
+Investigasi produksi menemukan 3 masalah di live Vercel; semua diperbaiki di `src/services/llm-client.ts` + `src/services/ai-orchestrator.ts`:
+
+| Masalah | Akar masalah | Fix |
+|---------|--------------|-----|
+| Jawaban AI jatuh ke template, rekomendasi selalu kosong | Model reasoning (`x-preview-f-free`) memakai ratusan token `reasoning_content` sebelum `content`; `max_tokens: 800` membuat JSON terpotong (finish=length) | `max_tokens` **2500** di `callLLM` & `streamLLM` (eksperimen: payload tabel gagal @800, utuh @2500 ~38s < timeout 60s) |
+| Provider 503 intermiten (~1/3 request; pernah 4x berturut-turut saat outage Aug 26) | Retry lama hanya 1x @500ms | Retry **3x backoff eksponensial** 500ms→1500ms utk 5xx + network error, sebelum chunk pertama (idempotent-safe) |
+| Error mentah bocor ke user ("AI API error 503 {…}") | `err.message` disisipkan langsung ke narasi fallback | Pesan ramah generik ke user; detail lengkap hanya `console.error` server |
+
+**Fallback model saat outage:** katalog provider berisi alternatif gratis yang teruji —
+`huancheng auto` (PRIMARY, resolve `agnes-2.5-flash`, JSON utuh, 3.6–4.5s, streaming TTFB 1.8s),
+`nemotron-3-ultra-free` (opencode, ~36s, sering 502 Nvidia), `laguna-s-2.1-free` (opencode, 11.5s, 503 intermiten).
+Cukup ubah env Vercel `AI_BASE_URL` + `AI_MODEL` + `AI_API_KEY` + redeploy; tidak perlu deploy kode.
+
+> ⚠️ **Catatan 28 Agu 2026 — konsistensi `auto`:** `auto` di huancheng resolve ke model
+> routing sisi provider (kini `agnes-2.5-flash`) dan TIDAK bisa dipin langsung (model_not_found).
+> Jika huancheng mengganti routing, gaya narasi bisa berubah — tetapi format/kejujuran output
+> tetap konsisten berkat lapisan pengaman pipeline: `extractJsonObject` (parse robust),
+> `sanitizeParsed` (buang placeholder), `groundOutput` (angka wajib dari evidence),
+> `buildVizFromEvidence` (visualisasi deterministik).
+
+> ⚠️ **Catatan 28 Agu 2026 — SPLP DTSEN API masih 401:** key `SPLP_API_KEY` (JWT) di Vercel
+> dan lokal sama-sama ditolak (`Invalid Credentials`). Jawaban DTSEN yang tampil di live saat
+> ini berasal dari **data demo** (`fetchDtsenDemoData`, label jujur `DTSEN (data demo — simulasi)`).
+> Untuk live DTSEN asli: butuh JWT baru dari tim SPLP → ganti env Vercel → label otomatis
+> `DTSEN (Kemensos/BPS via SPLP API)`.
+
+> ✅ **UPDATE 29 Agu 2026 — Sumber DTSEN OFFLINE BAPPEDA AKTIF:** API SPLP masih 401, tapi
+> live kini menjawab dari **agregat resmi BAPPEDA** (DTSEN Versi 4 Des 2025 — export 18/02/2026,
+> 71.370 KK / 234.740 jiwa, 14 kecamatan / 295 desa) — data SAMA dengan API DTSEN.
+> - Raw CSV ber-PII (NIK/nama/alamat): `data/dtsen-raw/` — **git-ignored, JANGAN commit (UU PDP)**.
+> - Agregat bebas-PII: `src/data/dtsen-agregat-bappeda.json` (di-commit).
+> - Urutan sumber: SPLP API → `fetchDtsenAgregatBappeda` → DB → demo.
+> - Query DTSEN murni (desil/dtsen/bpnt/pbi) → jalur deterministik `isPureDtsenQuery`
+>   (jawab langsung dari `dtsenNarasi`, tanpa LLM — mencegah LLM memilih evidence SAPA
+>   yang tidak relevan). Label: `DTSEN (BAPPEDA Des 2025 — offline)`.
+> - Saat JWT SPLP valid nanti, SPLP otomatis menang (urutan pertama) tanpa perubahan kode.
+
+**Rollback darurat UI** tetap: env `NEXT_PUBLIC_AI_EXECUTIVE_UI=false` → redeploy.
+Kompatibilitas: cherry-pick `7c342e7` ke atas v3 teruji tanpa konflik (test gabungan 218/218).
+
+**Follow-up (`dab2da1`):** event SSE `narasi` terbukti mengirim snapshot kumulatif
+yang sama hingga 257x per query (~180KB terbuang) setelah field JSON tertutup —
+kini di-guard agar hanya terkirim saat snapshot berubah. Tidak berdampak ke tampilan
+(frontend menimpa state), murni efisiensi bandwidth.

@@ -1,5 +1,6 @@
 // ─── GET /api/dtsen/releases — daftar rilis (ringkasan saja, tanpa individu) ───
 // Role: RESTRICTED_AGGR ke atas. Tidak ada data pribadi di sini — hanya metadata.
+// @hotfix 29-Agu-2026: schema baru — versi/jalur/totalBaris di metadata JSON.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -27,12 +28,28 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: {
-        id: true, versi: true, jalur: true, status: true,
-        totalBaris: true, ditolak: true, uploadedBy: true,
-        publishedAt: true, createdAt: true, checksum: true,
+        id: true, releaseNumber: true, status: true,
+        publishedAt: true, createdAt: true, metadata: true,
       },
     });
-    return NextResponse.json({ releases });
+    // Flat-kan metadata agar frontend lama (versi/jalur/totalBaris/ditolak/uploadedBy/checksum) tetap berfungsi.
+    const flat = releases.map((r) => {
+      const md = (r.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id,
+        versi: md.versi ?? 'manual',
+        jalur: md.jalur ?? 'MANUAL',
+        status: r.status,
+        totalBaris: md.totalBaris ?? 0,
+        ditolak: md.ditolak ?? 0,
+        uploadedBy: md.uploadedBy ?? null,
+        publishedAt: r.publishedAt,
+        createdAt: r.createdAt,
+        checksum: md.checksum ?? null,
+        releaseNumber: r.releaseNumber,
+      };
+    });
+    return NextResponse.json({ releases: flat });
   } catch (err) {
     console.error('[dtsen/releases] gagal:', err);
     return NextResponse.json(
