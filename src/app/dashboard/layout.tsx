@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Executive shell header: light canvas, dark brand retained as an accent. */}
-        <header className="z-20 flex h-[68px] flex-shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface-card)]/95 px-4 backdrop-blur-md md:px-7 print:hidden">
+        <header className="z-20 flex h-[68px] flex-shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface-card)] px-4 md:px-7 print:hidden">
           <div className="flex min-w-0 items-center gap-3">
             <div className="md:hidden"><LogoMark size={34} className="rounded-xl" /></div>
             <div className="min-w-0">
@@ -62,17 +62,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Connection Status */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2D6A4F]/30 border border-[#2D6A4F]/50">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--brand-tint)] border border-[var(--border)]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#52B788] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#52B788]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-soft)] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-soft)]" />
               </span>
-              <span className="text-[11px] font-medium text-[#52B788]">Online</span>
+              <span className="text-[11px] font-medium text-[var(--brand)]">Online</span>
             </div>
 
             {/* SAPA Badge */}
-            <div className="px-3 py-1.5 rounded-full bg-[#D9C284]/15 border border-[#D9C284]/30">
-              <span className="text-[11px] font-medium text-[#D9C284]">
+            <div className="px-3 py-1.5 rounded-full bg-[var(--accent-tint)] border border-[var(--accent)]">
+              <span className="text-[11px] font-medium text-[var(--accent)]">
                 📡 SAPA Connected
               </span>
             </div>
@@ -80,7 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Akun & Logout — @hotfix 29-Agu: hanya tampil saat SESI AKTIF.
                 Publik (belum login) melihat tombol LOGIN sebagai gantinya. */}
             {isAuthed ? (
-              <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
+              <div className="flex items-center gap-2 border-l border-[var(--border)] pl-3">
                 {adminName && (
                   <span className="hidden lg:inline text-[11px] font-medium text-[#C6C3B4] max-w-[110px] truncate" title={adminName}>
                     👤 {adminName}
@@ -89,10 +89,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <a
                   href="/dashboard/akun"
                   title="Pengaturan akun"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-tint)] hover:brightness-95 border border-[var(--border)] transition-colors"
                 >
                   <span className="text-sm">👤</span>
-                  <span className="text-[11px] font-medium text-[#52B788]">Akun</span>
+                  <span className="text-[11px] font-medium text-[var(--brand)]">Akun</span>
                 </a>
                 <button
                   onClick={async () => {
@@ -102,20 +102,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     window.location.href = '/dashboard';
                   }}
                   title="Keluar"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--danger-tint)] hover:brightness-95 border border-[var(--danger)] transition-colors"
                 >
                   <span className="text-sm">🚪</span>
-                  <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
+                  <span className="text-[11px] font-medium text-[var(--danger)]">Logout</span>
                 </button>
               </div>
             ) : (
               <a
                 href="/login"
                 title="Masuk sebagai admin"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
-              >
-                <span className="text-sm">🔐</span>
-                <span className="text-[11px] font-medium text-[#52B788]">Login</span>
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-tint)] hover:brightness-95 border border-[var(--border)] transition-colors"
+                >
+                  <span className="text-sm">🔐</span>
+                <span className="text-[11px] font-medium text-[var(--brand)]">Login</span>
               </a>
             )}
           </div>
