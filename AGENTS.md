@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 29, 2026 — **Routes DTSEN restored + data BAPPEDA live di DB** (`4f95617`): 5 route DTSEN (import/query/releases/publish) diaktifkan ulang (sebelumnya .bak sejak `1c5809d`) disesuaikan schema DB aktual. **222.655 individu** (NIK HMAC + nama masked) + 2.060 kelompok agregat ter-import & PUBLISHED (`BAPPEDA-DES-2025`). Lookup NIK by role DTSEN_LOOKUP **berfungsi live** (audit trail tercatat). Chip DTSEN diperbarui (desil 1, sebaran desil, PBI, desil per kecamatan). `DTSEN_NIK_KEY` baru (32 char, Vercel + lokal, konsisten).
+> **Last update:** Aug 29, 2026 — **Role `DTSEN_ROOT` (otoritas tertinggi) + identitas lengkap BNBA**: SUPERADMIN melihat nama termask; `DTSEN_ROOT` (akun `dtsen_root`) melihat **nama asli + NIK lengkap terdekripsi** di breakdown per-orang. Nama asli & NIK disimpan **terenkripsi AES-256-GCM** (`namaAsliEnc`/`nikEnc`, key `DTSEN_DATA_KEY` 43-char, Vercel + .env.local) — tidak pernah plaintext. Tombol **🔐 Login** muncul di blocker BNBA (publik → login → lanjut pecah jawaban). Tombol "Pecah Jawaban" di PALING ATAS output AI (mindmap ala NotebookLM: kabupaten → kecamatan → desa → desil → BNBA). `DTSEN_ROOT` = role tertinggi (di atas SUPERADMIN).
 > **Deploy state:** PROD = `4f95617` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
 > **Backlog priority:** P2
 
