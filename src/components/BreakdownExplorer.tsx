@@ -15,9 +15,10 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
   const [rows, setRows] = useState<{ nama: string; nilai?: number; jiwa?: number; keluarga?: number }[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   // ── Level per-orang (ByNameByAddress) — hanya role DTSEN ──
-  const [individu, setIndividu] = useState<{ nama: string; desil?: number | null; bansos?: boolean }[] | null>(null);
+  const [individu, setIndividu] = useState<{ nama: string; nik?: string | null; desil?: number | null; bansos?: boolean }[] | null>(null);
   const [individuLoading, setIndividuLoading] = useState(false);
   const [individuError, setIndividuError] = useState('');
+  const [fullIdentitas, setFullIdentitas] = useState(false);
 
   const scopeFor = (p: { nama: string; scope: string }[]) => {
     if (p.length === 1) return 'kecamatan';
@@ -71,6 +72,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error ?? 'Gagal memuat daftar per-orang.');
       setIndividu(d.rows ?? []);
+      setFullIdentitas(!!d.fullIdentitas);
     } catch (e: any) {
       setIndividuError(e.message ?? 'Gagal memuat daftar per-orang.');
     } finally {
@@ -196,23 +198,36 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
 
               {individuLoading && <p className="text-[11px] text-[#767D6F] italic mt-2">Memuat daftar per-orang…</p>}
               {individuError && (
-                <p className="text-[11px] text-[#B3261E] mt-2">
-                  🔒 {individuError}
-                </p>
+                <div className="mt-2 rounded-xl border border-[#B3261E]/30 bg-[#FDE8E8]/60 p-3">
+                  <p className="text-[11px] text-[#B3261E]">🔒 {individuError}</p>
+                  {/* @hotfix 29-Agu-2026: tombol Login — user berakun bisa langsung
+                      login dan melanjutkan pecah jawaban (kembali ke dashboard). */}
+                  <a
+                    href="/login?from=%2Fdashboard"
+                    className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 rounded-lg bg-[#1B4332] text-white text-[11px] font-bold hover:bg-[#2D6A4F] transition-colors"
+                  >
+                    🔐 Login untuk melanjutkan
+                  </a>
+                </div>
               )}
 
               {individu && (
                 <div className="mt-2 bg-white border border-[#C6C3B4] rounded-xl p-3 max-h-[300px] overflow-y-auto">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                     <p className="text-[10px] font-bold text-[#1B4332]">
                       Daftar penerima — {path[1]?.nama} / {path[2]?.nama} ({individu.length} orang)
                     </p>
-                    <span className="text-[9px] text-[#767D6F] italic">nama termask · akses tercatat di audit trail</span>
+                    <span className="text-[9px] text-[#767D6F] italic">
+                      {fullIdentitas
+                        ? '✔ identitas LENGKAP (role DTSEN_ROOT) · akses tercatat di audit trail'
+                        : 'nama termask · akses tercatat di audit trail'}
+                    </span>
                   </div>
                   <table className="w-full text-[11px]">
                     <thead>
                       <tr className="border-b border-[#C6C3B4] text-left text-[#767D6F]">
                         <th className="py-1.5 pr-3 font-semibold">Nama</th>
+                        {fullIdentitas && <th className="py-1.5 pr-3 font-semibold">NIK</th>}
                         <th className="py-1.5 pr-3 font-semibold">Desil</th>
                         <th className="py-1.5 font-semibold">PBI</th>
                       </tr>
@@ -221,6 +236,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
                       {individu.map((p, i) => (
                         <tr key={i} className="border-b border-[#E9E6DA] last:border-0">
                           <td className="py-1.5 pr-3 font-medium text-[#1E2420]">{p.nama}</td>
+                          {fullIdentitas && <td className="py-1.5 pr-3 font-mono text-[#4B5249]">{p.nik ?? '-'}</td>}
                           <td className="py-1.5 pr-3 text-[#4B5249]">{p.desil ?? '-'}</td>
                           <td className="py-1.5 text-[#4B5249]">{p.bansos ? '✅' : '—'}</td>
                         </tr>

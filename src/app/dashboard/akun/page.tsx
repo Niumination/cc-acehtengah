@@ -64,6 +64,7 @@ export default function AkunPage() {
     SUPERADMIN: 'Super Admin',
     DTSEN_ANALYST: 'Analis DTSEN',
     DTSEN_LOOKUP: 'Operator DTSEN (lookup NIK)',
+    DTSEN_ROOT: 'Root DTSEN (identitas lengkap)',
   };
 
   return (

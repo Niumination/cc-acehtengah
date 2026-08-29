@@ -12,8 +12,8 @@ import type { AdminPayload } from '@/lib/auth';
 export type DataSensitivity = 'PUBLIC' | 'RESTRICTED_AGGR' | 'RESTRICTED_PERSONAL';
 
 /** Role yang memenuhi syarat per tingkat sensitivitas (SUPERADMIN selalu boleh). */
-export const ROLES_AGGR = ['DTSEN_ANALYST', 'DTSEN_LOOKUP', 'SUPERADMIN'] as const;
-export const ROLES_PERSONAL = ['DTSEN_LOOKUP', 'SUPERADMIN'] as const;
+export const ROLES_AGGR = ['DTSEN_ANALYST', 'DTSEN_LOOKUP', 'SUPERADMIN', 'DTSEN_ROOT'] as const;
+export const ROLES_PERSONAL = ['DTSEN_LOOKUP', 'SUPERADMIN', 'DTSEN_ROOT'] as const;
 
 export function requiredRolesFor(sensitivity: DataSensitivity): readonly string[] | null {
   if (sensitivity === 'PUBLIC') return null; // tanpa sesi pun boleh
