@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminFromRequest } from '@/lib/auth';
 import { decideDataAccess, buildAuditEntry } from '@/lib/data-gate';
+import { decryptField, canSeeFullIdentitas } from '@/lib/dtsen-crypto';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { namaMasked: 'asc' },
         take: 200,
-        select: { namaMasked: true, kecamatan: true, desa: true, desil: true, bansos: true },
+        select: { namaMasked: true, namaAsliEnc: true, nikEnc: true, kecamatan: true, desa: true, desil: true, bansos: true },
       });
       // Audit wajib (UU 27/2022) — akses per-orang dicatat.
       const entry = buildAuditEntry({
@@ -80,12 +81,26 @@ export async function GET(req: NextRequest) {
       await prisma.dataAccessAudit
         .create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } })
         .catch((e) => console.error('[dtsen/breakdown] audit gagal:', e));
+      // @hotfix 29-Agu-2026: DTSEN_ROOT = otoritas TERTINGGI — dapat identitas
+      // LENGKAP (nama asli + NIK terdekripsi, tanpa sensor). Role lain tetap
+      // nama termask (UU 27/2022).
+      const full = canSeeFullIdentitas(admin?.role);
       return NextResponse.json({
         ok: true,
         scope: 'individu',
+        fullIdentitas: full,
         release: { releaseNumber: release.releaseNumber, publishedAt: release.publishedAt },
         total: individu.length,
-        rows: individu.map((r) => ({ nama: r.namaMasked, desil: r.desil, bansos: r.bansos })),
+        rows: individu.map((r) =>
+          full
+            ? {
+                nama: decryptField(r.namaAsliEnc) ?? r.namaMasked,
+                nik: decryptField(r.nikEnc),
+                desil: r.desil,
+                bansos: r.bansos,
+              }
+            : { nama: r.namaMasked, desil: r.desil, bansos: r.bansos },
+        ),
       });
     } catch (err) {
       console.error('[dtsen/breakdown] individu gagal:', err);

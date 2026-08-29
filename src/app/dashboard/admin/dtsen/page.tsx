@@ -88,8 +88,8 @@ export default function AdminDtsenPage() {
   const [qRes, setQRes] = useState<QueryResponse | null>(null);
   const [qBusy, setQBusy] = useState(false);
 
-  const canWrite = role === 'DTSEN_LOOKUP' || role === 'SUPERADMIN';
-  const canRead = canWrite || role === 'DTSEN_ANALYST';
+  const canWrite = role === 'DTSEN_LOOKUP' || role === 'SUPERADMIN' || role === 'DTSEN_ROOT';
+  const canRead = canWrite || role === 'DTSEN_ANALYST' || role === 'DTSEN_ROOT';
 
   const loadReleases = useCallback(async () => {
     try {

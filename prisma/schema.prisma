@@ -129,6 +129,7 @@ enum AdminRole {
   SUPERADMIN
   DTSEN_ANALYST
   DTSEN_LOOKUP
+  DTSEN_ROOT
 }
 
 enum Severity {
@@ -178,6 +179,11 @@ model DtsenIndividu {
   id           String   @id @default(cuid())
   releaseId    String
   nikHash      String
+  // @hotfix 29-Agu-2026: nama asli & NIK lengkap disimpan TERENKRIPSI (AES-256-GCM)
+  // dengan DTSEN_DATA_KEY — hanya role DTSEN_ROOT yang bisa mendekripsi.
+  // Role lain tetap memakai namaMasked (nama pribadi tidak pernah plaintext).
+  namaAsliEnc  String?
+  nikEnc       String?
   namaMasked   String
   kecamatan    String?
   desa         String?
