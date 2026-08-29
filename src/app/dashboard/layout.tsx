@@ -87,8 +87,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             {/* Akun & Logout — @hotfix 29-Agu: hanya tampil saat SESI AKTIF.
-                Publik (belum login) TIDAK melihat tombol ini. */}
-            {isAuthed && (
+                Publik (belum login) melihat tombol LOGIN sebagai gantinya. */}
+            {isAuthed ? (
               <div className="flex items-center gap-2 border-l border-[#2D6A4F]/40 pl-3">
                 {adminName && (
                   <span className="hidden lg:inline text-[11px] font-medium text-[#C6C3B4] max-w-[110px] truncate" title={adminName}>
@@ -106,7 +106,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <button
                   onClick={async () => {
                     await fetch('/api/auth/logout', { method: 'POST' });
-                    window.location.href = '/login';
+                    // @hotfix 29-Agu: setelah logout → kembali ke DASHBOARD (publik),
+                    // bukan ke halaman login.
+                    window.location.href = '/dashboard';
                   }}
                   title="Keluar"
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#B3261E]/30 hover:bg-[#B3261E]/50 border border-[#B3261E]/50 transition-colors"
@@ -115,6 +117,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span className="text-[11px] font-medium text-[#E58B7F]">Logout</span>
                 </button>
               </div>
+            ) : (
+              <a
+                href="/login"
+                title="Masuk sebagai admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D6A4F]/30 hover:bg-[#2D6A4F]/50 border border-[#2D6A4F]/50 transition-colors"
+              >
+                <span className="text-sm">🔐</span>
+                <span className="text-[11px] font-medium text-[#52B788]">Login</span>
+              </a>
             )}
           </div>
         </header>

@@ -17,6 +17,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAdminFromRequest } from '@/lib/auth';
+import { decideDataAccess, buildAuditEntry } from '@/lib/data-gate';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,7 +28,70 @@ export async function GET(req: NextRequest) {
   const scope = req.nextUrl.searchParams.get('scope') ?? 'kecamatan';
   const kecamatan = req.nextUrl.searchParams.get('kecamatan')?.toUpperCase() ?? null;
   const desa = req.nextUrl.searchParams.get('desa')?.toUpperCase() ?? null;
+  const desil = req.nextUrl.searchParams.get('desil') ?? null;
   const program = req.nextUrl.searchParams.get('program') ?? null;
+
+  // ── scope=individu: data ByNameByAddress (sensitif) — WAJIB role DTSEN + audit ──
+  if (scope === 'individu') {
+    const admin = await getAdminFromRequest(req);
+    const decision = decideDataAccess(admin?.role ?? null, 'RESTRICTED_PERSONAL');
+    if (!decision.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: decision.status === 401
+            ? 'Daftar per-orang adalah data terbatas DTSEN — login dengan akun berrole DTSEN_LOOKUP/SUPERADMIN.'
+            : 'Role Anda tidak berhak melihat data per-orang.',
+        },
+        { status: decision.status },
+      );
+    }
+    if (!kecamatan || !desa || desil === null) {
+      return NextResponse.json({ ok: false, error: 'scope=individu butuh kecamatan + desa + desil.' }, { status: 400 });
+    }
+    try {
+      const release = await prisma.dtsenRelease.findFirst({
+        where: { status: 'PUBLISHED' },
+        orderBy: { publishedAt: 'desc' },
+        select: { id: true, releaseNumber: true, status: true, publishedAt: true },
+      });
+      if (!release) {
+        return NextResponse.json({ ok: false, error: 'Belum ada rilis DTSEN yang dipublish.' }, { status: 404 });
+      }
+      const individu = await prisma.dtsenIndividu.findMany({
+        where: {
+          releaseId: release.id,
+          kecamatan: { equals: kecamatan, mode: 'insensitive' },
+          desa: { equals: desa, mode: 'insensitive' },
+          desil: Number(desil),
+        },
+        orderBy: { namaMasked: 'asc' },
+        take: 200,
+        select: { namaMasked: true, kecamatan: true, desa: true, desil: true, bansos: true },
+      });
+      // Audit wajib (UU 27/2022) — akses per-orang dicatat.
+      const entry = buildAuditEntry({
+        admin,
+        aksi: 'BREAKDOWN_INDIVIDU',
+        detail: `scope=individu ${kecamatan}/${desa}/desil ${desil} — ${individu.length} baris`,
+        ip: req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? '',
+        rowCount: individu.length,
+      });
+      await prisma.dataAccessAudit
+        .create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } })
+        .catch((e) => console.error('[dtsen/breakdown] audit gagal:', e));
+      return NextResponse.json({
+        ok: true,
+        scope: 'individu',
+        release: { releaseNumber: release.releaseNumber, publishedAt: release.publishedAt },
+        total: individu.length,
+        rows: individu.map((r) => ({ nama: r.namaMasked, desil: r.desil, bansos: r.bansos })),
+      });
+    } catch (err) {
+      console.error('[dtsen/breakdown] individu gagal:', err);
+      return NextResponse.json({ ok: false, error: 'Gagal memuat daftar per-orang.' }, { status: 500 });
+    }
+  }
 
   if (!['kecamatan', 'desa', 'desil'].includes(scope)) {
     return NextResponse.json({ error: `scope tidak dikenal: ${scope}` }, { status: 400 });

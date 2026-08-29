@@ -14,6 +14,10 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
   const [path, setPath] = useState<{ nama: string; scope: string }[]>([{ nama: 'Kabupaten Aceh Tengah', scope: 'kabupaten' }]);
   const [rows, setRows] = useState<{ nama: string; nilai?: number; jiwa?: number; keluarga?: number }[]>([]);
   const [total, setTotal] = useState<number | null>(null);
+  // ── Level per-orang (ByNameByAddress) — hanya role DTSEN ──
+  const [individu, setIndividu] = useState<{ nama: string; desil?: number | null; bansos?: boolean }[] | null>(null);
+  const [individuLoading, setIndividuLoading] = useState(false);
+  const [individuError, setIndividuError] = useState('');
 
   const scopeFor = (p: { nama: string; scope: string }[]) => {
     if (p.length === 1) return 'kecamatan';
@@ -24,6 +28,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
   const fetchLevel = async (target: { nama: string; scope: string }[]) => {
     setLoading(true);
     setError('');
+    setIndividu(null);
     try {
       const params = new URLSearchParams({ scope: scopeFor(target) });
       // Filter kecamatan/desa dari path
@@ -43,6 +48,33 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
       setError(e.message ?? 'Gagal memecah data.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Pecah sampai level per-orang: kecamatan + desa + desil → daftar penerima ──
+  const loadIndividu = async (desilNama: string) => {
+    setIndividuLoading(true);
+    setIndividuError('');
+    setIndividu(null);
+    try {
+      const kec = path.find((t) => t.scope === 'kecamatan');
+      const desa = path.find((t) => t.scope === 'desa');
+      const desilNum = desilNama.replace(/\D/g, '');
+      if (!kec || !desa || !desilNum) throw new Error('Pilih kecamatan → desa → desil dulu.');
+      const params = new URLSearchParams({
+        scope: 'individu',
+        kecamatan: kec.nama,
+        desa: desa.nama,
+        desil: desilNum,
+      });
+      const res = await fetch(`/api/dtsen/breakdown?${params.toString()}`);
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error ?? 'Gagal memuat daftar per-orang.');
+      setIndividu(d.rows ?? []);
+    } catch (e: any) {
+      setIndividuError(e.message ?? 'Gagal memuat daftar per-orang.');
+    } finally {
+      setIndividuLoading(false);
     }
   };
 
@@ -110,6 +142,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
               {rows.map((r) => {
                 const nilai = r.nilai ?? r.jiwa ?? 0;
                 const pct = total ? (nilai / total) * 100 : 0;
+                const isDesilLevel = path.length === 3;
                 return (
                   <div
                     key={String(r.nama)}
@@ -139,6 +172,63 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── Level desil: tombol pecah sampai daftar per-orang (ByNameByAddress) ── */}
+          {!loading && !error && path.length === 3 && rows.length > 0 && (
+            <div className="mt-3 border-t border-[#C6C3B4]/60 pt-3">
+              <p className="text-[10px] font-bold text-[#8A6E1D] uppercase tracking-wider mb-2">
+                👤 Pecah sampai daftar penerima (By-Name By-Address)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {rows.map((r) => (
+                  <button
+                    key={String(r.nama)}
+                    onClick={() => loadIndividu(String(r.nama))}
+                    disabled={individuLoading}
+                    className="text-[10px] px-2.5 py-1.5 rounded-lg bg-white border border-[#C6C3B4] text-[#4B5249] hover:border-[#2D6A4F] hover:bg-[#DCE8DE] disabled:opacity-50 transition-colors"
+                  >
+                    {String(r.nama)} · {(r.nilai ?? r.jiwa ?? 0).toLocaleString('id-ID')} jiwa
+                  </button>
+                ))}
+              </div>
+
+              {individuLoading && <p className="text-[11px] text-[#767D6F] italic mt-2">Memuat daftar per-orang…</p>}
+              {individuError && (
+                <p className="text-[11px] text-[#B3261E] mt-2">
+                  🔒 {individuError}
+                </p>
+              )}
+
+              {individu && (
+                <div className="mt-2 bg-white border border-[#C6C3B4] rounded-xl p-3 max-h-[300px] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-bold text-[#1B4332]">
+                      Daftar penerima — {path[1]?.nama} / {path[2]?.nama} ({individu.length} orang)
+                    </p>
+                    <span className="text-[9px] text-[#767D6F] italic">nama termask · akses tercatat di audit trail</span>
+                  </div>
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-[#C6C3B4] text-left text-[#767D6F]">
+                        <th className="py-1.5 pr-3 font-semibold">Nama</th>
+                        <th className="py-1.5 pr-3 font-semibold">Desil</th>
+                        <th className="py-1.5 font-semibold">PBI</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {individu.map((p, i) => (
+                        <tr key={i} className="border-b border-[#E9E6DA] last:border-0">
+                          <td className="py-1.5 pr-3 font-medium text-[#1E2420]">{p.nama}</td>
+                          <td className="py-1.5 pr-3 text-[#4B5249]">{p.desil ?? '-'}</td>
+                          <td className="py-1.5 text-[#4B5249]">{p.bansos ? '✅' : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
