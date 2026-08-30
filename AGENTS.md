@@ -4,7 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> Status terkini cc-acehtengah: baca `docs/STATUS-CC.md` sebelum menyentuh config/deploy. Aturan inti (Pecah Jawaban, BNBA role matrix, DTSEN_ROOT/SUPERADMIN) tetap di sini.
+> Status terkini cc-acehtengah: baca `services/cc-acehtengah/docs/STATUS-CC.md` sebelum menyentuh config/deploy. Aturan inti (Pecah Jawaban, BNBA role matrix, DTSEN_ROOT/SUPERADMIN) tetap di sini.
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
