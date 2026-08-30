@@ -4,8 +4,7 @@
 > **Path:** `services/cc-acehtengah/`
 > **Status:** 🟢 **Active — Fase 5: Theme/Accessibility + Security Hardening**
 > **Deploy:** GitHub + Vercel (https://cc-acehtengah.vercel.app)
-> **Last update:** Aug 29, 2026 — **Role `DTSEN_ROOT` (otoritas tertinggi) + identitas lengkap BNBA**: SUPERADMIN melihat nama termask; `DTSEN_ROOT` (akun `dtsen_root`) melihat **nama asli + NIK lengkap terdekripsi** di breakdown per-orang. Nama asli & NIK disimpan **terenkripsi AES-256-GCM** (`namaAsliEnc`/`nikEnc`, key `DTSEN_DATA_KEY` 43-char, Vercel + .env.local) — tidak pernah plaintext. Tombol **🔐 Login** muncul di blocker BNBA (publik → login → lanjut pecah jawaban). Tombol "Pecah Jawaban" di PALING ATAS output AI (mindmap ala NotebookLM: kabupaten → kecamatan → desa → desil → BNBA). `DTSEN_ROOT` = role tertinggi (di atas SUPERADMIN).
-> **Deploy state:** PROD = `4f95617` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
+> Status terkini cc-acehtengah: baca `docs/STATUS-CC.md` sebelum menyentuh config/deploy. Aturan inti (Pecah Jawaban, BNBA role matrix, DTSEN_ROOT/SUPERADMIN) tetap di sini.
 > **Backlog priority:** P2
 
 > **✅ EWS SUDAH FUNGSIONAL (PR Lapis 2):**
