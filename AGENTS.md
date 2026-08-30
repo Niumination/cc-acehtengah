@@ -91,73 +91,7 @@ DOKUMEN A/B/C (agregat Excel bebas-PII) ─[src/data/excel]─
 - **Session:** JWT cookie (7 hari), httpOnly + secure
 
 ## Struktur
-
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── auth/
-│   │   │   ├── login/route.ts    # POST /api/auth/login
-│   │   │   ├── logout/route.ts   # POST /api/auth/logout
-│   │   │   └── me/route.ts       # GET /api/auth/me
-│   │   ├── chat-logs/route.ts    # GET /api/chat-logs (auth protected)
-│   │   ├── query/route.ts        # POST /api/query — AI Smart Query
-│   │   ├── stats/route.ts        # GET /api/stats — SAPA overview
-│   │   ├── analytics/route.ts    # GET /api/analytics
-│   │   ├── datasets/             # Dataset CRUD
-│   │   ├── ews/route.ts          # Early Warning System
-│   │   ├── kpi/route.ts          # GET /api/kpi — KPI pimpinan
-│   │   ├── report/route.ts       # GET /api/report — Laporan Eksekutif
-│   │   ├── cron/sync-sapa/       # GET/POST — sinkronisasi warehouse harian
-│   │   ├── dtsen/query/          # POST — gerbang data restricted (role + audit)
-│   │   ├── dtsen/import/         # POST — impor CSV → staging (DTSEN_LOOKUP+)
-│   │   ├── dtsen/releases/       # GET — daftar rilis (metadata saja)
-│   │   ├── dtsen/release/[id]/   # GET detail tinjau + POST publish atomik
-│   │   ├── geodata/route.ts      # GIS data
-│   │   ├── health/route.ts       # Health check
-│   │   └── setup/
-│   │       ├── route.ts          # POST /api/setup — migrasi tabel (terkunci)
-│   │       └── admin/route.ts    # POST /api/setup/admin — bootstrap admin (terkunci)
-│   ├── dashboard/
-│   │   ├── layout.tsx            # Sidebar + header
-│   │   ├── page.tsx              # Main dashboard + KPI panel + EWS panel
-│   │   ├── analytics/page.tsx    # Analytics
-│   │   ├── gis/page.tsx          # Peta GIS
-│   │   ├── laporan/page.tsx      # Laporan Eksekutif + riwayat (auth protected)
-│   │   └── admin/dtsen/page.tsx  # Admin rilis DTSEN: impor, tinjau, publish
-│   └── login/
-│       ├── layout.tsx            # Minimal layout (no sidebar)
-│       └── page.tsx              # Login form
-├── components/
-│   ├── Sidebar.tsx               # Navigation + hamburger toggle
-│   ├── AIResponseRenderer.tsx    # Render AI responses
-│   ├── ExecutiveReport.tsx       # Laporan Eksekutif (fetch /api/report, cetak)
-│   ├── EwsPanel.tsx              # Early Warning panel
-│   ├── KpiPanel.tsx              # KPI pimpinan (fetch /api/kpi)
-│   ├── SapaStats.tsx             # SAPA stats + charts
-│   └── QueryBar.tsx              # Query input
-├── lib/
-│   ├── auth.ts                   # JWT + bcrypt helpers
-│   ├── data-gate.ts              # Gerbang multi-sumber (role+audit), murni
-│   ├── prisma.ts                 # Prisma client singleton
-│   ├── sapa-client.ts            # SAPA API client (public)
-│   └── db-migration.ts           # Auto-migration utility
-├── middleware.ts                  # Protect /dashboard/laporan + /api/chat-logs
-└── services/
-    ├── ai-orchestrator.ts        # AI pipeline (SAPA → LLM → DB log)
-    ├── intent-detector.ts        # NLP intent classification
-    ├── llm-client.ts             # OpenAI-compatible client
-    ├── rag-retriever.ts          # Qdrant RAG (graceful fallback)
-    ├── data-sync.ts              # SPLP sync scheduler
-    ├── dtsen-import.ts           # Impor CSV DTSEN: validasi, masking, agregat k≥5 (murni)
-    ├── warehouse-sync.ts         # Sinkronisasi snapshot SAPA → warehouse
-    ├── report-generator.ts       # Laporan Eksekutif naratif (murni, tanpa LLM)
-    ├── ews-engine.ts             # Evaluasi perubahan → EwsAlert
-    ├── trend-analysis.ts         # Tren & perbandingan OPD deterministik
-    ├── kpi.ts                    # KPI pimpinan terkurasi
-    ├── grounding.ts              # Validasi narasi vs evidence
-    └── meta-query.ts             # Statistik portal deterministik
-```
+> Struktur folder proyek ada di `docs/reference/cc-acehtengah-struktur.md` (auto-generated).
 
 ## Database Schema (Prisma)
 
@@ -197,18 +131,8 @@ curl -X POST https://cc-acehtengah.vercel.app/api/cron/sync-sapa \
 ```
 
 ## Environment Variables (Vercel)
-
-| Variable | Contoh | Catatan |
-|----------|--------|---------|
-| `DATABASE_URL` | `postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false` | **Pooler** (bukan direct!) |
-| `AI_BASE_URL` | `https://api.hcnsec.cn/v1` | OpenAI-compatible — **huancheng** (sejak 28 Agu 2026; sebelumnya `opencode.ai/zen/v1` yang sering 502) |
-| `AI_API_KEY` | `sk-...` | `HUANCHENG_API_KEY` — key huancheng |
-| `AI_MODEL` | `auto` | Dipakai PERSIS dari env; produksi berjalan `auto` (resolve → `agnes-2.5-flash`). Model alternatif yang bisa dipin (kimi-k3, MiniMax-M3, dll) rata-rata 429/timeout — `auto` paling stabil. Ubah via env Vercel + redeploy. |
-| `JWT_SECRET` | random string | **Wajib** (fail-closed; tanpa ini login admin nonaktif) |
-| `ADMIN_SETUP_TOKEN` | random string ≥16 | Mengunci `/api/setup*` (403 tanpa token) |
-| `CRON_SECRET` | random string ≥16 | Otorisasi `/api/cron/sync-sapa` (`Authorization: Bearer …`) |
-| `DTSEN_NIK_KEY` | random string ≥16 | Kunci HMAC NIK jalur DTSEN; tanpa ini impor menolak (409) |
-| `SPLP_API_KEY` | JWT token string | Token Bearer untuk ACCES `AuthorizationSPLP` ke api-splp.layanan.go.id (DTSEN + Bapokting)
+> Detail env vars Vercel ada di `docs/reference/cc-acehtengah-env-vars.md` (auto-generated).
+> Jangan menyalin tabelnya kembali ke sini.
 
 ### Catatan Real-World Data Handling (PR-4c+ patch)
 
