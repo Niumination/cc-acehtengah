@@ -32,96 +32,108 @@ model Admin {
 }
 
 model EwsAlert {
-  id                 String             @id @default(cuid())
-  thresholdId        String
-  indicatorId        Int
-  nilaiAktual        Float
-  batas              Float
-  pesan              String
-  severity           Severity           @default(WARNING)
-  tahun              String?
-  resolvedAt         DateTime?
-  createdAt          DateTime           @default(now())
-  indicator          SapaIndicator      @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  IndicatorThreshold IndicatorThreshold @relation(fields: [thresholdId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id          String   @id @default(cuid())
+  indicatorId String
+  nilaiAktual Float
+  threshold   Float
+  pesan       String
+  severity    Severity @default(WARNING)
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([indicatorId])
-  @@index([resolvedAt, severity])
+  @@index([resolvedAt, createdAt(sort: Desc)])
 }
 
-model IndicatorThreshold {
-  id            String            @id
-  indicatorId   Int
-  operator      ThresholdOperator
-  nilai         Float
-  severity      Severity          @default(WARNING)
-  pesan         String?
-  isActive      Boolean           @default(true)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @default(now())
-  EwsAlert      EwsAlert[]
-  SapaIndicator SapaIndicator     @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model Indicator {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  datasetId String
+  nama      String
+  satuan    String
+  threshold Float?
+  direction String   @default("STABLE")
+  isKunci   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  EwsAlert  EwsAlert[]
+  Dataset   Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([indicatorId, operator, nilai])
-  @@index([isActive])
+  @@index([datasetId])
+  @@unique([datasetId, nama, satuan])
 }
 
-model SapaIndicator {
-  id                 Int                  @id
-  kode               String?
-  nama               String
-  satuan             String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @default(now())
-  alerts             EwsAlert[]
-  IndicatorThreshold IndicatorThreshold[]
-  SapaObservation    SapaObservation[]
-
-  @@index([nama])
+model Skpd {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  kode      String   @unique
+  nama      String
+  kategori  String   @default("LAINNYA")
+  alamat    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  Dataset   Dataset[]
 }
 
-model SapaObservation {
-  id            String        @id
-  indicatorId   Int
-  opdId         Int
-  tahun         String?
-  nilaiTeks     String
-  nilaiNumerik  Float?
-  satuan        String?
-  jadwal        String?
-  fetchedAt     DateTime      @default(now())
-  updatedAt     DateTime      @default(now())
-  SapaIndicator SapaIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  SapaOpd       SapaOpd       @relation(fields: [opdId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@unique([indicatorId, opdId, tahun])
-  @@index([indicatorId, tahun])
-  @@index([opdId])
-}
-
-model SapaOpd {
-  id              Int               @id
+model Dataset {
+  id              String          @id @default(dbgenerated("gen_random_uuid()"))
+  skpdId          String
   nama            String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @default(now())
-  SapaObservation SapaObservation[]
-
-  @@index([nama])
+  slug            String          @unique
+  deskripsi       String?
+  schema          Json            @default("{}")
+  endpointSplp    String?
+  refreshInterval Int?
+  isActive        Boolean         @default(true)
+  lastSync        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now())
+  DatasetRecord   DatasetRecord[]
+  Indicator       Indicator[]
+  Skpd            Skpd            @relation(fields: [skpdId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-model SapaSyncRun {
-  id             String     @id
-  startedAt      DateTime   @default(now())
-  finishedAt     DateTime?
-  status         SyncStatus @default(RUNNING)
-  recordCount    Int        @default(0)
-  opdCount       Int        @default(0)
-  indicatorCount Int        @default(0)
-  alertsCreated  Int        @default(0)
-  durationMs     Int?
-  error          String?
+model DatasetRecord {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  datasetId String
+  data      Json
+  periode   String
+  checksum  String?
+  fetchedAt DateTime @default(now())
+  Dataset   Dataset  @relation(fields: [datasetId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([startedAt])
+  @@index([datasetId])
+}
+
+model SapaSnapshot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()"))
+  origin       String
+  totalRecords Int
+  checksum     String
+  createdAt    DateTime @default(now())
+  SapaIndicatorValue SapaIndicatorValue[]
+
+  @@index([createdAt(sort: Desc)])
+}
+
+model SapaIndicatorValue {
+  id                 String  @id @default(dbgenerated("gen_random_uuid()"))
+  snapshotId         String
+  idKodeIndikator    Int
+  kodeIndikator      String?
+  indikator          String
+  opd                String
+  idOpd              Int
+  nilai              String
+  nilaiNumber        Float?
+  satuan             String
+  tahun              String?
+  tahunNumber        Int?
+  jadwalPemutakhiran String?
+  SapaSnapshot       SapaSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([snapshotId])
+  @@index([idKodeIndikator, snapshotId])
+  @@index([opd])
 }
 
 enum AdminRole {
@@ -136,19 +148,6 @@ enum Severity {
   INFO
   WARNING
   CRITICAL
-}
-
-enum SyncStatus {
-  RUNNING
-  SUCCESS
-  FAILED
-}
-
-enum ThresholdOperator {
-  GT
-  GTE
-  LT
-  LTE
 }
 
 model DataSource {

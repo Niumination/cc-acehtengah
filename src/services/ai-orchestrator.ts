@@ -273,7 +273,7 @@ async function buildContext(query: string) {
       // @hotfix-meeting-ready: Safety — pastikan semua field ada sebelum build evidence
       dtsenResult.byDesil = dtsenResult.byDesil || [];
       dtsenResult.byWilayah = dtsenResult.byWilayah || [];
-      dtsenResult.provenance = dtsenResult.provenance || { label: 'DTSEN (demo)' };
+      dtsenResult.provenance = dtsenResult.provenance || { label: 'DTSEN (demo)', releaseNumber: 'DEMO', status: 'PUBLISHED', publishedAt: null };
       dtsenResult.bansos = dtsenResult.bansos || null;
       // @hotfix 28 Agu 2026: label jujur — kalau data berasal dari demo (fallback saat
       // DB kosong / SPLP 401), beri opd "DTSEN (Demo — simulasi)" agar dataSourceFromEvidence

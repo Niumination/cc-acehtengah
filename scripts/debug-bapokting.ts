@@ -1,5 +1,5 @@
 // Debug script for Bapokting trend
-import { fetchLatestBapoktingPrices, SPLP_BAPOKTING_URL } from './src/lib/bapokting-client';
+import { fetchLatestBapoktingPrices, SPLP_BAPOKTING_URL } from '../src/lib/bapokting-client';
 
 async function debug() {
   console.log('=== DEBUG BAPOKTING ===\n');
