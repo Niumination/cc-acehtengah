@@ -52,7 +52,7 @@ import {
 import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
-import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp, type BapoktingPrice } from '@/lib/bapokting-client';
+import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp, type BapoktingPrice, SPLP_BAPOKTING_URL } from '@/lib/bapokting-client';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
@@ -360,68 +360,79 @@ async function buildContext(query: string) {
         }
         bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah (SPLP API)' };
 
-        // Fetch data historis 7 hari untuk analisis tren
+        // Fetch data historis mingguan (karena API hanya update mingguan)
         const today = new Date();
-        const historicalData: Array<{ date: string; price: number; namaBarang: string }> = [];
-
-        for (let i = 1; i <= 7; i++) {
+        // Cari 4 minggu terakhir
+        const weekDates: string[] = [];
+        for (let i = 0; i < 4; i++) {
           const date = new Date(today);
-          date.setDate(date.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
-          try {
-            const historicalRes = await fetch(
-              `https://api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga?tb=data_aset&s=kecamatan&f=desil&tanggal=${dateStr}`,
-              { signal: AbortSignal.timeout(10000) }
-            );
-            if (historicalRes.ok) {
-              const histData = await historicalRes.json();
-              const items = histData?.daftar_harga || [];
-              for (const item of items) {
-                const namaBarang = item.komoditi || item.nama_barang || '';
-                const price = item.harga_eceran || item.harga_borongan || item.harga || 0;
-                if (price > 0 && (filtered.length === 0 ||
-                    specificCommodities.some((c) => namaBarang.toLowerCase().includes(c)))) {
-                  historicalData.push({ date: dateStr, price, namaBarang });
+          date.setDate(date.getDate() - i * 7);
+          weekDates.push(date.toISOString().split('T')[0]);
+        }
+
+        // Untuk setiap komoditas target, kumpulkan harga per minggu
+        type TrendPoint = { date: string; price: number };
+        type CommodityTrend = {
+          nama: string;
+          points: TrendPoint[];
+          latest: number;
+          oldest: number;
+          trend: 'naik' | 'turun' | 'stabil';
+          change: number;
+        };
+
+        const trendMap = new Map<string, CommodityTrend>();
+
+        for (const commodity of filtered) {
+          const commodityName = commodity.namaBarang;
+          const points: TrendPoint[] = [];
+          const queryLower = query.toLowerCase();
+          const isTarget = specificCommodities.some((c) =>
+            commodityName.toLowerCase().includes(c)
+          );
+
+          for (const dateStr of weekDates) {
+            try {
+              const res = await fetch(
+                `${SPLP_BAPOKTING_URL}?tb=data_aset&s=kecamatan&f=desil&tanggal=${dateStr}`,
+                { signal: AbortSignal.timeout(8000) }
+              );
+              if (res.ok) {
+                const histData = await res.json();
+                const items = histData?.daftar_harga || [];
+                const match = items.find((item: any) =>
+                  (item.komoditi || '').toLowerCase().includes(commodityName.split(' ')[0])
+                );
+                if (match && match.harga_eceran > 0) {
+                  points.push({
+                    date: dateStr,
+                    price: match.harga_eceran,
+                  });
                 }
               }
-            }
-          } catch (e) {
-            // Skip historical fetch errors
-          }
-        }
-
-        // Hitung tren per komoditas
-        if (historicalData.length > 0 && filtered.length > 0) {
-          const commodityNames = filtered.map((p) => p.namaBarang.toLowerCase());
-          const trendMap = new Map<string, { latest: number; weekAgo: number; trend: 'naik' | 'turun' | 'stabil'; change: number }>();
-
-          for (const name of commodityNames) {
-            const latest = historicalData
-              .filter((d) => d.namaBarang.toLowerCase().includes(name.split(' ')[0]))
-              .sort((a, b) => b.date.localeCompare(a.date))[0]?.price || 0;
-            const weekAgo = historicalData
-              .filter((d) => d.namaBarang.toLowerCase().includes(name.split(' ')[0]))
-              .sort((a, b) => a.date.localeCompare(b.date))[0]?.price || 0;
-
-            if (latest > 0 && weekAgo > 0) {
-              const change = ((latest - weekAgo) / weekAgo) * 100;
-              trendMap.set(name, {
-                latest,
-                weekAgo,
-                trend: change > 2 ? 'naik' : change < -2 ? 'turun' : 'stabil',
-                change,
-              });
+            } catch {
+              // Skip errors
             }
           }
 
-          bapoktingTrendData = Array.from(trendMap.entries()).map(([nama, data]) => ({
-            nama,
-            hargaTerakhir: data.latest,
-            harga7HariLalu: data.weekAgo,
-            persentasePerubahan: Math.round(data.change * 10) / 10,
-            trend: data.trend,
-          }));
+          // Hanya simpan jika ada data
+          if (points.length > 0) {
+            points.sort((a, b) => a.date.localeCompare(b.date));
+            const latest = points[points.length - 1].price;
+            const oldest = points[0].price;
+            const change = oldest > 0 ? ((latest - oldest) / oldest) * 100 : 0;
+            trendMap.set(commodityName, {
+              nama: commodityName,
+              points,
+              latest,
+              oldest,
+              trend: change > 2 ? 'naik' : change < -2 ? 'turun' : 'stabil',
+              change,
+            });
+          }
         }
+
+        bapoktingTrendData = Array.from(trendMap.values());
       }
     } catch (e) {
       console.warn('[Orchestrator] Bapokting fetch failed:', e);
@@ -983,23 +994,48 @@ async function tryDeterministicDomainQuery(
       }
     }
 
-    // Tentukan chart: line tren jika tersedia, else bar perbandingan
+    // Tentukan chart: line tren mingguan jika tersedia, else bar perbandingan
     let visualisasi: any = { tipe: 'chart', konfigurasi: {} };
     if (ctx.bapoktingTrendData && ctx.bapoktingTrendData.length > 0) {
-      // Chart line: tren harga 7 hari terakhir
-      const trendChartData = ctx.bapoktingTrendData.map((t: any) => ({
-        nama: t.nama,
-        hargaTerakhir: t.hargaTerakhir,
-        persentasePerubahan: t.persentasePerubahan,
-        trend: t.trend,
-      }));
+      // Chart line: tren harga per minggu
+      const allDates = ctx.bapoktingTrendData[0]?.points?.map((p: any) => p.date) || [];
+      const uniqueDates = [...new Set(allDates)].sort();
+
+      // Build stacked data for chart
+      const chartData: any[] = [];
+      for (const date of uniqueDates) {
+        const row: any = { minggu: date };
+        for (const trend of ctx.bapoktingTrendData) {
+          const point = trend.points.find((p: any) => p.date === date);
+          row[trend.nama] = point ? point.price : null;
+        }
+        chartData.push(row);
+      }
+
+      // X-axis: format tanggal menjadi "31 Agu"
+      const formattedData = chartData.map((row: any) => {
+        const formatted: any = { label: '' };
+        try {
+          const d = new Date(row.minggu);
+          formatted.label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        } catch {
+          formatted.label = row.minggu;
+        }
+        for (const trend of ctx.bapoktingTrendData) {
+          formatted[trend.nama] = row[trend.nama];
+        }
+        return formatted;
+      });
+
+      const lines = ctx.bapoktingTrendData.map((t: any) => t.nama);
+
       visualisasi = {
         tipe: 'chart',
         konfigurasi: {
           type: 'line',
-          xKey: 'nama',
-          data: trendChartData,
-          lines: ['hargaTerakhir', 'persentasePerubahan'],
+          xKey: 'label',
+          data: formattedData,
+          lines,
         },
       };
     } else {

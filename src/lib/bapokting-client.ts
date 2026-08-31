@@ -2,7 +2,7 @@
 // Source: api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga
 // API Key: Token JWT (bisa diperbarui via Vercel env vars)
 
-const SPLP_BAPOKTING_URL = 'https://api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga';
+export const SPLP_BAPOKTING_URL = 'https://api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga';
 const SPLP_DTSEN_URL = 'https://api-splp.layanan.go.id/dtsen-aceh-tengah/1.0/api/dtsen-aceh-tengah';
 
 // Cache bahan baku untuk query DTSEN
