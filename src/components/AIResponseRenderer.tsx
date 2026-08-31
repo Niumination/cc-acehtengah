@@ -7,6 +7,7 @@ import {
 import { HybridResponse } from '@/types';
 import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
 import BreakdownExplorer from './BreakdownExplorer';
+import { formatBapoktingData, groupBapoktingByCategory } from '@/lib/bapokting-service';
 
 const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
@@ -25,6 +26,11 @@ export default function AIResponseRenderer({ response }: Props) {
   const isDtsen = (response.dataSource ?? '').toLowerCase().includes('dtsen');
   const programHint = /pbi|jaminan kesehatan|bantuan iuran|bantuan inisiatif/i.test(narasi ?? '') ? 'pbi' : null;
   const showBreakdown = (isDtsen || programHint) && visualisasi && visualisasi.tipe !== 'none';
+
+  // @hotfix 31-Agu-2026: deteksi bapokting data dan render agregat siklus
+  const isBapokting = (response.dataSource ?? '').toLowerCase().includes('bapokting');
+  const bapoktingData = isBapokting && response.visualisasi?.data ? formatBapoktingData(response.visualisasi.data) : null;
+  const bapoktingGrouped = isBapokting && bapoktingData ? groupBapoktingByCategory(response.visualisasi.data) : null;
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">

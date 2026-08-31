@@ -5,6 +5,7 @@ export interface HybridResponse {
   visualisasi: {
     tipe: 'chart' | 'table' | 'map' | 'metric' | 'none';
     konfigurasi: Record<string, any>;
+    data?: any; // Bapokting response raw data
   };
   rekomendasi: string[];
   dataSource: string;
