@@ -41,7 +41,7 @@ import {
 import type { AgregatRow } from '@/services/dtsen-import';
 
 const NIK16 = '1108010101801234';
-const RELEASE: ReleaseRef = { versi: 'v2.0-2026-08', jalur: 'MANUAL', publishedAt: new Date('2026-08-20T03:00:00Z') };
+const RELEASE: ReleaseRef = { releaseNumber: 'v2.0-2026-08', status: 'MANUAL', publishedAt: new Date('2026-08-20T03:00:00Z') };
 
 // Rilis sintetis: 2 kecamatan, Bebesen punya desil 1-3 di 2 desa; Linge hanya desil 1.
 const ROWS: AgregatRow[] = [
@@ -172,7 +172,7 @@ describe('publicDeflectionKind — bertingkat, berbasis bukti indikator SAPA', (
 describe('provenance — label, header narasi, tanggal', () => {
   it('label membawa versi + jalur + tanggal rilis', () => {
     const label = buildProvenanceLabel(RELEASE);
-    expect(label).toContain('DTSEN v2.0-2026-08');
+    expect(label).toContain('DTSEN rilis v2.0-2026-08');
     expect(label).toContain('impor manual');
     expect(label).toContain(formatTanggalId(RELEASE.publishedAt));
   });
@@ -181,7 +181,7 @@ describe('provenance — label, header narasi, tanggal', () => {
     expect(jalurLabel('MANUAL')).toContain('impor manual');
   });
   it('header narasi persis pola desain §8', () => {
-    expect(buildNarasiHeader(RELEASE)).toMatch(/^Menurut DTSEN v2\.0-2026-08 .+:$/);
+    expect(buildNarasiHeader(RELEASE)).toMatch(/^Menurut DTSEN rilis v2\.0-2026-08 .+:$/);
   });
   it('tanggal diformat Indonesia Asia/Jakarta', () => {
     expect(formatTanggalId(new Date('2026-08-20T03:00:00Z'))).toBe('20 Agustus 2026');
@@ -217,7 +217,7 @@ describe('buildAgregatAnswer — baterai 5 agregat', () => {
   it('A1: desil per kecamatan (filter kecamatan + rentang desil)', () => {
     const rows = ROWS.filter((r) => r.kecamatan === 'Bebesen' && (r.desil === 1 || r.desil === 2));
     const a = buildAgregatAnswer({ rows, release: RELEASE, kecamatan: 'Bebesen', desa: null, desil: [1, 2], bansosCounts: null });
-    expect(a.narasi).toContain('Menurut DTSEN v2.0-2026-08'); // provenance header
+    expect(a.narasi).toContain('Menurut DTSEN rilis v2.0-2026-08'); // provenance header
     expect(a.totalJiwa).toBe(40); // 12+8+20
     expect(a.totalKeluarga).toBe(13);
     expect(a.byDesil.map((d) => d.desil)).toEqual([1, 2]);
@@ -291,7 +291,7 @@ const FOUND: LookupFound = {
 describe('buildLookupNarasi — baterai 2 by-name', () => {
   it('B1: ditemukan → terminimasi penuh, provenance, TANPA kebocoran apa pun', () => {
     const n = buildLookupNarasi(FOUND, RELEASE);
-    expect(n).toContain('Menurut DTSEN v2.0-2026-08');
+    expect(n).toContain('Menurut DTSEN rilis v2.0-2026-08');
     expect(n).toContain('S*****H');
     expect(n).toContain('Pantan Musara');
     expect(n).toMatch(/desil kesejahteraan: 2/i);

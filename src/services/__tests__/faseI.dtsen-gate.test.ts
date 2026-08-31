@@ -20,12 +20,13 @@ describe('requiredRolesFor', () => {
   it('PUBLIC → null (tanpa syarat role)', () => {
     expect(requiredRolesFor('PUBLIC')).toBeNull();
   });
-  it('AGGR: analis + lookup + superadmin; PERSONAL: hanya lookup + superadmin', () => {
+  it('AGGR: analis + lookup + superadmin + DTSEN_ROOT; PERSONAL: lookup + superadmin + DTSEN_ROOT', () => {
     expect(requiredRolesFor('RESTRICTED_AGGR')).toContain('DTSEN_ANALYST');
     expect(requiredRolesFor('RESTRICTED_AGGR')).toContain('DTSEN_LOOKUP');
     expect(requiredRolesFor('RESTRICTED_AGGR')).toContain('SUPERADMIN');
+    expect(requiredRolesFor('RESTRICTED_AGGR')).toContain('DTSEN_ROOT');
     expect(requiredRolesFor('RESTRICTED_PERSONAL')).not.toContain('DTSEN_ANALYST');
-    expect(requiredRolesFor('RESTRICTED_PERSONAL')).toEqual(['DTSEN_LOOKUP', 'SUPERADMIN']);
+    expect(requiredRolesFor('RESTRICTED_PERSONAL')).toEqual(['DTSEN_LOOKUP', 'SUPERADMIN', 'DTSEN_ROOT']);
   });
 });
 
