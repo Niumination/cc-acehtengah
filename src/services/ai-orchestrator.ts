@@ -857,10 +857,54 @@ async function tryDeterministicDomainQuery(
     filterDipakai = 'dtsen-deterministik';
   }
 
+  // @hotfix 31-Agu-2026 — Jalur Bapokting deterministik: query harga komoditas
+  // (beras, cabai, bawang, minyak, dll) dijawab LANGSUNG dari data Bapokting
+  // (SPLP API), TANPA LLM. Sebelumnya query harga jatuh ke LLM dengan evidence
+  // campuran SAPA+DTSEN yang tidak relevan — output "masih sama seperti lama".
+  // Kini query harga mengembalikan chart bar agregat + narasi harga aktual.
+  if (!result && ctx.bapoktingEvidence.length > 0) {
+    const bk = ctx.bapoktingEvidence;
+    const sorted = [...bk].sort((a, b) => Number(b.nilai) - Number(a.nilai));
+    const top = sorted.slice(0, 3);
+    const bottom = [...sorted].reverse().slice(0, 3);
+
+    // Narasi harga aktual dari data (bukan LLM)
+    const topTxt = top.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
+    const bottomTxt = bottom.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
+    const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga tertinggi saat ini: ${topTxt}. Harga terendah: ${bottomTxt}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
+
+    // Chart bar agregat harga
+    const chartData = bk.slice(0, 10).map((e) => ({
+      nama: e.indikator.replace(/^Harga /, '').slice(0, 20),
+      harga: Number(e.nilai) || 0,
+    }));
+
+    result = {
+      narasi,
+      visualisasi: {
+        tipe: 'chart',
+        konfigurasi: {
+          type: 'bar',
+          xKey: 'nama',
+          data: chartData,
+          bars: ['harga'],
+        },
+      },
+      rekomendasi: [
+        `Pantau tren harga minyak goreng, beras, dan cabai secara berkala untuk antisipasi inflasi daerah.`,
+        `Data harga berasal dari Bapokting (SPLP API); gunakan bersama data SAPA untuk analisis ketahanan pangan.`,
+      ],
+      dataSource: 'Bapokting Aceh Tengah (SPLP API)',
+      timestamp: new Date().toISOString(),
+    };
+    filterDipakai = 'bapokting-deterministik';
+  }
+
   if (!result) return null;
 
   steps.deterministic = Date.now() - startedAt;
   const isTrend = filterDipakai.startsWith('tren');
+  const isBapokting = filterDipakai === 'bapokting-deterministik';
   const metadata = buildObservabilityMeta({
     opdFilter: ctx.opdFilter ?? null,
     filterDipakai,
@@ -878,7 +922,7 @@ async function tryDeterministicDomainQuery(
   });
   await saveChatSession({
     query,
-    intent: isTrend ? 'tren' : 'perbandingan',
+    intent: isTrend ? 'tren' : isBapokting ? 'bapokting' : 'perbandingan',
     result,
     metadata,
   });
