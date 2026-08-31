@@ -1,6 +1,7 @@
 // ─── Grounding SoT SAPA — Fase C ───
 // Validasi angka/tahun LLM vs evidence (pure, no network). Jika halu → template deterministik.
 
+import { parseNumericIdOrFallback } from '@/lib/parse-numeric';
 import type { HybridResponse } from '@/types';
 
 export interface EvidenceItem {
@@ -244,7 +245,7 @@ export function buildVizFromEvidence(evidence: EvidenceItem[]): HybridResponse['
     // Format data untuk chart agregat (mingguan/bulanan/tahunan)
     const chartData = bapoktingItems.map((e) => ({
       nama: e.indikator.length > 25 ? e.indikator.slice(0, 22) + '…' : e.indikator,
-      harga: Number(String(e.nilai).replace(/[^\d.-]/g, '')) || 0,
+      harga: parseNumericIdOrFallback(e.nilai, 0),
       satuan: e.satuan ?? 'Rp',
     }));
     return {
@@ -284,7 +285,7 @@ export function buildVizFromEvidence(evidence: EvidenceItem[]): HybridResponse['
       xKey: 'indikator',
       data: evidence.map((e) => ({
         indikator: e.indikator.length > 35 ? e.indikator.slice(0, 32) + '…' : e.indikator,
-        nilai: Number(String(e.nilai).replace(/[^\d.-]/g, '')) || 0,
+        nilai: parseNumericIdOrFallback(e.nilai, 0),
         satuan: e.satuan,
       })),
       bars: ['nilai'],

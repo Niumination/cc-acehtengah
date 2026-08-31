@@ -2,6 +2,8 @@
 // Prioritas: Direct API (sapa.acehtengahkab.go.id) dengan OAuth token.
 // Fallback: SPLP nasional (api-splp.layanan.go.id) jika direct gagal.
 
+import { parseNumericId } from './parse-numeric';
+
 const DIRECT_TOKEN_URL = process.env.SAPA_TOKEN_URL ?? 'https://sapa.acehtengahkab.go.id/oauth/token';
 const DIRECT_API_URL = process.env.SAPA_API_URL ?? 'https://sapa.acehtengahkab.go.id/api';
 const SPLP_BASE = 'https://api-splp.layanan.go.id/sapa/1.0/api';
@@ -430,8 +432,8 @@ export function aggregateByIndicator(records: SapaRecord[]): {
   for (const r of records) {
     const nama = r.kode_indikator_nama_indikator?.trim();
     if (!nama) continue;
-    const nilaiNumber = Number(String(r.variabel).replace(/[^\d.-]/g, ''));
-    if (!Number.isFinite(nilaiNumber)) continue;
+    const nilaiNumber = parseNumericId(String(r.variabel ?? ''));
+    if (nilaiNumber == null) continue;
 
     const existing = map.get(r.id_kode_indikator);
     if (!existing) {
