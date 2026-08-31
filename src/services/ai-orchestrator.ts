@@ -959,9 +959,6 @@ async function tryDeterministicDomainQuery(
   // - Filter hanya komoditas yang disebutkan di query
   if (!result && ctx.bapoktingEvidence.length > 0) {
     const bk = ctx.bapoktingEvidence;
-    const sorted = [...bk].sort((a, b) => Number(b.nilai) - Number(a.nilai));
-    const top = sorted.slice(0, 3);
-    const bottom = [...sorted].reverse().slice(0, 3);
 
     // Ekstrak komoditas target dari query
     const queryLower = query.toLowerCase();
@@ -975,13 +972,18 @@ async function tryDeterministicDomainQuery(
         )
       : bk;
 
+    // Sort descending by price (highest first)
+    const sorted = [...relevantEvidence].sort((a, b) => Number(b.nilai) - Number(a.nilai));
+    const top = sorted.slice(0, 3);
+    const bottom = [...sorted].reverse().slice(0, 3);
+
     // Narasi harga aktual dari data (bukan LLM)
     const topTxt = top.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
     const bottomTxt = bottom.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
     const commodityLabel = targetKomoditas.length > 0
-      ? ` komoditas ${targetKomoditas.map((k) => `"${k}"`).join(', ')}`
-      : '';
-    const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga${commodityLabel.length > 0 ? commodityLabel : ''} saat ini: ${topTxt}. Harga terendah:${bottomTxt.replace(/^Harga/, '')}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
+      ? ` komoditas "${targetKomoditas.join(', ')}"`
+      : ' bahan pokok';
+    const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga${commodityLabel} saat ini: ${topTxt}. Harga terendah:${bottomTxt.replace(/^Harga/, '')}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
 
     // Tambahkan informasi tren jika tersedia
     let trendNarasi = '';

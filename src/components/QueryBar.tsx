@@ -12,6 +12,7 @@ interface QueryBarProps {
 interface Chip {
   label: string;
   query: string;
+  disabled?: boolean;
 }
 
 interface ChipGroup {
@@ -80,9 +81,10 @@ const CHIP_GROUPS: ChipGroup[] = [
     hint: 'Harga bahan pokok · SPLP API 76 komoditas',
     chips: [
       { label: '🍚 Harga Beras', query: 'berapa harga beras di aceh tengah' },
-      { label: '🌶️ Harga Cabai', query: 'berapa harga cabai di aceh tengah' },
       { label: '🧅 Harga Bawang', query: 'berapa harga bawang di aceh tengah' },
       { label: '🫒 Harga Minyak', query: 'berapa harga minyak goreng di aceh tengah' },
+      { label: '🌶️ Harga Cabai', query: 'berapa harga cabai di aceh tengah', disabled: true },
+      { label: '📦 Komoditas Lainnya', query: 'apa saja harga bahan pokok di aceh tengah' },
     ],
   },
 ];
@@ -138,10 +140,14 @@ export default function QueryBar({ onQuery, isLoading, onReset, isDefaultMode }:
               <button
                 key={chip.label}
                 type="button"
-                onClick={() => !group.disabled && handleChipClick(chip.query)}
-                disabled={isLoading || group.disabled || !chip.query}
-                title={group.disabled ? `Sumber ${group.source} belum terhubung` : undefined}
-                className="px-3 py-1.5 rounded-lg bg-[#E9E6DA] text-[11px] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332] border border-[#C6C3B4] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => !group.disabled && !chip.disabled && handleChipClick(chip.query)}
+                disabled={isLoading || group.disabled || chip.disabled || !chip.query}
+                title={chip.disabled ? `Data ${chip.label.toLowerCase()} belum tersedia di API` : undefined}
+                className={`px-3 py-1.5 rounded-lg border border-[#C6C3B4] transition-all duration-200 text-[11px] ${
+                  chip.disabled
+                    ? 'bg-[#F5F3EC] text-[#A0A0A0] cursor-not-allowed opacity-60'
+                    : 'bg-[#E9E6DA] text-[#4B5249] hover:bg-[#DCE8DE] hover:text-[#1B4332]'
+                } disabled:cursor-not-allowed`}
               >
                 {chip.label}
               </button>
