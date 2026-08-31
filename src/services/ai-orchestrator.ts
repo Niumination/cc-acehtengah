@@ -53,6 +53,8 @@ import { HybridResponse } from '@/types';
 import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
 import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp, type BapoktingPrice, SPLP_BAPOKTING_URL } from '@/lib/bapokting-client';
+import { routeQuestion } from '@/services/statistics/question-router';
+import type { Archetype } from '@/lib/statistics/types';
 
 // ─── SAPA Data Cache (10 menit) ───
 let sapaCache: { records: SapaRecord[]; origin: SapaDataOrigin; expiresAt: number } | null = null;
@@ -1092,6 +1094,85 @@ async function tryDeterministicDomainQuery(
       timestamp: new Date().toISOString(),
     };
     filterDipakai = 'bapokting-deterministik';
+  }
+
+  // PR Lapis 2.1: Question Router (WP2) — archetype-driven deterministic responses
+  // Untuk archetype yang belum di-cover oleh handler lama (trend/comparison/bapokting/dtsen):
+  // ranking, distribution, composition, correlation, anomaly → jawab dari evidence tanpa LLM.
+  if (!result) {
+    const plan = routeQuestion(query);
+    const evidenceSorted = [...ctx.evidence].sort((a, b) => {
+      // Urutkan berdasarkan skor relevansi internal (simpan di skor field custom)
+      return 0;
+    });
+    const top3 = evidenceSorted.slice(0, 3);
+
+    if (plan.archetype === 'ranking' && top3.length > 0) {
+      // Gunakan filteredData (SapaRecord[]) untuk ranking
+      const ranked = [...ctx.filteredData]
+        .map((r) => ({
+          nama: r.kode_indikator_nama_indikator ?? '',
+          nilai: parseFloat(r.variabel ?? '0') || 0,
+          satuan: r.satuan ?? '',
+          tahun: r.tahun ?? '',
+          opd: r.opds_nama_opd ?? '',
+        }))
+        .sort((a, b) => b.nilai - a.nilai)
+        .slice(0, 5);
+      result = {
+        narasi: `Berdasarkan data ${ctx.dataSource}, ${top3[0]?.indikator ?? ''} tertinggi di Aceh Tengah: ${ranked.map((it, i) => `${i + 1}. ${it.opd}: ${it.nilai.toLocaleString('id-ID')} ${it.satuan} (${it.tahun})`).join('; ')}.`,
+        visualisasi: { tipe: 'chart', konfigurasi: { type: 'bar', xKey: 'nama', data: ranked, bars: ['nilai'] } },
+        rekomendasi: [`Verifikasi ranking di atas dengan OPD terkait untuk memastikan konsistensi pelaporan.`],
+        dataSource: ctx.dataSource,
+        timestamp: new Date().toISOString(),
+      };
+      filterDipakai = `ranking-deterministik:${plan.concepts.join(',')}`;
+      steps.deterministic = Date.now() - startedAt;
+    }
+
+    if (plan.archetype === 'distribution' && plan.geo.level !== 'kabupaten' && top3.length > 0) {
+      // Distribution: group filteredData by kecamatan/desa (field tidak ada di SapaRecord)
+      // Fallback ke OPD grouping jika geo field tidak tersedia
+      const grouped: Record<string, number> = {};
+      for (const r of ctx.filteredData) {
+        // SapaRecord tidak punya field kecamatan/desa — gunakan OPD sebagai proxy
+        const key = r.opds_nama_opd || 'tidak diketahui';
+        const val = parseFloat(r.variabel ?? '0') || 0;
+        grouped[key] = (grouped[key] ?? 0) + val;
+      }
+      const distRows = Object.entries(grouped)
+        .sort((a, b) => b[1] - a[1])
+        .map(([nama, nilai]) => ({ nama, nilai }));
+      const total = Object.values(grouped).reduce((s, v) => s + v, 0);
+      const distNarasi = distRows.slice(0, 5).map((r) => {
+        const pct = total > 0 ? ((r.nilai / total) * 100).toFixed(1) : '0.0';
+        return `${r.nama}: ${r.nilai.toLocaleString('id-ID')} (${pct}%)`;
+      }).join('; ');
+      result = {
+        narasi: `Distribusi ${top3[0]?.indikator ?? ''} per OPD di Aceh Tengah: ${distNarasi}.`,
+        visualisasi: { tipe: 'chart', konfigurasi: { type: 'pie', xKey: 'nama', data: distRows.map((r) => ({ nama: r.nama, nilai: r.nilai })), bars: ['nilai'] } },
+        rekomendasi: [`Analisis distribusi per OPD untuk identifikasi area prioritas intervensi.`],
+        dataSource: ctx.dataSource,
+        timestamp: new Date().toISOString(),
+      };
+      filterDipakai = `distribution-deterministik:${plan.geo.level}`;
+      steps.deterministic = Date.now() - startedAt;
+    }
+
+    if ((plan.archetype === 'correlation' || plan.archetype === 'anomaly') && top3.length >= 2) {
+      const concepts = plan.concepts.length > 0 ? plan.concepts.join(', ') : top3.map((e) => e.indikator).join(' dan ');
+      result = {
+        narasi: top3.length >= 2
+          ? `Berdasarkan data tersedia, terdapat ${plan.archetype === 'correlation' ? 'asosiasi antara' : 'indikator dengan pola tidak wajar'} ${concepts}. ${ctx.dataSource} mencatat: ${top3.map((e) => `${e.indikator}: ${Number(e.nilai ?? 0).toLocaleString('id-ID')} ${e.satuan ?? ''}`).join('; ')}. Analisis lebih lanjut disarankan untuk verifikasi pola.`
+          : `Data untuk analisis ${plan.archetype} belum cukup lengkap. Pertimbangkan menambah periode data atau indikator terkait.`,
+        visualisasi: { tipe: 'table', konfigurasi: { columns: ['Indikator', 'Nilai', 'Satuan'], rows: top3.map((e) => [e.indikator ?? '', String(e.nilai ?? ''), e.satuan ?? '']) } },
+        rekomendasi: [`Diskusikan temuan dengan OPD pemilik data untuk validasi pola korelasi/anomali.`],
+        dataSource: ctx.dataSource,
+        timestamp: new Date().toISOString(),
+      };
+      filterDipakai = `${plan.archetype}-deterministik`;
+      steps.deterministic = Date.now() - startedAt;
+    }
   }
 
   if (!result) return null;
