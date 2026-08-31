@@ -2,6 +2,7 @@
 // Historis analysis, trend detection, dan rekomendasi otomatis
 
 import { BapoktingPrice } from './bapokting-client';
+import { describe, growth, classifyTrend } from './statistics/compute';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,16 +70,9 @@ function formatRupiah(n: number): string {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 }
 
-function hitungStdDev(values: number[], rataRata: number): number {
-  if (values.length < 2) return 0;
-  const sumSquares = values.reduce((sum, v) => sum + Math.pow(v - rataRata, 2), 0);
-  return Math.sqrt(sumSquares / (values.length - 1));
-}
-
-function hitungPersentase(lama: number, baru: number): number {
-  if (lama === 0) return 0;
-  return ((baru - lama) / lama) * 100;
-}
+// Statistik deskriptif + persen dipindah ke semantic layer (WP3.0c):
+//   src/lib/statistics/compute.ts — describe(), growth(), classifyTrend().
+// Jangan reimplementasi stdDev/persen di sini (aturan A7).
 
 // ─── Core Functions ──────────────────────────────────────────────────────────
 
@@ -120,8 +114,9 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
       .slice(0, hari);
 
     const hargaValues = historis.map((h) => h.harga);
-    const avg = hargaValues.reduce((a, b) => a + b, 0) / hargaValues.length;
-    const stdDev = hitungStdDev(hargaValues, avg);
+    const stats = describe(hargaValues);
+    const avg = stats.mean;
+    const stdDev = stats.stdDev;
 
     // Hitung trend: bandingkan rata-rata 7 hari terakhir vs 7 hari sebelumnya
     let trend: 'naik' | 'turun' | 'stabil' = 'stabil';
@@ -132,8 +127,8 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
       cukupData = true;
       const mingguIni = sorted.slice(0, 7).reduce((a, b) => a + b.harga, 0) / 7;
       const mingguLalu = sorted.slice(7, 14).reduce((a, b) => a + b.harga, 0) / 7;
-      persentasePerubahan = hitungPersentase(mingguLalu, mingguIni);
-      trend = persentasePerubahan > 2 ? 'naik' : persentasePerubahan < -2 ? 'turun' : 'stabil';
+      persentasePerubahan = growth(mingguLalu, mingguIni);
+      trend = classifyTrend(persentasePerubahan);
     }
 
     const currentHarga = sorted.length > 0 ? sorted[0].harga : 0;
