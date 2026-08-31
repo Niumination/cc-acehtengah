@@ -3,14 +3,17 @@
 # Jalankan SEBELUM commit/push data Excel. Exit 1 bila ditemukan kebocoran.
 set -e
 ROOT="${1:-.}"
-echo "== Scan PII/NIK 16-digit di src/data/excel =="
+echo "== Scan PII/NIK 16-digit di src/data/excel + docs/ =="
 LEAK=0
 # 1. NIK 16 digit di json maupun xlsx
 python3 - "$ROOT" <<'PY'
 import os, re, sys, json
 root=sys.argv[1]
 nik=re.compile(r'\b\d{16}\b')
+# pola kredensial umum
+cred_re=re.compile(r'(cPtnkHE7NYD3Gg_s|sk-[A-Za-z0-9_-]{20,}|DTSEN_DATA_KEY\s*=\s*["\']?[A-Za-z0-9+/=_-]{20,})')
 bad=0
+# scan src/data/excel (json/xlsx) — tetap
 for dp,_,fs in os.walk(os.path.join(root,'src/data/excel')):
     for fn in fs:
         p=os.path.join(dp,fn)
@@ -32,7 +35,27 @@ for dp,_,fs in os.walk(os.path.join(root,'src/data/excel')):
         real_names=re.compile(r'(Abdul Ghafur|ARSILA SYAFIKA|DAHLIA|Sabikul Haily|Rizki Kusiar|Alisyah|Mahdalena)', re.I)
         if real_names.findall(txt):
             print("LEAK NAME:",p); bad+=1
+# 2. Scan docs/ untuk NIK dan kredensial bocor
+for dp,_,fs in os.walk(os.path.join(root,'docs')):
+    for fn in fs:
+        if not fn.endswith(('.md','.txt','.json')):
+            continue
+        p=os.path.join(dp,fn)
+        try:
+            txt=open(p,encoding='utf-8').read()
+        except: continue
+        if nik.findall(txt):
+            # izinkan contoh NIK yang sudah di-redact: [NIK REDACTED] atau 3216***********
+            if '[NIK REDACTED' in txt or '[REDACTED' in txt:
+                # tetap flag jika ada digit utuh selain redacted
+                cleaned=re.sub(r'\[REDACTED[^\]]*\]|\[NIK[^\]]*\]', '', txt)
+                if nik.findall(cleaned):
+                    print("LEAK NIK16 in docs:",p); bad+=1
+            else:
+                print("LEAK NIK16 in docs:",p); bad+=1
+        if cred_re.search(txt):
+            print("LEAK CRED in docs:",p); bad+=1
 print("LEAK_COUNT",bad)
 sys.exit(1 if bad else 0)
 PY
-echo "== OK: tidak ada kebocoran PII di src/data/excel =="
+echo "== OK: tidak ada kebocoran PII di src/data/excel + docs/ =="
