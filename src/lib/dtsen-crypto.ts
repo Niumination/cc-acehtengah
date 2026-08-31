@@ -10,7 +10,7 @@ function dataKey(): Buffer | null {
   const k = process.env.DTSEN_DATA_KEY;
   if (!k) return null;
   const b = Buffer.from(k, 'base64url');
-  return b.length >= 32 ? b : null;
+  return b.length === 32 ? b : null;
 }
 
 export function encryptField(plain: string): string | null {
