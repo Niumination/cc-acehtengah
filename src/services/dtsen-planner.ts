@@ -235,7 +235,11 @@ export function formatTanggalId(d: Date | string | null): string {
 }
 
 export function jalurLabel(status: string): string {
-  return status === 'API' ? 'API resmi Portal SDI' : 'jalur impor manual';
+  if (status === 'API') return 'SPLP live (API resmi Portal SDI)';
+  if (status === 'MANUAL') return 'impor manual';
+  // Status rilis DB (bukan jalur) — label jujur: data dari warehouse DB.
+  if (status === 'PUBLISHED' || status === 'STAGING' || status === 'SUPERSEDED') return 'DB rilis (warehouse)';
+  return status;
 }
 
 /** Label chip visual + nilai DataSource.provenanceLabel (ditulis saat publish). */

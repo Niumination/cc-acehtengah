@@ -103,9 +103,12 @@ export function dataSourceFromEvidence(evidence: { opd?: string }[]): string {
     // @hotfix 28 Agu 2026: label jujur untuk DTSEN demo — jangan klaim "via SPLP API"
     // padahal data simulasi (user: jawaban DTSEN muncul padahal API masih 401).
     else if (opd.includes('DTSEN Demo') || opd.includes('DTSEN (Demo')) opds.add('DTSEN (data demo — simulasi)');
-    // @hotfix 29 Agu 2026: sumber offline BAPPEDA Des 2025 — label sendiri.
-    else if (opd.includes('BAPPEDA')) opds.add('DTSEN (BAPPEDA Des 2025 — offline)');
-    else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS via SPLP API)');
+    // @hotfix 29 Agu 2026: sumber dibedakan dari opd yang dikirim planner:
+    // DB rilis (warehouse) / BAPPEDA offline / SPLP live — jangan menebak dari nama.
+    else if (opd.includes('DB rilis')) opds.add('DTSEN (DB rilis — warehouse)');
+    else if (opd.includes('BAPPEDA') || opd.includes('offline')) opds.add('DTSEN (BAPPEDA Des 2025 — offline)');
+    else if (opd.includes('SPLP')) opds.add('DTSEN (Kemensos/BPS via SPLP API)');
+    else if (opd.includes('DTSEN')) opds.add('DTSEN (Kemensos/BPS)');
     else if (opd.includes('Dokumen')) opds.add(opd); // label "Dokumen A — <OPD>"
     else opds.add('SAPA Aceh Tengah');
   }

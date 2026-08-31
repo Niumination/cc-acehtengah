@@ -275,18 +275,25 @@ async function buildContext(query: string) {
       dtsenResult.byWilayah = dtsenResult.byWilayah || [];
       dtsenResult.provenance = dtsenResult.provenance || { label: 'DTSEN (demo)', releaseNumber: 'DEMO', status: 'PUBLISHED', publishedAt: null };
       dtsenResult.bansos = dtsenResult.bansos || null;
-      // @hotfix 28 Agu 2026: label jujur — kalau data berasal dari demo (fallback saat
-      // DB kosong / SPLP 401), beri opd "DTSEN (Demo — simulasi)" agar dataSourceFromEvidence
-      // TIDAK mengklaim "via SPLP API". Sebelumnya demo dilabeli seperti data live asli.
-      // @hotfix 29 Agu 2026: sumber OFFLINE BAPPEDA (Des 2025) juga diberi label sendiri.
+      // @hotfix 29 Agu 2026: label jujur — sumber DTSEN dibedakan dari label
+      // provenance yang SEBENARNYA dikirim planner (bukan tebakan dari nama
+      // file/kode): DB rilis → "DB rilis…"; BAPPEDA offline → "…offline";
+      // SPLP live → "…via SPLP API". Urutan cek: demo → DB → offline → SPLP.
       const provLabel = dtsenResult.provenance?.label ?? '';
-      const isDemoDtsen = provLabel.toLowerCase().includes('demo');
-      const isBappedaDtsen = provLabel.toLowerCase().includes('bappeda');
+      const provLower = provLabel.toLowerCase();
+      const isDemoDtsen = provLower.includes('demo');
+      const isDbDtsen = provLower.includes('db rilis');
+      const isBappedaOffline = provLower.includes('offline');
+      const isSplpDtsen = provLower.includes('splp');
       const dtsenOpd = isDemoDtsen
         ? 'DTSEN (Demo — simulasi)'
-        : isBappedaDtsen
-          ? 'DTSEN (BAPPEDA Des 2025 — offline)'
-          : 'DTSEN (Kemensos/BPS)';
+        : isDbDtsen
+          ? 'DTSEN (DB rilis — warehouse)'
+          : isBappedaOffline
+            ? 'DTSEN (BAPPEDA Des 2025 — offline)'
+            : isSplpDtsen
+              ? 'DTSEN (Kemensos/BPS via SPLP API)'
+              : 'DTSEN (Kemensos/BPS)';
       for (const d of dtsenResult.byDesil) {
         dtsenEvidence.push({
           opd: dtsenOpd,
