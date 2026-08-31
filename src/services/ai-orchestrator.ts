@@ -972,6 +972,23 @@ async function tryDeterministicDomainQuery(
         )
       : bk;
 
+    // Handle komoditas yang tidak ada di API (contoh: cabai)
+    if (targetKomoditas.length > 0 && relevantEvidence.length === 0) {
+      const unavailable = targetKomoditas.filter(k => !bk.some(e => (e.indikator ?? '').toLowerCase().includes(k)));
+      if (unavailable.length > 0) {
+        result = {
+          narasi: `Maaf, data harga untuk ${unavailable.join(' dan ')} saat ini belum tersedia di Bapokting Aceh Tengah. Data yang tersedia meliputi: beras, bawang, minyak, gula, ternak, dan bahan pokok lainnya.`,
+          visualisasi: { tipe: 'none', konfigurasi: {} },
+          rekomendasi: [`Coba tanyakan harga komoditas lain yang tersedia seperti beras, bawang, atau minyak.`],
+          dataSource: 'Bapokting Aceh Tengah (SPLP API)',
+          timestamp: new Date().toISOString(),
+        };
+        filterDipakai = 'bapokting-deterministik';
+        steps.deterministic = Date.now() - startedAt;
+        return result;
+      }
+    }
+
     // Sort descending by price (highest first)
     const sorted = [...relevantEvidence].sort((a, b) => Number(b.nilai) - Number(a.nilai));
     const top = sorted.slice(0, 3);
