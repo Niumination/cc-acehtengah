@@ -150,7 +150,7 @@ export function parseAndValidateDtsenCsv(text: string, secret: string, opts: Val
   }
 
   const header = rows[0]!.map((h) => normalize(h));
-  const missingCols = TEMPLATE_HEADER.filter((h) => h !== 'no_kk' && !header.includes(h));
+  const missingCols = TEMPLATE_HEADER.filter((h) => !header.includes(h));
   if (missingCols.length > 0) {
     return {
       valid: [],
@@ -199,10 +199,11 @@ export function parseAndValidateDtsenCsv(text: string, secret: string, opts: Val
     }
     const nikHash = hmac(nik, secret);
     const noKk = get('no_kk');
+    if (!/^\d{16}$/.test(noKk)) return fail(`no_kk harus 16 digit angka (diterima: "${noKk ? noKk.slice(0, 4) + '…' : 'kosong'}")`);
     valid.push({
       nikHash,
       namaMasked: maskNama(nama),
-      keluargaId: /^\d{16}$/.test(noKk) ? `kk:${hmac(noKk, secret)}` : `individu:${nikHash}`,
+      keluargaId: `kk:${hmac(noKk, secret)}`,
       kecamatan: kec,
       desa: desaRaw,
       desil,
@@ -229,11 +230,17 @@ export interface AgregatResult {
   /** jiwa yang DITOLAK dari agregat karena kelompoknya < K_MIN (k-anonymity) */
   jiwaTerSensor: number;
   kelompokTerSensor: number;
+  /** peringatan jika ada proxy keluarga terdeteksi (legacy data tanpa no_kk) */
+  peringatan?: string;
+  /** jumlah keluarga yang masih memakai proxy individu:<hash> */
+  keluargaProksi?: number;
 }
 
 export function buildAgregatWilayah(rows: ValidDtsenRow[], kMin: number = K_MIN): AgregatResult {
   const groups = new Map<string, { kec: string; desa: string; desil: number; jiwa: number; keluarga: Set<string> }>();
+  let keluargaProksi = 0;
   for (const r of rows) {
+    if (r.keluargaId?.startsWith('individu:')) keluargaProksi++;
     const key = `${r.kecamatan}|||${r.desa}|||${r.desil}`;
     const g = groups.get(key) ?? { kec: r.kecamatan, desa: r.desa, desil: r.desil, jiwa: 0, keluarga: new Set<string>() };
     g.jiwa++;
@@ -254,5 +261,6 @@ export function buildAgregatWilayah(rows: ValidDtsenRow[], kMin: number = K_MIN)
   out.sort((a, b) =>
     a.kecamatan.localeCompare(b.kecamatan) || a.desa.localeCompare(b.desa) || a.desil - b.desil,
   );
-  return { rows: out, jiwaTerSensor, kelompokTerSensor };
+  const peringatan = keluargaProksi > 0 ? `Terdeteksi ${keluargaProksi} jiwa dengan keluargaId proxy (tanpa no_kk) — jumlahKeluarga tidak dapat dipercaya, impor ulang dengan no_kk 16-digit` : undefined;
+  return { rows: out, jiwaTerSensor, kelompokTerSensor, ...(peringatan ? { peringatan, keluargaProksi } : {}) };
 }

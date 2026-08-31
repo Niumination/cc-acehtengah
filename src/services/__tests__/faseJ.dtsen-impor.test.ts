@@ -68,7 +68,7 @@ describe('parseAndValidateDtsenCsv — gerbang kualitas', () => {
   });
 
   it('NIK mentah TIDAK PERNAH bocor di output baris valid', () => {
-    const text = `${HEADER}\n${csvRow(nik(7), 'Nama Rahasia Warga')}`;
+    const text = `${HEADER}\n${csvRow(nik(7), 'Nama Rahasia Warga', nik(77))}`;
     const r = parseAndValidateDtsenCsv(text, SECRET);
     const blob = JSON.stringify(r.valid);
     expect(blob).not.toContain(nik(7));
@@ -94,9 +94,11 @@ describe('parseAndValidateDtsenCsv — gerbang kualitas', () => {
     expect(r.rejected[0].line).toBe(1);
   });
 
-  it('keluargaId fallback deterministik saat no_kk kosong', () => {
+  it('no_kk kosong/wajib — baris ditolak (tidak ada proxy keluarga)', () => {
     const r = parseAndValidateDtsenCsv(`${HEADER}\n${csvRow(nik(10), 'Tanpa Kk')}`, SECRET);
-    expect(r.valid[0].keluargaId).toBe(`individu:${hmac(nik(10), SECRET)}`);
+    expect(r.valid).toHaveLength(0);
+    expect(r.rejected).toHaveLength(1);
+    expect(r.rejected[0].reason).toMatch(/no_kk/i);
   });
 });
 
@@ -132,11 +134,11 @@ describe('buildAgregatWilayah — sensor k-anonymity', () => {
 
 describe('importChecksum', () => {
   it('insensitif urutan baris, peka perubahan isi', () => {
-    const r = parseAndValidateDtsenCsv(`${HEADER}\n${csvRow(nik(1), 'A B')}\n${csvRow(nik(2), 'C D', '', 'Bies', 'Buntul')}`, SECRET);
+    const r = parseAndValidateDtsenCsv(`${HEADER}\n${csvRow(nik(1), 'A B', nik(91))}\n${csvRow(nik(2), 'C D', nik(92), 'Bies', 'Buntul')}`, SECRET);
     const c1 = importChecksum(r.valid);
     const c2 = importChecksum([...r.valid].reverse());
     expect(c1).toBe(c2);
-    const r2 = parseAndValidateDtsenCsv(`${HEADER}\n${csvRow(nik(1), 'A B')}\n${csvRow(nik(2), 'C D', '', 'Bies', 'Buntul', '2')}`, SECRET);
+    const r2 = parseAndValidateDtsenCsv(`${HEADER}\n${csvRow(nik(1), 'A B', nik(91))}\n${csvRow(nik(2), 'C D', nik(92), 'Bies', 'Buntul', '2')}`, SECRET);
     expect(importChecksum(r2.valid)).not.toBe(c1);
   });
 });
