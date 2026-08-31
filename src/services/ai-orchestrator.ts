@@ -962,7 +962,7 @@ async function tryDeterministicDomainQuery(
 
     // Ekstrak komoditas target dari query
     const queryLower = query.toLowerCase();
-    const komoditasKeywords = ['beras', 'cabai', 'bawang', 'minyak', 'gula', 'sapi', 'ayam'];
+    const komoditasKeywords = ['beras', 'cabe', 'bawang', 'minyak', 'gula', 'sapi', 'ayam'];
     const targetKomoditas = komoditasKeywords.filter((k) => new RegExp(`\\b${k}\\b`, 'i').test(queryLower));
 
     // Filter evidence hanya untuk komoditas yang relevan

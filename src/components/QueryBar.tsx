@@ -81,6 +81,7 @@ const CHIP_GROUPS: ChipGroup[] = [
     hint: 'Harga bahan pokok · SPLP API 76 komoditas',
     chips: [
       { label: '🍚 Harga Beras', query: 'berapa harga beras di aceh tengah' },
+      { label: '🌶️ Harga Cabe', query: 'berapa harga cabe di aceh tengah' },
       { label: '🧅 Harga Bawang', query: 'berapa harga bawang di aceh tengah' },
       { label: '🫒 Harga Minyak', query: 'berapa harga minyak goreng di aceh tengah' },
       { label: '📦 Komoditas Lainnya', query: 'apa saja harga bahan pokok di aceh tengah' },
