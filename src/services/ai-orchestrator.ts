@@ -326,6 +326,7 @@ async function buildContext(query: string) {
   // ─── Bapokting Integration (Harga Komoditas via SPLP API) ───
   let bapoktingEvidence: EvidenceItem[] = [];
   let bapoktingProvenance: { label: string } = { label: '' };
+  let bapoktingTrendData: any = null;
 
   // Deteksi query harga komoditas
   const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|bahan pokok)\b/i;
@@ -358,6 +359,69 @@ async function buildContext(query: string) {
           });
         }
         bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah (SPLP API)' };
+
+        // Fetch data historis 7 hari untuk analisis tren
+        const today = new Date();
+        const historicalData: Array<{ date: string; price: number; namaBarang: string }> = [];
+
+        for (let i = 1; i <= 7; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          try {
+            const historicalRes = await fetch(
+              `https://api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga?tb=data_aset&s=kecamatan&f=desil&tanggal=${dateStr}`,
+              { signal: AbortSignal.timeout(10000) }
+            );
+            if (historicalRes.ok) {
+              const histData = await historicalRes.json();
+              const items = histData?.daftar_harga || [];
+              for (const item of items) {
+                const namaBarang = item.komoditi || item.nama_barang || '';
+                const price = item.harga_eceran || item.harga_borongan || item.harga || 0;
+                if (price > 0 && (filtered.length === 0 ||
+                    specificCommodities.some((c) => namaBarang.toLowerCase().includes(c)))) {
+                  historicalData.push({ date: dateStr, price, namaBarang });
+                }
+              }
+            }
+          } catch (e) {
+            // Skip historical fetch errors
+          }
+        }
+
+        // Hitung tren per komoditas
+        if (historicalData.length > 0 && filtered.length > 0) {
+          const commodityNames = filtered.map((p) => p.namaBarang.toLowerCase());
+          const trendMap = new Map<string, { latest: number; weekAgo: number; trend: 'naik' | 'turun' | 'stabil'; change: number }>();
+
+          for (const name of commodityNames) {
+            const latest = historicalData
+              .filter((d) => d.namaBarang.toLowerCase().includes(name.split(' ')[0]))
+              .sort((a, b) => b.date.localeCompare(a.date))[0]?.price || 0;
+            const weekAgo = historicalData
+              .filter((d) => d.namaBarang.toLowerCase().includes(name.split(' ')[0]))
+              .sort((a, b) => a.date.localeCompare(b.date))[0]?.price || 0;
+
+            if (latest > 0 && weekAgo > 0) {
+              const change = ((latest - weekAgo) / weekAgo) * 100;
+              trendMap.set(name, {
+                latest,
+                weekAgo,
+                trend: change > 2 ? 'naik' : change < -2 ? 'turun' : 'stabil',
+                change,
+              });
+            }
+          }
+
+          bapoktingTrendData = Array.from(trendMap.entries()).map(([nama, data]) => ({
+            nama,
+            hargaTerakhir: data.latest,
+            harga7HariLalu: data.weekAgo,
+            persentasePerubahan: Math.round(data.change * 10) / 10,
+            trend: data.trend,
+          }));
+        }
       }
     } catch (e) {
       console.warn('[Orchestrator] Bapokting fetch failed:', e);
@@ -410,6 +474,7 @@ async function buildContext(query: string) {
     dtsenNarasi,
     bapoktingEvidence,
     bapoktingProvenance,
+    bapoktingTrendData,
     dataSource: dataSourceFromEvidence(allEvidence),
     dataForLLM,
     konteksRegulasi,
@@ -876,8 +941,9 @@ async function tryDeterministicDomainQuery(
   // (SPLP API), TANPA LLM. Sebelumnya query harga jatuh ke LLM dengan evidence
   // campuran SAPA+DTSEN yang tidak relevan — output "masih sama seperti lama".
   // Kini query harga mengembalikan:
-  // - Narasi harga aktual (tertinggi/terendah)
-  // - Chart perbandingan harga (bar) untuk komoditas yang relevan
+  // - Narasi harga aktual (tertinggi/terendah) + tren naik/turun
+  // - Chart line/area tren harga (jika data historis tersedia)
+  // - Chart bar perbandingan harga (fallback)
   // - Filter hanya komoditas yang disebutkan di query
   if (!result && ctx.bapoktingEvidence.length > 0) {
     const bk = ctx.bapoktingEvidence;
@@ -905,16 +971,45 @@ async function tryDeterministicDomainQuery(
       : '';
     const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga${commodityLabel.length > 0 ? commodityLabel : ''} saat ini: ${topTxt}. Harga terendah:${bottomTxt.replace(/^Harga/, '')}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
 
-    // Chart bar: perbandingan harga untuk komoditas yang relevan
-    const chartData = relevantEvidence.slice(0, 10).map((e) => ({
-      nama: e.indikator.replace(/^Harga /, ''),
-      harga: Number(e.nilai) || 0,
-      satuan: e.satuan ?? 'Kg',
-    }));
+    // Tambahkan informasi tren jika tersedia
+    let trendNarasi = '';
+    if (ctx.bapoktingTrendData && ctx.bapoktingTrendData.length > 0) {
+      const naik = ctx.bapoktingTrendData.filter((t: any) => t.trend === 'naik');
+      const turun = ctx.bapoktingTrendData.filter((t: any) => t.trend === 'turun');
+      if (naik.length > 0 || turun.length > 0) {
+        const naikTxt = naik.map((t: any) => `"${t.nama}": +${t.persentasePerubahan}%`).join(', ');
+        const turunTxt = turun.map((t: any) => `"${t.nama}": ${t.persentasePerubahan}%`).join(', ');
+        trendNarasi = ` Dalam 7 hari terakhir, harga ${naik.length > 0 ? naikTxt : ''}${naik.length > 0 && turun.length > 0 ? ' sedangkan ' : ''}${turun.length > 0 ? turunTxt : ''}.`;
+      }
+    }
 
-    result = {
-      narasi,
-      visualisasi: {
+    // Tentukan chart: line tren jika tersedia, else bar perbandingan
+    let visualisasi: any = { tipe: 'chart', konfigurasi: {} };
+    if (ctx.bapoktingTrendData && ctx.bapoktingTrendData.length > 0) {
+      // Chart line: tren harga 7 hari terakhir
+      const trendChartData = ctx.bapoktingTrendData.map((t: any) => ({
+        nama: t.nama,
+        hargaTerakhir: t.hargaTerakhir,
+        persentasePerubahan: t.persentasePerubahan,
+        trend: t.trend,
+      }));
+      visualisasi = {
+        tipe: 'chart',
+        konfigurasi: {
+          type: 'line',
+          xKey: 'nama',
+          data: trendChartData,
+          lines: ['hargaTerakhir', 'persentasePerubahan'],
+        },
+      };
+    } else {
+      // Fallback: chart bar perbandingan harga
+      const chartData = relevantEvidence.slice(0, 10).map((e: any) => ({
+        nama: e.indikator.replace(/^Harga /, ''),
+        harga: Number(e.nilai) || 0,
+        satuan: e.satuan ?? 'Kg',
+      }));
+      visualisasi = {
         tipe: 'chart',
         konfigurasi: {
           type: 'bar',
@@ -922,7 +1017,12 @@ async function tryDeterministicDomainQuery(
           data: chartData,
           bars: ['harga'],
         },
-      },
+      };
+    }
+
+    result = {
+      narasi: narasi + trendNarasi,
+      visualisasi,
       rekomendasi: targetKomoditas.length > 0
         ? [
             `Pantau tren harga ${targetKomoditas.join(', ')} secara berkala untuk antisipasi inflasi daerah.`,
