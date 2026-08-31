@@ -25,7 +25,7 @@
 - **Data sensitif TIDAK pernah plaintext:** `DtsenIndividu.namaAsliEnc`/`nikEnc` = **AES-256-GCM** dengan `DTSEN_DATA_KEY` (43 char, Vercel + `.env.local`)
 - Dekripsi hanya di server untuk role `DTSEN_ROOT` (`src/lib/dtsen-crypto.ts` → `canSeeFullIdentitas`)
 - Audit trail `BREAKDOWN_INDIVIDU` untuk setiap akses BNBA
-- Verifikasi live: `dtsen_root` → "[NAMA REDACTED] · [NIK REDACTED]" ✅; `master_admin` → termask ✅
+- Verifikasi live: `dtsen_root` → "[REDACTED] · [NIK REDACTED]" ✅; `master_admin` → termask ✅
 
 ## 3. Alur login/logout (koreksi)
 
@@ -49,5 +49,5 @@
 
 ## Kredensial baru (semua di vault/cc-acehtengah.env)
 
-- `dtsen_root` / `[REDACTED]` (DTSEN_ROOT — ganti password segera)
+- `dtsen_root` / `[REDACTED - lihat vault, ganti segera]` (DTSEN_ROOT — ganti password segera)
 - `DTSEN_DATA_KEY` (Vercel + .env.local) — WAJIB dijaga, tanpa ini namaAsliEnc tidak bisa didekripsi
