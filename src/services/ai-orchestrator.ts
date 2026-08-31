@@ -383,7 +383,7 @@ async function buildContext(query: string) {
 
         const trendMap = new Map<string, CommodityTrend>();
 
-        for (const commodity of filtered) {
+        for (const commodity of filtered.slice(0, 15)) {
           const commodityName = commodity.namaBarang;
           const points: TrendPoint[] = [];
           const queryLower = query.toLowerCase();
