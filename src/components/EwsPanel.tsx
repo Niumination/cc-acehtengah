@@ -11,6 +11,7 @@ const SEVERITY_STYLES: Record<string, { bg: string; dot: string; text: string }>
 
 export default function EwsPanel() {
   const [alerts, setAlerts] = useState<EwsAlertData[]>([]);
+  const [ready, setReady] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchAlerts = async () => {
@@ -18,8 +19,10 @@ export default function EwsPanel() {
       const res = await fetch('/api/ews');
       const data = await res.json();
       setAlerts(data.alerts ?? []);
+      setReady(data.ready ?? false);
     } catch {
       setAlerts([]);
+      setReady(false);
     } finally {
       setLoading(false);
     }
@@ -50,7 +53,19 @@ export default function EwsPanel() {
         </span>
       </div>
 
-      {alerts.length === 0 ? (
+      {ready === false ? (
+        <div className="text-center py-6">
+          <div className="w-10 h-10 rounded-full bg-[#F3DCC9] flex items-center justify-center mx-auto mb-2">
+            <span className="text-[#A15C38] text-lg">⏸</span>
+          </div>
+          <p className="text-[11px] text-[#767D6F]">
+            EWS belum aktif — snapshot warehouse belum dibuat.
+          </p>
+          <p className="text-[10px] text-[#A15C38] mt-1">
+            Jalankan POST /api/setup atau tunggu cron harian 22:00 UTC.
+          </p>
+        </div>
+      ) : alerts.length === 0 ? (
         <div className="text-center py-6">
           <div className="w-10 h-10 rounded-full bg-[#DCE8DE] flex items-center justify-center mx-auto mb-2">
             <span className="text-[#2D6A4F] text-lg">✓</span>
