@@ -401,7 +401,8 @@ async function buildContext(query: string) {
                 const histData = await res.json();
                 const items = histData?.daftar_harga || [];
                 const match = items.find((item: any) =>
-                  (item.komoditi || '').toLowerCase().includes(commodityName.split(' ')[0])
+                  item.komoditi === commodityName ||
+                  (item.komoditi || '').toLowerCase() === commodityName.toLowerCase()
                 );
                 if (match && match.harga_eceran > 0) {
                   points.push({
