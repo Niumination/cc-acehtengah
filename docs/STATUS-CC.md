@@ -29,15 +29,28 @@
 - **WP0.12c** — Auth gate: aggregate butuh RESTRICTED_AGGR, individu butuh RESTRICTED_PERSONAL.
 - **WP0.12l** — PII gate: `pii-gate.sh` menolak nilai kredensial asli di docs.
 
+## Perubahan Terakhir (WP0.2/0.4/0.5/0.6/0.9 — 01-Sep-2026, 4 commit)
+
+- **WP0.9 + WP0.12h** — `/dashboard/akun` kini diproteksi middleware (307 → `/login` bila tanpa sesi), konsisten dengan `/dashboard/laporan` & `/dashboard/admin`.
+- **WP0.2** — File nyasar `~/Desktop/.../bapokting-client.ts` (scraper lama, 0 pemakaian) dihapus; diff diselamatkan di `/tmp/wp02-salvage/`.
+- **WP0.4** — `tsc --noEmit` dari **24 error → 0**. Akar: `prisma/schema.prisma` berisi model baru (`SapaObservation`/`SapaIndicator`/dll) tanpa konsumen, sedangkan runtime (warehouse-sync/data-sync/db-migration) memakai model lama (`Skpd`/`Dataset`/`Indicator`/`SapaSnapshot`/`SapaIndicatorValue`/`EwsAlert`). Schema disinkronkan ke kenyataan runtime: hapus model & enum yatim, tambah model lama + relasi `EwsAlert.indicatorId` → `Indicator` (String) + relasi `Indicator.dataset` → `Dataset`.
+- **WP0.5** — Gerbang mutu: `npm run typecheck` = `scripts/typecheck.sh` (`rm -rf .next` dulu — cegah error hantu `.next/types`, laporkan jumlah `error TS1` terpisah). Pre-commit menjalankan pii-gate **seluruh tree** + typecheck. `next.config.ts` tidak lagi `ignoreBuildErrors` → Vercel build gagal bila TS error.
+- **WP0.6** — `/api/ews` diaktifkan kembali (`route.ts.bak` → `route.ts`) dengan flag `ready` (bedakan "warehouse belum dibuat" vs "semua normal"); `EwsPanel` menampilkan fallback jujur; 2 route `.bak` yatim (`/api/datasets`, `/api/datasets/[slug]`) dihapus (0 konsumen).
+
 ## Test
 
 ```bash
 npx vitest run
 # → Test Files 13 passed (13), Tests 271 passed (271)
+
+npm run typecheck
+# → [typecheck] OK: 0 error TS.
 ```
 
 ## Deploy
 
 ```bash
-git add -A && git commit -m "fix(security): WP0.12 — hapus NIK dari response & DOM, redaksi docs, pii-gate clean" && git push
+git add -A && git commit -m "fix(security): WP0.2/0.4/0.5/0.6/0.9 — akun protected, tsc 0 error, typecheck gate, EWS live" && git push
 ```
+
+> **Aturan status deploy** (WP0.7): perbarui baris Branch/Status/Update di commit yang sama dengan deploy. Sebelum deploy: `npm run typecheck` + `npx vitest run` wajib hijau.
