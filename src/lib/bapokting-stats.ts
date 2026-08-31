@@ -16,6 +16,7 @@ export interface BapoktingStats {
   };
   rekomendasi: string[];
   volatility: VolatilityMetrics;
+  peringatan?: string;
 }
 
 export interface KomoditasStats {
@@ -29,6 +30,7 @@ export interface KomoditasStats {
   hargaHistoris: { tanggal: string; harga: number }[];
   trend: 'naik' | 'turun' | 'stabil';
   persentasePerubahan: number;
+  cukupData: boolean;
 }
 
 export interface KategoriStats {
@@ -52,7 +54,7 @@ export interface KecamatanStats {
 export interface KomoditasTrend {
   nama: string;
   persentase: number;
-  arah: 'naik' | 'turun';
+  arah: 'naik' | 'turun' | 'stabil';
 }
 
 export interface VolatilityMetrics {
@@ -124,8 +126,10 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
     // Hitung trend: bandingkan rata-rata 7 hari terakhir vs 7 hari sebelumnya
     let trend: 'naik' | 'turun' | 'stabil' = 'stabil';
     let persentasePerubahan = 0;
+    let cukupData = false;
 
     if (sorted.length >= 14) {
+      cukupData = true;
       const mingguIni = sorted.slice(0, 7).reduce((a, b) => a + b.harga, 0) / 7;
       const mingguLalu = sorted.slice(7, 14).reduce((a, b) => a + b.harga, 0) / 7;
       persentasePerubahan = hitungPersentase(mingguLalu, mingguIni);
@@ -145,6 +149,7 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
       hargaHistoris: historis,
       trend,
       persentasePerubahan: Math.round(persentasePerubahan * 100) / 100,
+      cukupData,
     };
 
     // Classify untuk trend lists
@@ -157,22 +162,27 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
     }
   }
 
-  // Group by kategori
+  // Group by kategori — weighted average (bukan rata-rata dari rata-rata)
   const kategoriStats: Record<string, KategoriStats> = {};
+  const kategoriWeight: Record<string, { sum: number; count: number }> = {};
   for (const kom of Object.values(komoditasStats)) {
     const cat = kom.kategori || 'Lainnya';
     if (!kategoriStats[cat]) {
       kategoriStats[cat] = { nama: cat, komoditasCount: 0, hargaAvg: 0, hargaMin: Infinity, hargaMax: 0, komoditas: [] };
+      kategoriWeight[cat] = { sum: 0, count: 0 };
     }
     kategoriStats[cat].komoditasCount += 1;
-    kategoriStats[cat].hargaAvg += kom.hargaAvg;
+    const w = kom.hargaHistoris.length || 1;
+    kategoriWeight[cat].sum += kom.hargaAvg * w;
+    kategoriWeight[cat].count += w;
     kategoriStats[cat].hargaMin = Math.min(kategoriStats[cat].hargaMin, kom.hargaMin);
     kategoriStats[cat].hargaMax = Math.max(kategoriStats[cat].hargaMax, kom.hargaMax);
     kategoriStats[cat].komoditas.push(kom.nama);
   }
-  // Hitung rata-rata per kategori
-  for (const cat of Object.values(kategoriStats)) {
-    cat.hargaAvg = Math.round(cat.hargaAvg / cat.komoditasCount);
+  // Hitung rata-rata per kategori (tertimbang)
+  for (const [catName, cat] of Object.entries(kategoriStats)) {
+    const w = kategoriWeight[catName];
+    cat.hargaAvg = Math.round(w.sum / w.count);
   }
 
   // Group by kecamatan
@@ -198,36 +208,46 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
   // Hitung volatility metrics
   const volatilityList = Object.entries(komoditasStats).map(([nama, stats]) => ({
     nama,
-    nilai: stats.hargaStdDev / stats.hargaAvg, // Coefficient of variation
+    nilai: stats.hargaAvg === 0 ? 0 : stats.hargaStdDev / stats.hargaAvg, // CV, guard div-by-zero
   }));
   volatilityList.sort((a, b) => b.nilai - a.nilai);
   const tertinggi = volatilityList.slice(0, 5).map((v) => ({ nama: v.nama, nilai: Math.round(v.nilai * 1000) / 10 }));
   const terendah = [...volatilityList].reverse().slice(0, 5).map((v) => ({ nama: v.nama, nilai: Math.round(v.nilai * 1000) / 10 }));
-  const overallIndex = Math.round(
+  const overallIndex = volatilityList.length === 0 ? 0 : Math.round(
     volatilityList.reduce((sum, v) => sum + v.nilai, 0) / volatilityList.length * 1000
   ) / 10;
 
-  // Generate rekomendasi
+  // Generate rekomendasi — hindari kontradiksi untuk komoditas yang sama
   const rekomendasi: string[] = [];
   if (trendNaik.length > 0) {
     const topNaik = trendNaik.slice(0, 3).map((t) => t.nama).join(', ');
-    rekomendasi.push(`Harga ${topNaik} ${trendNaik.length === 1 ? 'naik' : 'naik'} minggu ini — pertimbangkan stok alternatif.`);
+    rekomendasi.push(`Harga ${topNaik} naik minggu ini — pertimbangkan stok alternatif.`);
   }
   if (trendTurun.length > 0) {
     const topTurun = trendTurun.slice(0, 3).map((t) => t.nama).join(', ');
-    rekomendasi.push(`Harga ${topTurun} ${trendTurun.length === 1 ? 'turun' : 'turun'} — peluang beli murah.`);
+    rekomendasi.push(`Harga ${topTurun} turun — peluang beli murah.`);
   }
   if (tertinggi.length > 0) {
     const volAtas = tertinggi[0];
-    rekomendasi.push(`Komoditas paling fluktuatif: ${volAtas.nama} (CV: ${volAtas.nilai}%) — monitor teratur.`);
+    // jangan klaim fluktuatif jika nilai CV sama dengan yang terendah (satu komoditas saja)
+    const volBawahVal = terendah[0]?.nilai;
+    if (volatilityList.length > 1 || volAtas.nilai !== volBawahVal) {
+      rekomendasi.push(`Komoditas paling fluktuatif: ${volAtas.nama} (CV: ${volAtas.nilai}%) — monitor teratur.`);
+    }
   }
   if (terendah.length > 0) {
     const volBawah = terendah[0];
-    rekomendasi.push(`Komoditas paling stabil: ${volBawah.nama} (CV: ${volBawah.nilai}%) — referensi harga andal.`);
+    const volAtasVal = tertinggi[0]?.nilai;
+    if (volatilityList.length > 1 || volBawah.nilai !== volAtasVal) {
+      rekomendasi.push(`Komoditas paling stabil: ${volBawah.nama} (CV: ${volBawah.nilai}%) — referensi harga andal.`);
+    }
   }
   if (rekomendasi.length === 0) {
     rekomendasi.push('Harga bahan pokok cenderung stabil minggu ini — pasokan aman.');
   }
+
+  const kurangData = Object.values(komoditasStats).filter((k) => !k.cukupData);
+  const peringatan = kurangData.length > 0 ? `Tren tidak dihitung: ${kurangData.length} komoditas memiliki data <14 hari (dilaporkan sebagai stabil, perubahan 0%)` : undefined;
 
   return {
     komoditas: komoditasStats,
@@ -236,6 +256,7 @@ export function hitungStatsBapokting(data: BapoktingPrice[], hari: number = 7): 
     trend: { naik: trendNaik, turun: trendTurun, stabil: trendStabil },
     rekomendasi,
     volatility: { overallIndex, tertinggi, terendah },
+    ...(peringatan ? { peringatan } : {}),
   };
 }
 

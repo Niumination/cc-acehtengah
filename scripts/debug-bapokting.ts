@@ -92,7 +92,7 @@ async function debug() {
   const allDates = [...new Set(beras.map((_, i) => {
     const trend = trendMap.get(beras[i].namaBarang);
     return trend?.points.map(p => p.date) || [];
-  }).flat()))].sort();
+  }).flat())].sort();
   
   const chartData = allDates.map(date => {
     const row: any = { label: new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) };
