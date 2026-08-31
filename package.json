@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "bash scripts/typecheck.sh",
     "postinstall": "prisma generate",
     "prepare": "git config core.hooksPath .githooks >/dev/null 2>&1 || true"
   },

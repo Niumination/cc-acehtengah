@@ -1,30 +1,35 @@
 #!/usr/bin/env bash
-# Pre-commit guard: blokir commit yang menyertakan PII di src/data/excel.
-# Hanya aktif bila ada berkas di bawah src/data/excel yang di-stage, agar commit
-# lain tetap cepat. Memanggil scripts/pii-gate.sh dengan ROOT=repo root
-# (skrip akan memindai $ROOT/src/data/excel).
+# Pre-commit guard (WP0.00 + WP0.5):
+#   1) pii-gate.sh  — memindai SELURUH tree (bukan hanya src/data/excel)
+#   2) typecheck.sh — tsc --noEmit dengan .next dibersihkan (cegah error hantu)
+# Override darurat (TIDAK disarankan): git commit --no-verify
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 SCRIPT="$ROOT/scripts/pii-gate.sh"
+TYPECHECK="$ROOT/scripts/typecheck.sh"
 
-# Lewati bila tidak ada perubahan pada src/data/excel.
-if ! git diff --cached --name-only --diff-filter=ACMR | grep -q '^src/data/excel/'; then
+# Lewati bila tidak ada perubahan pada tree yang dipantau (seluruh repo).
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(ts|tsx|md|json|sql|js|mjs|prisma)$'; then
   exit 0
 fi
 
-if [ ! -f "$SCRIPT" ]; then
-  echo "[pre-commit] scripts/pii-gate.sh tidak ditemukan; lewati guard PII."
-  exit 0
-fi
-
-echo "[pre-commit] memeriksa kebocoran PII di src/data/excel ..."
-if bash "$SCRIPT" "$ROOT"; then
+if [ -f "$SCRIPT" ]; then
+  echo "[pre-commit] memeriksa kebocoran PII (seluruh tree) ..."
+  if ! bash "$SCRIPT" "$ROOT"; then
+    echo "[pre-commit] GAGAL: terdeteksi PII/kredensial. Batalkan atau bersihkan."
+    echo "[pre-commit] Override darurat (TIDAK disarankan): git commit --no-verify"
+    exit 1
+  fi
   echo "[pre-commit] OK: tidak ada kebocoran PII."
-  exit 0
-else
-  echo "[pre-commit] GAGAL: terdeteksi PII (NIK16/nama per-orang) di src/data/excel."
-  echo "[pre-commit] Batalkan pembersihan data, atau jalankan ulang ekstraksi agregat."
-  echo "[pre-commit] Untuk override darurat (TIDAK disarankan): git commit --no-verify"
-  exit 1
 fi
+
+if [ -f "$TYPECHECK" ]; then
+  echo "[pre-commit] typecheck ..."
+  if ! bash "$TYPECHECK"; then
+    echo "[pre-commit] GAGAL typecheck. Perbaiki dulu."
+    exit 1
+  fi
+fi
+
+exit 0
