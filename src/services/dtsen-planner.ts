@@ -191,7 +191,7 @@ export function buildPublicDeflectionNarasi(kind: PublicDeflectionKind): string 
   if (kind === 'NIK') {
     return (
       'Pertanyaan Anda memuat NIK 16 digit (data pribadi). Jalur publik ini tidak pernah memproses data per-orang — ' +
-      'data by-name tersimpan terpisah, terenkripsi HMAC, dan hanya bisa diakses lewat pintu terbatas dengan audit wajib (UU 27/2022).\n\n' +
+      'data by-name tersimpan terpisah: nama asli + NIK dienkripsi AES-256-GCM, dan hanya bisa diakses lewat pintu terbatas dengan audit wajib (UU 27/2022).\n\n' +
       penutup
     );
   }

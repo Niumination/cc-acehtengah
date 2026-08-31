@@ -18,8 +18,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAdminFromRequest } from '@/lib/auth';
-import { decideDataAccess, buildAuditEntry } from '@/lib/data-gate';
+import { decideDataAccess, buildAuditEntry, requiredRolesFor } from '@/lib/data-gate';
 import { decryptField, canSeeFullIdentitas } from '@/lib/dtsen-crypto';
+import { checkRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,6 +32,18 @@ export async function GET(req: NextRequest) {
   const desa = req.nextUrl.searchParams.get('desa')?.toUpperCase() ?? null;
   const desil = req.nextUrl.searchParams.get('desil') ?? null;
   const program = req.nextUrl.searchParams.get('program') ?? null;
+
+  // ── Auth gate: aggregate scope butuh RESTRICTED_AGGR, individu butuh RESTRICTED_PERSONAL ──
+  const requiredSensitivity = scope === 'individu' ? 'RESTRICTED_PERSONAL' : 'RESTRICTED_AGGR';
+  const admin = await getAdminFromRequest(req);
+  const decision = decideDataAccess(admin?.role ?? null, requiredSensitivity);
+  if (!decision.ok) {
+    const roleList = requiredRolesFor(requiredSensitivity)?.filter(r => r !== 'DTSEN_ROOT').join(', ') + ', atau DTSEN_ROOT';
+    return NextResponse.json(
+      { ok: false, error: `Daftar per-${scope === 'individu' ? 'orang' : 'wilayah'} adalah data terbatas DTSEN — login dengan akun berrole ${roleList}.` },
+      { status: decision.status },
+    );
+  }
 
   // ── scope=individu: data ByNameByAddress (sensitif) — WAJIB role DTSEN + audit ──
   if (scope === 'individu') {
@@ -59,6 +72,15 @@ export async function GET(req: NextRequest) {
       if (!release) {
         return NextResponse.json({ ok: false, error: 'Belum ada rilis DTSEN yang dipublish.' }, { status: 404 });
       }
+      // Rate limit: kuota per role per hari untuk scope=individu
+      const rlKey = `dtsen:individu:${admin.id}:${scope}:${kecamatan}:${desa}:${desil}`;
+      const rl = await checkRateLimit({ key: rlKey, limit: 200, windowMs: 24 * 60 * 60 * 1000 });
+      if (!rl.ok) {
+        return NextResponse.json(
+          { ok: false, error: `Kuota harian akses per-orang tercapai (${rl.limit}). Coba lagi dalam ${rl.retryAfterSeconds} detik.`, retryAfter: rl.retryAfterSeconds },
+          { status: 429, headers: rateLimitHeaders(rl) },
+        );
+      }
       const individu = await prisma.dtsenIndividu.findMany({
         where: {
           releaseId: release.id,
@@ -68,7 +90,7 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { namaMasked: 'asc' },
         take: 200,
-        select: { namaMasked: true, namaAsliEnc: true, nikEnc: true, kecamatan: true, desa: true, desil: true, bansos: true },
+        select: { namaMasked: true, namaAsliEnc: true, kecamatan: true, desa: true, desil: true, bansos: true },
       });
       // Audit wajib (UU 27/2022) — akses per-orang dicatat.
       const entry = buildAuditEntry({
@@ -78,9 +100,11 @@ export async function GET(req: NextRequest) {
         ip: req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? '',
         rowCount: individu.length,
       });
-      await prisma.dataAccessAudit
-        .create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } })
-        .catch((e) => console.error('[dtsen/breakdown] audit gagal:', e));
+      try {
+        await prisma.dataAccessAudit.create({ data: { adminId: entry.adminId, action: entry.aksi, detail: entry.detail, rowCount: entry.rowCount, ip: entry.ip } });
+      } catch (e) {
+        return NextResponse.json({ ok: false, error: 'Gagal mencatat audit akses — akses ditolak (fail-closed).' }, { status: 503 });
+      }
       // @hotfix 29-Agu-2026: DTSEN_ROOT = otoritas TERTINGGI — dapat identitas
       // LENGKAP (nama asli + NIK terdekripsi, tanpa sensor). Role lain tetap
       // nama termask (UU 27/2022).
@@ -95,7 +119,7 @@ export async function GET(req: NextRequest) {
           full
             ? {
                 nama: decryptField(r.namaAsliEnc) ?? r.namaMasked,
-                nik: decryptField(r.nikEnc),
+
                 desil: r.desil,
                 bansos: r.bansos,
               }

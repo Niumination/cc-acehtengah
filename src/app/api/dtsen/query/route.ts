@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       {
         error:
           decision.status === 401
-            ? 'Data DTSEN terbatas — login dengan akun berrole DTSEN diperlukan.'
+            ? 'Data DTSEN terbatas — login dengan akun berrole DTSEN_LOOKUP, SUPERADMIN, atau DTSEN_ROOT.'
             : plan.scope === 'PERSONAL'
               ? `Lookup per-orang butuh role ${decision.requiredRoles?.join(' / ')} (Permen Bappenas 7/2025: maks eselon II/III).`
               : `Role Anda tidak berhak mengakses DTSEN agregat (butuh: ${decision.requiredRoles?.join(' / ')}).`,

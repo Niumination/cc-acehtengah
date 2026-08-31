@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         error: decision.status === 401
-          ? 'Data DTSEN terbatas — login dengan akun berrole DTSEN diperlukan.'
+          ? 'Data DTSEN terbatas — login dengan akun berrole DTSEN_LOOKUP, SUPERADMIN, atau DTSEN_ROOT.'
           : `Role Anda tidak berhak (butuh: ${decision.requiredRoles?.join(' / ')}).`,
       },
       { status: decision.status },

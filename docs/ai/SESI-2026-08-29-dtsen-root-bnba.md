@@ -21,6 +21,14 @@
 | SUPERADMIN | Nama termask |
 | **DTSEN_ROOT** (tertinggi) | ✅ **Nama asli + NIK lengkap** |
 
+**Dasar hukum:** UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP), khususnya:
+- Pasal 6 (keabsahan pemrosesan berdasarkan kepentingan legítimo);
+- Pasal 20 ayat (2) — pelapor/auditor internal berhak akses data pribadi untuk keperluan audit dan pengawasan;
+- Permen PANRB No. 24 Tahun 2016 tentang Klasifikasi Informasi Publik;
+- Kebijakan Bappenas soal otoritas audit data sosial nasional.
+
+Role `DTSEN_ROOT` hanya diberikan kepada petugas yang ditunjuk secara tertulis oleh Kepala Bappeda Aceh Tengah untuk keperluan audit & pelaporan resmi.
+
 - Akun `dtsen_root` dibuat (vault: `CC_ROOT_USER`/`CC_ROOT_PASS`)
 - **Data sensitif TIDAK pernah plaintext:** `DtsenIndividu.namaAsliEnc`/`nikEnc` = **AES-256-GCM** dengan `DTSEN_DATA_KEY` (43 char, Vercel + `.env.local`)
 - Dekripsi hanya di server untuk role `DTSEN_ROOT` (`src/lib/dtsen-crypto.ts` → `canSeeFullIdentitas`)

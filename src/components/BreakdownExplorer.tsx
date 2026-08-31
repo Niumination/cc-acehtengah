@@ -219,7 +219,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
                     </p>
                     <span className="text-[9px] text-[#767D6F] italic">
                       {fullIdentitas
-                        ? '✔ identitas LENGKAP (role DTSEN_ROOT) · akses tercatat di audit trail'
+                        ? '✔ akses tercatat di audit trail'
                         : 'nama termask · akses tercatat di audit trail'}
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
                     <thead>
                       <tr className="border-b border-[#C6C3B4] text-left text-[#767D6F]">
                         <th className="py-1.5 pr-3 font-semibold">Nama</th>
-                        {fullIdentitas && <th className="py-1.5 pr-3 font-semibold">NIK</th>}
+                        
                         <th className="py-1.5 pr-3 font-semibold">Desil</th>
                         <th className="py-1.5 font-semibold">PBI</th>
                       </tr>
@@ -236,7 +236,7 @@ export default function BreakdownExplorer({ sourceLabel, program }: { sourceLabe
                       {individu.map((p, i) => (
                         <tr key={i} className="border-b border-[#E9E6DA] last:border-0">
                           <td className="py-1.5 pr-3 font-medium text-[#1E2420]">{p.nama}</td>
-                          {fullIdentitas && <td className="py-1.5 pr-3 font-mono text-[#4B5249]">{p.nik ?? '-'}</td>}
+                          
                           <td className="py-1.5 pr-3 text-[#4B5249]">{p.desil ?? '-'}</td>
                           <td className="py-1.5 text-[#4B5249]">{p.bansos ? '✅' : '—'}</td>
                         </tr>

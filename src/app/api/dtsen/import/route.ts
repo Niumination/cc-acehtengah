@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error: decision.status === 401
-          ? 'Impor DTSEN terbatas — login dengan akun berrole DTSEN diperlukan.'
+          ? 'Impor DTSEN terbatas — login dengan akun berrole DTSEN_LOOKUP, SUPERADMIN, atau DTSEN_ROOT.'
           : `Role Anda tidak berhak mengimpor (butuh: ${decision.requiredRoles?.join(' / ')}).`,
       },
       { status: decision.status },

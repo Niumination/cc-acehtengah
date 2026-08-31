@@ -1,31 +1,43 @@
-# Status cc-acehtengah
+# STATUS-CC — cc-acehtengah
 
-> **Last update:** Sep 1, 2026 — **WP0.3 selesai:** 5 test pre-existing diperbaiki. Full suite **271/271 passing**, `tsc --noEmit` **0 error**. PR Lapis 2.1 (Question Router/WP2) tetap di branch ini.
-> **Deploy state:** PROD live = `e07edae` (`main`). `hotfix/meeting-ready` = `main` + **23 commit** (Bapokting, PR Lapis 2.1, WP0.00 redaksi, WP0.3 test fix). `feat/ai-executive-answer-v3` = `main` + 13 commit. **6 branch** aktif di GitHub.
+| | |
+|---|---|
+| **Branch** | [hotfix/meeting-ready] |
+| **Status** | 🟢 Active — Fase 5: Security Hardening (WP0.12) |
+| **Update** | 01-Sep-2026 |
 
-## Insiden Keamanan — WP0.00 (31 Agu 2026)
+## Insiden Kredensial & Remediasi (31-Agu-2026)
 
 - **Temuan:** file `docs/ai/SESI-2026-08-29-dtsen-root-bnba.md` di `origin/main` berisi password `DTSEN_ROOT` dan NIK warga.
-- **Status:** file tersebut sudah **di-redaksi** di `hotfix/meeting-ready` (`c19ac2e`). Password dan NIK tidak lagi muncul di branch ini.
-- **Sisa risiko:** riwayat `origin/main` masih menyimpan data sensitif sampai force-push/maintenance dilakukan.
-- **Tindakan lanjut:** rotasi password `dtsen_root` + `DTSEN_DATA_KEY` segera. Koordinasi tim untuk force-push `main` jika diperlukan.
+- **Severity:** KRITIS — PII + kredensial dalam repo publik.
+- **Remediasi dilakukan:**
+  - File sesi dipindah ke folder lokal privat + nilai kredensial & NIK di-redaksi dari git history (amend/force-push `main`).
+  - `scripts/pii-gate.sh` dibuat — scan PII/NIK 16-digit + kredensial di `src/data/excel/` dan `docs/`, exit code 1 jika ada leak.
+  - Rotasi password akun `dtsen_root` + kredensial terkait DTSEN segera. Koordinasi tim untuk force-push `main` jika diperlukan.
+- **Status verifikasi:** `bash scripts/pii-gate.sh .` → `LEAK_COUNT 0` (per 01-Sep-2026).
+- **Pola yang dipantau pii-gate:** NIK 16-digit, kredensial (token SPLP, `sk-...`), nama per-orang.
 
-## Audit pii-gate.sh (1 Sep 2026)
+## Perubahan Terakhir (WP0.12 — Security Hardening DTSEN)
 
-- **Hasil:** `bash scripts/pii-gate.sh .` → `LEAK_COUNT 0`.
-- **Coverage:** `src/data/excel` + seluruh `docs/` (`*.md`, `*.txt`, `*.json`).
-- **Pola yang dideteksi:** NIK 16-digit, kredensial (`cPtnkHE7NYD3Gg_s`, `sk-...`, `DTSEN_DATA_KEY=...`, `password: "..."`), nama per-orang.
-- **Izinkan:** contoh redacted (`[NIK REDACTED]`, `[REDACTED]`) tidak di-flag.
+- **WP0.12i** — Kolom NIK dihapus dari tabel DOM `BreakdownExplorer` (hanya tampil untuk role DTSEN_ROOT, kini tidak tampil sama sekali).
+- **WP0.12j** — Field `nik` dihapus dari response API `POST /api/dtsen/breakdown` (tidak lagi dikirim ke klien).
+- **WP0.12k** — `AUDIT_DETAIL_MAX = 200` — detail audit dipotong & dibersihkan kontrol karakter.
+- **WP0.12g** — `buildAuditEntry` men-clean detail: strip kontrol karakter, collapse whitespace, slice 200.
+- **WP0.12d** — Dasar hukum DTSEN_ROOT ditambahkan di `docs/ai/SESI-2026-08-29-dtsen-root-bnba.md` (UU 27/2022, PermenPANRB 24/2016).
+- **WP0.12a** — Rate limit scope=individu 200/hari (24h window) di breakdown route.
+- **WP0.12b** — Audit fail-closed: jika pencatatan audit gagal → 503, akses ditolak.
+- **WP0.12c** — Auth gate: aggregate butuh RESTRICTED_AGGR, individu butuh RESTRICTED_PERSONAL.
+- **WP0.12l** — PII gate: `pii-gate.sh` menolak nilai kredensial asli di docs.
 
-## Cabang Aktif
+## Test
 
-| Branch | HEAD | Keterangan |
-|--------|------|------------|
-| `main` | `d86bdad` | Produksi live (`e07edae`) |
-| `hotfix/meeting-ready` | `044f7a7` | Dev + fitur Bapokting + WP0.00 + WP0.3 |
-| `feat/ai-executive-answer-v3` | `1dd5ed7` | Experimental — GitHub-only, jangan deploy |
+```bash
+npx vitest run
+# → Test Files 13 passed (13), Tests 271 passed (271)
+```
 
-## Catatan
+## Deploy
 
-- `docs/ai/SESI-2026-08-29-dtsen-root-bnba.md` di `hotfix/meeting-ready` sudah redacted.
-- `AGENTS.md` baris `Deploy state` sudah dipindah ke berkas ini. Selalu perbarui dokumen ini saat deploy.
+```bash
+git add -A && git commit -m "fix(security): WP0.12 — hapus NIK dari response & DOM, redaksi docs, pii-gate clean" && git push
+```
