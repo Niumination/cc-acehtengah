@@ -9,15 +9,10 @@
 //   4. CSV mentah tidak pernah disimpan — hanya baris valid hasil transformasi.
 
 import { createHmac, createHash } from 'node:crypto';
+import { KECAMATAN_ACEH_TENGAH, normalizeKecamatan } from '@/lib/normalize-kecamatan';
 
-// ─── Kamus wilayah Kab. Aceh Tengah (14 kecamatan — resmi) ───
-export const KECAMATAN_ACEH_TENGAH = [
-  'Atu Lintang', 'Bebesen', 'Bies', 'Bintang', 'Celala', 'Jagong Jeget',
-  'Kebayakan', 'Ketol', 'Kute Panang', 'Laut Tawar', 'Linge', 'Pegasing',
-  'Rusip Antara', 'Silih Nara',
-] as const;
-
-const KEC_NORM = new Map(KECAMATAN_ACEH_TENGAH.map((k) => [normalize(k), k]));
+// re-export untuk kompatibilitas test lama
+export { KECAMATAN_ACEH_TENGAH } from '@/lib/normalize-kecamatan';
 
 function normalize(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -172,12 +167,10 @@ export function parseAndValidateDtsenCsv(text: string, secret: string, opts: Val
     const nama = get('nama');
     if (nama.length < 3) return fail('Nama kosong/terlalu pendek (< 3 karakter)');
     const kecRaw = get('kecamatan');
-    const kec = KEC_NORM.get(normalize(kecRaw));
+    const kec = normalizeKecamatan(kecRaw);
     if (!kec) {
       return fail(
-        KEC_NORM.size > 0
-          ? `Kecamatan "${kecRaw || 'kosong'}" tidak dikenal — 14 kecamatan resmi Kab. Aceh Tengah`
-          : 'Kecamatan tidak dikenal',
+        `Kecamatan "${kecRaw || 'kosong'}" tidak dikenal — 14 kecamatan resmi Kab. Aceh Tengah`,
       );
     }
     const desaRaw = get('desa').replace(/\s+/g, ' ').trim();
