@@ -1,4 +1,12 @@
 # Status cc-acehtengah
 
-> **Last update:** Aug 29, 2026 — **Role `DTSEN_ROOT` (otoritas tertinggi) + identitas lengkap BNBA**: SUPERADMIN melihat nama termask; `DTSEN_ROOT` (akun `dtsen_root`) melihat **nama asli + NIK lengkap terdekripsi** di breakdown per-orang. Nama asli & NIK disimpan **terenkripsi AES-256-GCM** (`namaAsliEnc`/`nikEnc`, key `DTSEN_DATA_KEY` 43-char, Vercel + .env.local) — tidak pernah plaintext. Tombol **🔐 Login** muncul di blocker BNBA (publik → login → lanjut pecah jawaban). Tombol "Pecah Jawaban" di PALING ATAS output AI (mindmap ala NotebookLM: kabupaten → kecamatan → desa → desil → BNBA). `DTSEN_ROOT` = role tertinggi (di atas SUPERADMIN).
-> **Deploy state:** PROD = `4f95617` (hotfix/meeting-ready, live di Vercel). `main` tertinggal 44+ commit dari `hotfix/meeting-ready`. Semua 8 branch sudah di-push ke GitHub (v1/v2-live/v3/backup/hotfix-llm).
+> **Last update:** Sep 1, 2026 — **WP0.00 remediation branch:** `wp0.00-pii-cleanup` berisi redaksi PII + pii-gate yang diperluas. **Peringatan:** `main` masih memuat kredensial/NIK di sejarah publik sampai branch ini di-deploy.
+> **Deploy state:** PROD = `e07edae` (main). `hotfix/meeting-ready` = `main` + 23 commit (Bapokting, PR Lapis 2.1, WP0.00 redaksi). `feat/ai-executive-answer-v3` = `main` + 13 commit. **6 branch** aktif di GitHub.
+
+## Insiden Keamanan — WP0.00 (31 Agu 2026)
+
+- **Temuan:** `docs/ai/SESI-2026-08-29-dtsen-root-bnba.md` berisi password `DTSEN_ROOT` dan NIK warga di `origin/main` (repo publik).
+- **Dampak:** kredensial + NIK terekspose di HTTP 200 tanpa login.
+- **Perbaikan sementara:** redaksi + pii-gate yang diperluas sudah di-commit di branch `wp0.00-pii-cleanup` (berangkat dari `origin/main`).
+- **Sisa risiko:** riwayat `main` asli masih menyimpan data sensitif sampai force-push dilakukan.
+- **Tindakan lanjut:** rotasi password + DTSEN_DATA_KEY + force-push `main` setelah koordinasi tim.

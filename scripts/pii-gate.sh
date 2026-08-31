@@ -11,7 +11,7 @@ import os, re, sys, json
 root=sys.argv[1]
 nik=re.compile(r'\b\d{16}\b')
 # pola kredensial umum
-cred_re=re.compile(r'([REDACTED]|sk-[A-Za-z0-9_-]{20,}|DTSEN_DATA_KEY\s*=\s*["\']?[A-Za-z0-9+/=_-]{20,})')
+cred_re=re.compile(r'(cPtnkHE7NYD3Gg_s|sk-[A-Za-z0-9_-]{20,}|DTSEN_DATA_KEY\s*=\s*["\']?[A-Za-z0-9+/=_-]{20,}|DTSEN_NIK_KEY\s*=\s*["\']?[A-Za-z0-9+/=_-]{16,}|password\s*[:=]\s*["\'][A-Za-z0-9+/=_-]{12,}["\'])')
 bad=0
 # scan src/data/excel (json/xlsx) — tetap
 for dp,_,fs in os.walk(os.path.join(root,'src/data/excel')):
