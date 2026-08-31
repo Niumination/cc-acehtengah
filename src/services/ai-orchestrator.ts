@@ -328,19 +328,33 @@ async function buildContext(query: string) {
   let bapoktingProvenance: { label: string } = { label: '' };
 
   // Deteksi query harga komoditas
-  const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|beras|minyak|bawang|bahan pokok)\b/i;
+  const priceKeywords = /\b(harga|prix|market|commodity|komoditas|sayur|buah|pangan|bahan pokok)\b/i;
   if (priceKeywords.test(query)) {
     try {
-      const bapoktingData = await fetchLatestBapoktingPrices(20);
+      const bapoktingData = await fetchLatestBapoktingPrices(50);
       if (bapoktingData.length > 0) {
-        for (const p of bapoktingData.slice(0, 10)) {
+        // Ekstrak komoditas spesifik dari query (beras, cabai, bawang, minyak)
+        const queryLower = query.toLowerCase();
+        const specificCommodities = ['beras', 'cabai', 'bawang', 'minyak', 'gula', 'sapi', 'ayam']
+          .filter((c) => new RegExp(`\\b${c}\\b`, 'i').test(queryLower));
+
+        // Filter: jika query spesifik (beras/cabai/dll), hanya tampilkan komoditas itu
+        // Jika umum ("harga bahan pokok"), tampilkan semua
+        const filtered = specificCommodities.length > 0
+          ? bapoktingData.filter((p) =>
+              specificCommodities.some((c) => (p.namaBarang || '').toLowerCase().includes(c))
+            )
+          : bapoktingData;
+
+        // Ambil top 10 komoditas yang relevan
+        for (const p of filtered.slice(0, 10)) {
           bapoktingEvidence.push({
             opd: 'Bapokting Aceh Tengah (SPLP API)',
-            indikator: `Harga ${p.namaBarang || p.namaKomoditas}`,
-            nilai: (p.harga || p.hargaPerKg || 0).toString(),
-            satuan: 'Rp',
+            indikator: `Harga ${p.namaBarang}`,
+            nilai: String(p.harga || 0),
+            satuan: p.satuan || 'Kg',
             tahun: null,
-            id: `bapokting:${(p.namaBarang || p.namaKomoditas || '').toLowerCase()}`,
+            id: `bapokting:${(p.namaBarang || '').toLowerCase()}`,
           });
         }
         bapoktingProvenance = { label: 'Menurut Bapokting Aceh Tengah (SPLP API)' };
@@ -861,22 +875,41 @@ async function tryDeterministicDomainQuery(
   // (beras, cabai, bawang, minyak, dll) dijawab LANGSUNG dari data Bapokting
   // (SPLP API), TANPA LLM. Sebelumnya query harga jatuh ke LLM dengan evidence
   // campuran SAPA+DTSEN yang tidak relevan — output "masih sama seperti lama".
-  // Kini query harga mengembalikan chart bar agregat + narasi harga aktual.
+  // Kini query harga mengembalikan:
+  // - Narasi harga aktual (tertinggi/terendah)
+  // - Chart perbandingan harga (bar) untuk komoditas yang relevan
+  // - Filter hanya komoditas yang disebutkan di query
   if (!result && ctx.bapoktingEvidence.length > 0) {
     const bk = ctx.bapoktingEvidence;
     const sorted = [...bk].sort((a, b) => Number(b.nilai) - Number(a.nilai));
     const top = sorted.slice(0, 3);
     const bottom = [...sorted].reverse().slice(0, 3);
 
+    // Ekstrak komoditas target dari query
+    const queryLower = query.toLowerCase();
+    const komoditasKeywords = ['beras', 'cabai', 'bawang', 'minyak', 'gula', 'sapi', 'ayam'];
+    const targetKomoditas = komoditasKeywords.filter((k) => new RegExp(`\\b${k}\\b`, 'i').test(queryLower));
+
+    // Filter evidence hanya untuk komoditas yang relevan
+    const relevantEvidence = targetKomoditas.length > 0
+      ? bk.filter((e) =>
+          targetKomoditas.some((k) => (e.indikator ?? '').toLowerCase().includes(k))
+        )
+      : bk;
+
     // Narasi harga aktual dari data (bukan LLM)
     const topTxt = top.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
     const bottomTxt = bottom.map((e) => `${e.indikator.replace(/^Harga /, '')}: Rp ${Number(e.nilai).toLocaleString('id-ID')}/${e.satuan}`).join('; ');
-    const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga tertinggi saat ini: ${topTxt}. Harga terendah: ${bottomTxt}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
+    const commodityLabel = targetKomoditas.length > 0
+      ? ` komoditas ${targetKomoditas.map((k) => `"${k}"`).join(', ')}`
+      : '';
+    const narasi = `Berdasarkan data Bapokting Aceh Tengah (SPLP API, ${new Date().toLocaleDateString('id-ID')}), harga${commodityLabel.length > 0 ? commodityLabel : ''} saat ini: ${topTxt}. Harga terendah:${bottomTxt.replace(/^Harga/, '')}. Harga dapat berubah sesuai pasokan dan permintaan pasar.`;
 
-    // Chart bar agregat harga
-    const chartData = bk.slice(0, 10).map((e) => ({
-      nama: e.indikator.replace(/^Harga /, '').slice(0, 20),
+    // Chart bar: perbandingan harga untuk komoditas yang relevan
+    const chartData = relevantEvidence.slice(0, 10).map((e) => ({
+      nama: e.indikator.replace(/^Harga /, ''),
       harga: Number(e.nilai) || 0,
+      satuan: e.satuan ?? 'Kg',
     }));
 
     result = {
@@ -890,10 +923,15 @@ async function tryDeterministicDomainQuery(
           bars: ['harga'],
         },
       },
-      rekomendasi: [
-        `Pantau tren harga minyak goreng, beras, dan cabai secara berkala untuk antisipasi inflasi daerah.`,
-        `Data harga berasal dari Bapokting (SPLP API); gunakan bersama data SAPA untuk analisis ketahanan pangan.`,
-      ],
+      rekomendasi: targetKomoditas.length > 0
+        ? [
+            `Pantau tren harga ${targetKomoditas.join(', ')} secara berkala untuk antisipasi inflasi daerah.`,
+            `Data harga berasal dari Bapokting (SPLP API); gunakan bersama data SAPA untuk analisis ketahanan pangan.`,
+          ]
+        : [
+            `Pantau tren harga bahan pokok secara berkala untuk antisipasi inflasi daerah.`,
+            `Data harga berasal dari Bapokting (SPLP API); gunakan bersama data SAPA untuk analisis ketahanan pangan.`,
+          ],
       dataSource: 'Bapokting Aceh Tengah (SPLP API)',
       timestamp: new Date().toISOString(),
     };
