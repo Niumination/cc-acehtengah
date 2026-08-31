@@ -10,3 +10,16 @@
 - **Perbaikan sementara:** redaksi + pii-gate yang diperluas sudah di-commit di branch `wp0.00-pii-cleanup` (berangkat dari `origin/main`).
 - **Sisa risiko:** riwayat `main` asli masih menyimpan data sensitif sampai force-push dilakukan.
 - **Tindakan lanjut:** rotasi password + DTSEN_DATA_KEY + force-push `main` setelah koordinasi tim.
+
+## Audit pii-gate.sh (1 Sep 2026)
+
+- **File yang terdeteksi:** 12 dokumen di `docs/` mengandung pola kredensial.
+- **Status:** false-positive `DTSEN_DATA_KEY` dan `password` biasa sudah diperbaiki.
+- **Hasil terbaru:** `pii-gate.sh .` → `LEAK_COUNT 0`.
+- **Coverage:** `src/data/excel` + seluruh `docs/` (`*.md`, `*.txt`, `*.json`).
+
+## PR
+
+- Branch: `wp0.00-pii-cleanup`
+- Link: https://github.com/Niumination/cc-acehtengah/pull/new/wp0.00-pii-cleanup
+- Perubahan: 3 file, 37 insertions(+), 6 deletions(-)
