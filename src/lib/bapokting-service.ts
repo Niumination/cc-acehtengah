@@ -5,6 +5,7 @@ export interface BapoktingQueryOptions {
   tanggal?: string;
   kategori?: string;
   agregat?: 'mingguan' | 'bulanan' | 'tahunan';
+  hari?: number; // historis days
 }
 
 export async function queryBapokting(options: BapoktingQueryOptions = {}) {
@@ -12,49 +13,12 @@ export async function queryBapokting(options: BapoktingQueryOptions = {}) {
   if (options.tanggal) params.append('tanggal', options.tanggal);
   if (options.kategori) params.append('kategori', options.kategori);
   if (options.agregat) params.append('agregat', options.agregat);
+  if (options.hari) params.append('hari', options.hari.toString());
 
   const res = await fetch(`/api/bapokting?${params.toString()}`);
   if (!res.ok) throw new Error(`Bapokting API error: ${res.status}`);
 
   return res.json();
-}
-
-// Generate AI prompt untuk query bapokting
-export function buildBapoktingPrompt(query: string, data: any): string {
-  if (!data?.data || data.data.length === 0) {
-    return "Maaf, saya tidak menemukan data harga bapokting untuk permintaan Anda.";
-  }
-
-  const top5 = data.data.slice(0, 5).sort((a: any, b: any) => b.harga - a.harga);
-  const lowest5 = [...data.data].sort((a: any, b: any) => a.harga - b.harga).slice(0, 5);
-
-  let prompt = `Berdasarkan data SPLP DISPERINDAG Aceh Tengah (${data.sumber || 'terkini'}):\n\n`;
-
-  prompt += `*Harga Bahan Pokok Teratas (Mahal → Murah):*\n`;
-  top5.forEach((item: any) => {
-    prompt += `• ${item.namaBarang}: Rp ${item.harga.toLocaleString()} / ${item.satuan}\n`;
-  });
-
-  prompt += `\n*Harga Bahan Pokok Termurah:*\n`;
-  lowest5.forEach((item: any) => {
-    prompt += `• ${item.namaBarang}: Rp ${item.harga.toLocaleString()} / ${item.satuan}\n`;
-  });
-
-  if (data.agregat?.mingguan?.chartData) {
-    prompt += `\n*Tren Harga Mingguan (Top 5):*\n`;
-    data.agregat.mingguan.chartData.slice(0, 5).forEach((item: any) => {
-      prompt += `• ${item.label}: Rp ${Math.round(item.hargaRataRata).toLocaleString()}\n`;
-    });
-  }
-
-  if (data.agregat?.bulanan?.chartData) {
-    prompt += `\n*Tren Harga Bulanan (Top 5):*\n`;
-    data.agregat.bulanan.chartData.slice(0, 5).forEach((item: any) => {
-      prompt += `• ${item.label}: Rp ${Math.round(item.hargaRataRata).toLocaleString()}\n`;
-    });
-  }
-
-  return prompt;
 }
 
 // Format untuk display di dashboard
@@ -81,4 +45,69 @@ export function groupBapoktingByCategory(data: any) {
     grouped[cat].push(item);
   });
   return grouped;
+}
+
+// Extract AI narasi dari response
+export function getBapoktingNarrative(response: any): string {
+  if (response?.narasi) return response.narasi;
+  if (response?.message) return response.message;
+  return 'Data bapokting berhasil diambil.';
+}
+
+// Extract stats dari response
+export function getBapoktingStats(response: any) {
+  return response?.stats || null;
+}
+
+// Build narasi AI dari response lengkap
+export function buildBapoktingNarrative(data: any): string {
+  if (!data?.data || data.data.length === 0) {
+    return "Maaf, saya tidak menemukan data harga bapokting untuk permintaan Anda.";
+  }
+
+  // Gunakan narasi AI dari server (lebih lengkap)
+  if (data.narasi) {
+    return data.narasi;
+  }
+
+  // Fallback ke client-side generation
+  const top5 = data.data.slice(0, 5).sort((a: any, b: any) => b.harga - a.harga);
+  const lowest5 = [...data.data].sort((a: any, b: any) => a.harga - b.harga).slice(0, 5);
+
+  let narrative = `**📊 Data Bapokting Aceh Tengah**\n\n`;
+  narrative += `Berdasarkan data SPLP DISPERINDAG (${data.sumber || 'terkini'}):\n\n`;
+
+  narrative += `*Harga Bahan Pokok Mahal (Top 5):*\n`;
+  top5.forEach((item: any) => {
+    narrative += `• ${item.namaBarang}: Rp ${item.harga.toLocaleString('id-ID')} / ${item.satuan}\n`;
+  });
+
+  narrative += `\n*Harga Bahan Pokok Murah (Top 5):*\n`;
+  lowest5.forEach((item: any) => {
+    narrative += `• ${item.namaBarang}: Rp ${item.harga.toLocaleString('id-ID')} / ${item.satuan}\n`;
+  });
+
+  if (data.agregat?.mingguan?.chartData) {
+    narrative += `\n*Tren Mingguan (Top 5):*\n`;
+    data.agregat.mingguan.chartData.slice(0, 5).forEach((item: any) => {
+      narrative += `• ${item.label}: Rp ${Math.round(item.hargaRataRata).toLocaleString('id-ID')}\n`;
+    });
+  }
+
+  return narrative;
+}
+
+// Format data untuk chart Recharts
+export function formatBapoktingForChart(stats: any, limit: number = 10): any[] {
+  if (!stats?.komoditas) return [];
+
+  return Object.entries(stats.komoditas)
+    .sort((a: any, b: any) => b[1].hargaAvg - a[1].hargaAvg)
+    .slice(0, limit)
+    .map(([nama, s]: [string, any]) => ({
+      nama,
+      harga: s.hargaAvg,
+      trend: s.trend,
+      persentasePerubahan: s.persentasePerubahan,
+    }));
 }

@@ -1,14 +1,16 @@
 // ─── Bapokting API Route — untuk AI Smart Query ───
 // Source: api-splp.layanan.go.id/bahan-pokok-penting-kabupaten-aceh-tengah/1.0/api/bapokting/harga
-// Returns: BapoktingPrice[] dengan agregat siklus data (mingguan/bulanan/tahunan)
+// Returns: BapoktingPrice[] dengan agregat siklus data (mingguan/bulanan/tahunan) + statistik lengkap
 
 import { NextResponse } from 'next/server';
-import { fetchBapoktingFromSplp } from '@/lib/bapokting-client';
+import { fetchBapoktingFromSplp, BapoktingPrice } from '@/lib/bapokting-client';
+import { hitungStatsBapokting, generateAiNarrative, formatChartData } from '@/lib/bapokting-stats';
 
 interface QueryParams {
   tanggal?: string;
   kategori?: string;
   agregat?: 'mingguan' | 'bulanan' | 'tahunan';
+  hari?: number; // historis days (default: 7, max: 30)
 }
 
 export async function GET(request: Request) {
@@ -17,7 +19,12 @@ export async function GET(request: Request) {
     tanggal: searchParams.get('tanggal') || undefined,
     kategori: searchParams.get('kategori') || undefined,
     agregat: searchParams.get('agregat') as QueryParams['agregat'] || undefined,
+    hari: parseInt(searchParams.get('hari') || '7', 10),
   };
+
+  // Clamp hari (min 7, max 30)
+  if (params.hari < 7) params.hari = 7;
+  if (params.hari > 30) params.hari = 30;
 
   try {
     // Fetch data dari SPLP API
@@ -34,6 +41,9 @@ export async function GET(request: Request) {
       });
     }
 
+    // Hitung statistik lengkap
+    const stats = hitungStatsBapokting(bapoktingData, params.hari);
+
     // Agregasi data jika diminta
     let result = bapoktingData;
     let agregatResult = null;
@@ -48,7 +58,13 @@ export async function GET(request: Request) {
       sumber: 'DISPERINDAG SPLP API',
       tanggalAmbil: new Date().toISOString(),
       data: result,
+      stats, // STATISTIK BARU
       agregat: agregatResult,
+      narasi: generateAiNarrative(stats), // NARASI AI BARU
+      visualisasi: {
+        type: 'chart',
+        data: formatChartData(stats, 10),
+      },
     });
   } catch (error) {
     console.error('[Bapokting API] Error:', error);
