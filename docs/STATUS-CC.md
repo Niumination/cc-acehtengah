@@ -54,3 +54,20 @@ git add -A && git commit -m "fix(security): WP0.2/0.4/0.5/0.6/0.9 — akun prote
 ```
 
 > **Aturan status deploy** (WP0.7): perbarui baris Branch/Status/Update di commit yang sama dengan deploy. Sebelum deploy: `npm run typecheck` + `npx vitest run` wajib hijau.
+
+## Tata Kelola Branch (WP0.13 — 01-Sep-2026)
+
+**Sumber kebenaran: `hotfix/meeting-ready`** — satu-satunya branch yang di-deploy ke Vercel (live: `https://cc-acehtengah.vercel.app`). Semua pekerjaan baru berangkat dari sini.
+
+| Branch | Status | Peran |
+|--------|--------|-------|
+| `hotfix/meeting-ready` | 🟢 sumber kebenaran | Live di Vercel; semua merge wajib lewat sini |
+| `main` | ⚠️ tertinggal 157 commit | Tidak di-deploy; hanya dokumen/release resmi. **Jangan merge apa pun ke `main` tanpa persetujuan eksplisit** (aturan `docs/ai/RENCANA_V3.md`) |
+| `feat/ai-executive-answer-v3` | 🧪 eksperimen | Berisi UI eksekutif + `.bak` cleanup; **tidak di-deploy**; komponen yang sudah diadopsi ke hotfix: `parseNumericId` (kini `src/lib/parse-numeric.ts`), `.bak` bersih |
+| `feat/ai-executive-answer-v2-live` / `v1` | 🗄 arsip | Riwayat kerja lama; jangan dipakai |
+| `backup/feat-v3-saved` | 🗄 arsip | Cadangan v3 |
+| `wp0.00-pii-cleanup` | ✅ selesai | Kerja PII; isi sudah masuk hotfix |
+
+**Urutan merge (bila disetujui):** hotfix → (test+typecheck hijau) → merge ke `main` hanya sebagai release resmi, lalu `#3` deploy dari `main` bila diinginkan. `feat/*` lain wajib rebase ke `hotfix/meeting-ready` terlebih dahulu sebelum di-review — dilarang merge silang langsung.
+
+**Gerbang sebelum merge ke mana pun:** `npm run typecheck` (0 error) + `npx vitest run` (271 hijau) + `bash scripts/pii-gate.sh .` (LEAK_COUNT 0).
