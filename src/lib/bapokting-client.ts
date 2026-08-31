@@ -13,8 +13,10 @@ export interface BapoktingPrice {
   namaBarang: string;
   harga: number;
   satuan: string;
+  kategori?: string;
   kecamatan?: string;
   keterangan?: string;
+  tanggal?: string;
   updatedAt?: string;
 }
 
@@ -55,7 +57,10 @@ function getSplpAuthHeaders(): Record<string, string> {
 }
 
 // Fetch bapokting data dari SPLP API
-export async function fetchBapoktingFromSplp(): Promise<BapoktingPrice[]> {
+export async function fetchBapoktingFromSplp(filters?: {
+  tanggal?: string;
+  kategori?: string;
+}): Promise<BapoktingPrice[]> {
   // Gunakan cache jika tersedia
   if (splpCache && Date.now() - splpCache.timestamp < CACHE_DURATION) {
     return splpCache.data || [];
@@ -64,7 +69,13 @@ export async function fetchBapoktingFromSplp(): Promise<BapoktingPrice[]> {
   const headers = getSplpAuthHeaders();
 
   try {
-    const url = `${SPLP_BAPOKTING_URL}?tb=data_aset&s=kecamatan&f=desil`;
+    let url = `${SPLP_BAPOKTING_URL}?tb=data_aset&s=kecamatan&f=desil`;
+    if (filters?.tanggal) {
+      url += `&tanggal=${filters.tanggal}`;
+    }
+    if (filters?.kategori) {
+      url += `&komoditi=${encodeURIComponent(filters.kategori)}`;
+    }
     const res = await fetch(url, {
       method: 'GET',
       headers,
@@ -88,8 +99,10 @@ export async function fetchBapoktingFromSplp(): Promise<BapoktingPrice[]> {
           namaBarang: item.komoditi || item.nama_barang || item.nama || item.barang || 'Tidak diketahui',
           harga,
           satuan: item.satuan || item.unit || 'Kg',
+          kategori: item.kategori || item.kategori_bantu || undefined,
           kecamatan: item.kecamatan || undefined,
           keterangan: item.keterangan || undefined,
+          tanggal: data?.tanggal || undefined,
           updatedAt: data?.tanggal || new Date().toISOString(),
         });
       }
