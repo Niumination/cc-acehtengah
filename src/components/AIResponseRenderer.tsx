@@ -7,7 +7,7 @@ import {
 import { HybridResponse } from '@/types';
 import AIDataWidget, { toAIDataPayload } from './AIDataWidget';
 import BreakdownExplorer from './BreakdownExplorer';
-import { formatBapoktingData, groupBapoktingByCategory } from '@/lib/bapokting-service';
+import { formatBapoktingData, groupBapoktingByCategory, getBapoktingStats, formatBapoktingForChart } from '@/lib/bapokting-service';
 
 const COLORS = ['#1B4332', '#2D6A4F', '#A15C38', '#B3261E', '#767D6F', '#2D6A4F', '#A15C38', '#C6C3B4', '#1B4332', '#4B5249'];
 
@@ -29,6 +29,8 @@ export default function AIResponseRenderer({ response }: Props) {
 
   // @hotfix 31-Agu-2026: deteksi bapokting data dan render agregat siklus
   const isBapokting = (response.dataSource ?? '').toLowerCase().includes('bapokting');
+  const bapoktingStats = isBapokting ? getBapoktingStats(response) : null;
+  const bapoktingChartData = isBapokting && bapoktingStats ? formatBapoktingForChart(bapoktingStats) : null;
   const bapoktingData = isBapokting && response.visualisasi?.data ? formatBapoktingData(response.visualisasi.data) : null;
   const bapoktingGrouped = isBapokting && bapoktingData ? groupBapoktingByCategory(response.visualisasi.data) : null;
 
