@@ -988,9 +988,9 @@ async function tryDeterministicDomainQuery(
       const naik = ctx.bapoktingTrendData.filter((t: any) => t.trend === 'naik');
       const turun = ctx.bapoktingTrendData.filter((t: any) => t.trend === 'turun');
       if (naik.length > 0 || turun.length > 0) {
-        const naikTxt = naik.map((t: any) => `"${t.nama}": +${t.persentasePerubahan}%`).join(', ');
-        const turunTxt = turun.map((t: any) => `"${t.nama}": ${t.persentasePerubahan}%`).join(', ');
-        trendNarasi = ` Dalam 7 hari terakhir, harga ${naik.length > 0 ? naikTxt : ''}${naik.length > 0 && turun.length > 0 ? ' sedangkan ' : ''}${turun.length > 0 ? turunTxt : ''}.`;
+        const naikTxt = naik.map((t: any) => `"${t.nama}": +${Math.round(t.change * 10) / 10}%`).join(', ');
+        const turunTxt = turun.map((t: any) => `"${t.nama}": ${Math.round(t.change * 10) / 10}%`).join(', ');
+        trendNarasi = ` Dalam 4 minggu terakhir, harga ${naik.length > 0 ? naikTxt : ''}${naik.length > 0 && turun.length > 0 ? ' sedangkan ' : ''}${turun.length > 0 ? turunTxt : ''}.`;
       }
     }
 
