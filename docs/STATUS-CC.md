@@ -70,4 +70,10 @@ git add -A && git commit -m "fix(security): WP0.2/0.4/0.5/0.6/0.9 — akun prote
 
 **Urutan merge (bila disetujui):** hotfix → (test+typecheck hijau) → merge ke `main` hanya sebagai release resmi, lalu `#3` deploy dari `main` bila diinginkan. `feat/*` lain wajib rebase ke `hotfix/meeting-ready` terlebih dahulu sebelum di-review — dilarang merge silang langsung.
 
-**Gerbang sebelum merge ke mana pun:** `npm run typecheck` (0 error) + `npx vitest run` (271 hijau) + `bash scripts/pii-gate.sh .` (LEAK_COUNT 0).
+**Gerbang sebelum merge ke mana pun:** `npm run typecheck` (0 error) + `npx vitest run` (278 hijau) + `bash scripts/pii-gate.sh .` (LEAK_COUNT 0).
+
+## Perubahan Terakhir (WP0.11/0.13/3.0c — 01-Sep-2026, gelombang kedua)
+
+- **WP0.11** — Label sumber DTSEN jujur: `jalurLabel` kini membedakan status rilis DB (`PUBLISHED`→`DB rilis (warehouse)`) dari jalur (`API`→`SPLP live`, `MANUAL`→`impor manual`). Urutan deteksi `ai-orchestrator` diubah: demo → DB → offline → SPLP (sebelumnya `includes('bappeda')` salah menandai rilis DB `BAPPEDA-DES-2025` sebagai "offline"). `dataSourceFromEvidence` ikut diselaraskan.
+- **WP0.13** — Tata kelola branch didokumentasikan (lihat tabel di atas): `hotfix/meeting-ready` sumber kebenaran; `main` tertinggal 157 commit, dilarang merge tanpa persetujuan; gerbang mutu wajib sebelum merge.
+- **WP3.0c** — `hitungStdDev`/`hitungPersentase` diangkat ke `src/lib/statistics/compute.ts` sebagai `describe()`/`growth()` + `classifyTrend()` (aturan A7 — satu implementasi). `bapokting-stats.ts` kini memakainya; +7 test baru (`compute.test.ts`). Suket: 278 pass.
