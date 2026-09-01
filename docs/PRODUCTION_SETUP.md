@@ -26,7 +26,7 @@ Vercel serverless = IPv4-only. **MUST use Supavisor pooler:**
 
 ```env
 # ✅ CORRECT — Pooler Transaction Mode
-DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:PASSWORD@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false
+DATABASE_URL=postgresql://<USER>:<PASSWORD>@<HOST>:6543/postgres?pgbouncer=true&prepared_statements=false
 
 # ❌ WRONG — Direct connection (IPv6 only, Vercel can't reach)
 # DATABASE_URL=postgresql://postgres:PASSWORD@db.noxaotgovlbjpaufbdsm.supabase.co:5432/postgres

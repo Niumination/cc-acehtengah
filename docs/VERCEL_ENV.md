@@ -4,7 +4,7 @@
 # ─── Database (Supabase — Pooler Transaction Mode) ───
 # ⚠️ PENTING: Pakai pooler, bukan direct! Port 6543, bukan 5432
 # ⚠️ PENTING: Username = postgres.noxaotgovlbjpaufbdsm (bukan postgres)
-DATABASE_URL=postgresql://postgres.noxaotgovlbjpaufbdsm:***@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&prepared_statements=false
+DATABASE_URL=postgresql://<USER>:<PASSWORD>@<HOST>:6543/postgres?pgbouncer=true&prepared_statements=false
 
 # ─── AI Provider (OpenCode Zen - FREE models) ───
 AI_BASE_URL=https://opencode.ai/zen/v1
