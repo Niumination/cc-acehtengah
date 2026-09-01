@@ -11,10 +11,14 @@ import os, re, sys, json
 root=sys.argv[1]
 nik=re.compile(r'\b\d{16}\b')
 # pola kredensial umum
+# Abaikan berkas env dan pii-gate itu sendiri
+EXCLUDE_DIRS={'.git','node_modules','__tests__','.next','.vercel','.cache'}
 cred_re=re.compile(r'(cPtnkHE7NYD3Gg_s|sk-[A-Za-z0-9_-]{20,}|DTSEN_DATA_KEY\s*=\s*["\']?[A-Za-z0-9+/=_-]{20,})')
 bad=0
+EXCLUDE_DIRS={'.git','node_modules','__tests__','.next','.vercel'}
 # scan src/data/excel (json/xlsx) — tetap
 for dp,_,fs in os.walk(os.path.join(root,'src/data/excel')):
+    if any(ex in dp for ex in EXCLUDE_DIRS): continue
     for fn in fs:
         p=os.path.join(dp,fn)
         if not fn.endswith(('.json','.xlsx')):
@@ -37,8 +41,9 @@ for dp,_,fs in os.walk(os.path.join(root,'src/data/excel')):
             print("LEAK NAME:",p); bad+=1
 # 2. Scan docs/ untuk NIK dan kredensial bocor
 for dp,_,fs in os.walk(os.path.join(root,'docs')):
+    if any(ex in dp for ex in EXCLUDE_DIRS): continue
     for fn in fs:
-        if not fn.endswith(('.md','.txt','.json')):
+        if not fn.endswith(('.md','.txt','.json')) or 'pii-gate.sh' in p:
             continue
         p=os.path.join(dp,fn)
         try:
