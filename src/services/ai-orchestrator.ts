@@ -923,8 +923,9 @@ async function tryDeterministicDomainQuery(
       } catch {}
       const excelMetrics = excelDocs.flatMap((d) => { try { return metricsFromExcelDoc(d); } catch { return []; } });
       const sapaMetrics = (() => { try { return metricsFromSapa(ctx.filteredData as any); } catch { return []; } })();
+      const plan = (() => { try { return routeQuestion(query); } catch { return null; } })();
       const fused = fuseMetrics([...excelMetrics, ...sapaMetrics]);
-      const cerita = buildNarrative({ fused, question: query });
+      const cerita = buildNarrative({ fused, question: query, archetype: plan?.archetype });
       if (cerita.caveats.length > 0) (ctx as any).__statisticsCaveats = cerita.caveats;
       if ((cerita as any).ringkasan) (ctx as any).__statisticsSummary = (cerita as any).ringkasan;
     } catch (e) { console.warn('[WP7.2] wiring skipped:', e); }
