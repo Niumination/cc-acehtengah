@@ -54,6 +54,8 @@ import { prisma } from '@/lib/prisma';
 import { ensureChatSessionTable } from '@/lib/db-migration';
 import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp, type BapoktingPrice, SPLP_BAPOKTING_URL } from '@/lib/bapokting-client';
 import { routeQuestion } from '@/services/statistics/question-router';
+import { parseNumericIdOrFallback } from '@/lib/parse-numeric';
+import { normalizeKecamatan } from '@/lib/normalize-kecamatan';
 import type { Archetype } from '@/lib/statistics/types';
 
 // ─── SAPA Data Cache (10 menit) ───
@@ -238,8 +240,9 @@ async function buildContext(query: string) {
     let dtsenResult: PublicAgregatResult | null = null;
 
     try {
+      const kecKanonik = plan.kecamatan ? normalizeKecamatan(plan.kecamatan) ?? plan.kecamatan : undefined;
       dtsenResult = await fetchDtsenAgregatPublik({
-        kecamatan: plan.kecamatan,
+        kecamatan: kecKanonik,
         desa: plan.desa,
         desil: plan.desil,
         bansos: plan.bansos,
@@ -1108,9 +1111,11 @@ async function tryDeterministicDomainQuery(
   // ranking, distribution, composition, correlation, anomaly → jawab dari evidence tanpa LLM.
   if (!result) {
     const plan = routeQuestion(query);
+    // C-fix: sort by relevance to plan.concepts (sebelumnya return 0 → tidak pernah rangking)
     const evidenceSorted = [...ctx.evidence].sort((a, b) => {
-      // Urutkan berdasarkan skor relevansi internal (simpan di skor field custom)
-      return 0;
+      const aScore = plan.concepts.filter(c => (a.indikator ?? '').toLowerCase().includes(c.toLowerCase())).length;
+      const bScore = plan.concepts.filter(c => (b.indikator ?? '').toLowerCase().includes(c.toLowerCase())).length;
+      return bScore - aScore;
     });
     const top3 = evidenceSorted.slice(0, 3);
 
@@ -1119,7 +1124,7 @@ async function tryDeterministicDomainQuery(
       const ranked = [...ctx.filteredData]
         .map((r) => ({
           nama: r.kode_indikator_nama_indikator ?? '',
-          nilai: parseFloat(r.variabel ?? '0') || 0,
+          nilai: parseNumericIdOrFallback(r.variabel, 0),
           satuan: r.satuan ?? '',
           tahun: r.tahun ?? '',
           opd: r.opds_nama_opd ?? '',
@@ -1144,7 +1149,7 @@ async function tryDeterministicDomainQuery(
       for (const r of ctx.filteredData) {
         // SapaRecord tidak punya field kecamatan/desa — gunakan OPD sebagai proxy
         const key = r.opds_nama_opd || 'tidak diketahui';
-        const val = parseFloat(r.variabel ?? '0') || 0;
+        const val = parseNumericIdOrFallback(r.variabel, 0);
         grouped[key] = (grouped[key] ?? 0) + val;
       }
       const distRows = Object.entries(grouped)
