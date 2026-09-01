@@ -192,7 +192,9 @@ export function parseAndValidateDtsenCsv(text: string, secret: string, opts: Val
     }
     const nikHash = hmac(nik, secret);
     const noKk = get('no_kk');
-    if (!/^\d{16}$/.test(noKk)) return fail(`no_kk harus 16 digit angka (diterima: "${noKk ? noKk.slice(0, 4) + '…' : 'kosong'}")`);
+    if (!/^\d{16}$/.test(noKk)) {
+      return fail(`no_kk harus 16 digit angka (diterima: "${noKk ? noKk.slice(0, 4) + '…' : 'kosong'}") — data ditolak agar jumlah keluarga tidak tersedia`);
+    }
     valid.push({
       nikHash,
       namaMasked: maskNama(nama),

@@ -123,7 +123,7 @@ describe('parseKominfoXlsx', () => {
 
     const v1 = r.valid[1]!;
     expect(v1.desil).toBe(5);
-    expect(v1.keluargaId).toBe(`individu:${hmac('1104080304610002', SECRET)}`); // fallback
+    expect(v1.keluargaId).toBeNull(); // tanpa KK valid → jumlah keluarga tidak tersedia
   });
 
   it('NIK mentah tidak bocor di output', () => {

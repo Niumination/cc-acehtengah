@@ -130,7 +130,7 @@ export function parseStuntingXlsx(
     valid.push({
       nikHash: hmac(nik, secret),
       namaMasked: maskNama(nama),
-      keluargaId: `individu:${hmac(nik, secret)}`, // tidak ada no_kk di stunting
+      keluargaId: null, // tidak ada no_kk di stunting — jumlah keluarga tidak tersedia
       kecamatan,
       desa,
       desil,
@@ -248,16 +248,21 @@ export function parseKominfoXlsx(
     if (desilResult.warning) warnings.push(desilResult.warning);
 
     const noKk = normalizeNik(row['KK'] ?? row['no_kk']);
+    const hasKk = /^\d{16}$/.test(noKk);
 
     valid.push({
       nikHash: hmac(nik, secret),
       namaMasked: maskNama(nama),
-      keluargaId: /^\d{16}$/.test(noKk) ? `kk:${hmac(noKk, secret)}` : `individu:${hmac(nik, secret)}`,
+      keluargaId: hasKk ? `kk:${hmac(noKk, secret)}` : null, // tanpa no_kk → jumlah keluarga tidak tersedia
       kecamatan,
       desa,
       desil,
       statusBansos: { pkh: false, bpnt: false, pbi: false }, // kominfo tidak punya kolom bansos
     });
+
+    if (!hasKk) {
+      warnings.push(`Baris ${line}: KK tidak valid — jumlah keluarga tidak tersedia untuk individu ini`);
+    }
   }
 
   return { valid, rejected, totalDataLines: rows.length, warnings };
