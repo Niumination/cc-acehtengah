@@ -8,8 +8,9 @@
 // Stunting dan kominfo tidak memiliki kolom bansos secara langsung — status bansos di-set false.
 // Desil: diambil langsung dari kolom "desil" (format standar) atau "KETERANGAN DESIL" (kominfo).
 
-import { KECAMATAN_ACEH_TENGAH, maskNama, hmac, K_MIN } from '@/services/dtsen-import';
+import { maskNama, hmac, K_MIN } from '@/services/dtsen-import';
 import type { ValidDtsenRow, RejectedRow, ValidateOptions } from '@/services/dtsen-import';
+import { normalizeKecamatan, KECAMATAN_ACEH_TENGAH } from '@/lib/normalize-kecamatan';
 
 // ─── Tipe ekstra untuk multi-source ───
 
@@ -27,31 +28,6 @@ export interface MultisourceImportResult {
 }
 
 // ─── Helper: normalisasi teks (case-insensitive, spacing-normalized) ───
-function normText(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-// ─── Alias kecamatan: nama lokal / alternatif yang belum standar ───
-// LUT TAWAR adalah nama lokal yang dipakai warga untuk "Laut Tawar"
-const KEC_ALIAS: Record<string, string> = {
-  'lut tawar': 'Laut Tawar',
-};
-
-// ─── Helper: lookup kecamatan (case-insensitive, spacing-normalized) ───
-function kecLookup(raw: string): string | null {
-  if (!raw || raw.trim() === '') return null;
-  const n = normText(raw);
-
-  // 1. Cek di alias map dulu (misal: "LUT TAWAR" → "Laut Tawar")
-  if (n in KEC_ALIAS) return KEC_ALIAS[n];
-
-  // 2. Cek di daftar kecamatan resmi
-  for (const kec of KECAMATAN_ACEH_TENGAH) {
-    if (normText(kec) === n) return kec;
-  }
-  return null;
-}
-
 // ─── Helper: normalisasi NIK — selalu string, trimming whitespace ───
 // Excel dapat mengembalikan NIK sebagai number (mis. 997654466) atau string.
 // NIK yang sudah masked (mengandung *) tetap diproses sebagai string.
@@ -111,7 +87,7 @@ export function parseStuntingXlsx(
     }
 
     const kecRaw = String(row['Kec'] ?? row['kecamatan'] ?? row['KECAMATAN'] ?? '').trim();
-    const kecamatan = kecLookup(kecRaw);
+    const kecamatan = normalizeKecamatan(kecRaw) ?? null;
     if (!kecamatan) {
       fail(`Kecamatan "${kecRaw || 'kosong'}" tidak dikenal`);
       continue;
@@ -224,7 +200,7 @@ export function parseKominfoXlsx(
     }
 
     const kecRaw = String(row['KECAMATAN'] ?? row['kecamatan'] ?? '').trim();
-    const kecamatan = kecLookup(kecRaw);
+    const kecamatan = normalizeKecamatan(kecRaw) ?? null;
     if (!kecamatan) {
       fail(`Kecamatan "${kecRaw || 'kosong'}" tidak dikenal`);
       continue;
