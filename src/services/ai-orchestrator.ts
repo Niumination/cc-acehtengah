@@ -56,6 +56,10 @@ import { fetchLatestBapoktingPrices, fetchBapoktingFromSplp, fetchDtsenFromSplp,
 import { routeQuestion } from '@/services/statistics/question-router';
 import { parseNumericIdOrFallback } from '@/lib/parse-numeric';
 import { normalizeKecamatan } from '@/lib/normalize-kecamatan';
+import { metricsFromSapa, metricsFromDtsen, metricsFromExcelDoc } from '@/lib/statistics/to-metrics';
+import { fuseMetrics } from '@/lib/statistics/fusion';
+import { buildNarrative } from '@/lib/statistics/narrative';
+import type { AgregatRow } from '@/services/dtsen-import';
 import type { Archetype } from '@/lib/statistics/types';
 
 // ─── SAPA Data Cache (10 menit) ───
@@ -909,6 +913,23 @@ async function tryDeterministicDomainQuery(
   let result: HybridResponse | null = null;
   let filterDipakai = '';
 
+  // WP7.2 — wiring fusion+narrative (flag STATISTICS_LAYER=1)
+  if (process.env.STATISTICS_LAYER === '1') {
+    try {
+      const excelDocs: any[] = [];
+      try {
+        const dokB = await import('@/data/excel/json/dok-b-01-stunting-2026-07.json');
+        excelDocs.push((dokB as any).default ?? dokB);
+      } catch {}
+      const excelMetrics = excelDocs.flatMap((d) => { try { return metricsFromExcelDoc(d); } catch { return []; } });
+      const sapaMetrics = (() => { try { return metricsFromSapa(ctx.filteredData as any); } catch { return []; } })();
+      const fused = fuseMetrics([...excelMetrics, ...sapaMetrics]);
+      const cerita = buildNarrative({ fused, question: query });
+      if (cerita.caveats.length > 0) (ctx as any).__statisticsCaveats = cerita.caveats;
+      if ((cerita as any).ringkasan) (ctx as any).__statisticsSummary = (cerita as any).ringkasan;
+    } catch (e) { console.warn('[WP7.2] wiring skipped:', e); }
+  }
+
   if (isTrendQuery(query)) {
     const cand = findTrendCandidate(ctx.filteredData);
     if (cand) {
@@ -1447,6 +1468,9 @@ export async function processAIQuery(query: string, opts: { role?: string | null
 
     // Hotfix Aug 26 (laporan user): format ribuan utk keterbacaan (19686 → 19.686)
     // di narasi + sel tabel/metric. Kosmetik murni SETELAH grounding selesai.
+    // WP7.2: tambah ringkasan + caveats dari statistik layer bila ada.
+    if ((ctx as any).__statisticsSummary) result.narasi = `${result.narasi}\n\n${(ctx as any).__statisticsSummary}`;
+    if ((ctx as any).__statisticsCaveats?.length) result.rekomendasi = [...(result.rekomendasi ?? []), ...(ctx as any).__statisticsCaveats];
     result = formatAngkaPresentasi(result);
 
     // Step 6: Simpan ke DB (non-blocking — tidak menunggu)
