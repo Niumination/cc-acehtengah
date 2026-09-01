@@ -59,6 +59,7 @@ import { normalizeKecamatan } from '@/lib/normalize-kecamatan';
 import { metricsFromSapa, metricsFromDtsen, metricsFromExcelDoc } from '@/lib/statistics/to-metrics';
 import { fuseMetrics } from '@/lib/statistics/fusion';
 import { buildNarrative } from '@/lib/statistics/narrative';
+import { buildInsights, buildAnalysis } from '@/lib/statistics/insight';
 import type { AgregatRow } from '@/services/dtsen-import';
 import type { Archetype } from '@/lib/statistics/types';
 
@@ -928,6 +929,8 @@ async function tryDeterministicDomainQuery(
       const cerita = buildNarrative({ fused, question: query, archetype: plan?.archetype });
       if (cerita.caveats.length > 0) (ctx as any).__statisticsCaveats = cerita.caveats;
       if ((cerita as any).ringkasan) (ctx as any).__statisticsSummary = (cerita as any).ringkasan;
+      const insights = buildInsights(fused);
+      if (insights.length) (ctx as any).__statisticsAnalysis = buildAnalysis(insights);
     } catch (e) { console.warn('[WP7.2] wiring skipped:', e); }
   }
 
