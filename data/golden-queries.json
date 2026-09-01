@@ -1,0 +1,51 @@
+{
+  "$schema": "golden-queries v1 — harness WP6. Tiap query = ekspektasi deterministik, bukan LLM.",
+  "version": 1,
+  "generatedAt": "2026-09-01",
+  "queries": [
+    {
+      "id": "Q01",
+      "question": "Berapa jumlah penduduk Aceh Tengah?",
+      "expectedConceptId": "penduduk.total.count",
+      "mustMentionSources": ["SAPA", "DTSEN"],
+      "expectDiscrepancy": true,
+      "notes": "Dua sumber (222.643 vs 234.740) → wajib caveat selisih 5,4%"
+    },
+    {
+      "id": "Q02",
+      "question": "Berapa prevalensi stunting balita?",
+      "expectedConceptId": "stunting.balita.rate",
+      "mustMentionSources": ["SAPA"],
+      "expectDiscrepancy": false
+    },
+    {
+      "id": "Q03",
+      "question": "Harga beras hari ini?",
+      "expectedConceptId": "bapokting.beras.count",
+      "mustMentionSources": ["Bapokting"],
+      "expectDiscrepancy": false
+    },
+    {
+      "id": "Q04",
+      "question": "Jumlah penduduk miskin?",
+      "expectedConceptId": "kemiskinan.penduduk.count",
+      "mustMentionSources": ["SAPA"],
+      "expectDiscrepancy": false
+    },
+    {
+      "id": "Q05",
+      "question": "Data DTSEN desil 1 di Bebesen?",
+      "expectedConceptId": "dtsen.desil1.count",
+      "mustMentionSources": ["DTSEN"],
+      "expectDiscrepancy": false
+    },
+    {
+      "id": "Q06",
+      "question": "Tidak ada data untuk tahun 1990?",
+      "expectedConceptId": null,
+      "mustMentionSources": [],
+      "expectDiscrepancy": false,
+      "expectEmpty": true
+    }
+  ]
+}

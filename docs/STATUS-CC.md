@@ -41,16 +41,23 @@
 
 ```bash
 npx vitest run
-# → Test Files 13 passed (13), Tests 271 passed (271)
+# → Test Files 17 passed (17), Tests 290 passed (290)
 
 npm run typecheck
 # → [typecheck] OK: 0 error TS.
+
+npx tsx scripts/eval-harness.ts
+# → Harness WP6: 6/6 lulus, 0 gagal
+
+bash scripts/pii-gate.sh .
+# → LEAK_COUNT 0
 ```
 
 ## Deploy
 
 ```bash
-git add -A && git commit -m "fix(security): WP0.2/0.4/0.5/0.6/0.9 — akun protected, tsc 0 error, typecheck gate, EWS live" && git push
+git add -A && git commit -m "feat(stats): WP4/5/6 — fusion, narasi, harness" && git push
+# 01-Sep-2026: promote hotfix 9fd04a2 → production (qmvgd0y4j) via vercel promote — health+ews OK
 ```
 
 > **Aturan status deploy** (WP0.7): perbarui baris Branch/Status/Update di commit yang sama dengan deploy. Sebelum deploy: `npm run typecheck` + `npx vitest run` wajib hijau.
@@ -70,10 +77,16 @@ git add -A && git commit -m "fix(security): WP0.2/0.4/0.5/0.6/0.9 — akun prote
 
 **Urutan merge (bila disetujui):** hotfix → (test+typecheck hijau) → merge ke `main` hanya sebagai release resmi, lalu `#3` deploy dari `main` bila diinginkan. `feat/*` lain wajib rebase ke `hotfix/meeting-ready` terlebih dahulu sebelum di-review — dilarang merge silang langsung.
 
-**Gerbang sebelum merge ke mana pun:** `npm run typecheck` (0 error) + `npx vitest run` (278 hijau) + `bash scripts/pii-gate.sh .` (LEAK_COUNT 0).
+**Gerbang sebelum merge ke mana pun:** `npm run typecheck` (0 error) + `npx vitest run` (290 hijau) + `npx tsx scripts/eval-harness.ts` (6/6) + `bash scripts/pii-gate.sh .` (LEAK_COUNT 0).
 
 ## Perubahan Terakhir (WP0.11/0.13/3.0c — 01-Sep-2026, gelombang kedua)
 
 - **WP0.11** — Label sumber DTSEN jujur: `jalurLabel` kini membedakan status rilis DB (`PUBLISHED`→`DB rilis (warehouse)`) dari jalur (`API`→`SPLP live`, `MANUAL`→`impor manual`). Urutan deteksi `ai-orchestrator` diubah: demo → DB → offline → SPLP (sebelumnya `includes('bappeda')` salah menandai rilis DB `BAPPEDA-DES-2025` sebagai "offline"). `dataSourceFromEvidence` ikut diselaraskan.
 - **WP0.13** — Tata kelola branch didokumentasikan (lihat tabel di atas): `hotfix/meeting-ready` sumber kebenaran; `main` tertinggal 157 commit, dilarang merge tanpa persetujuan; gerbang mutu wajib sebelum merge.
 - **WP3.0c** — `hitungStdDev`/`hitungPersentase` diangkat ke `src/lib/statistics/compute.ts` sebagai `describe()`/`growth()` + `classifyTrend()` (aturan A7 — satu implementasi). `bapokting-stats.ts` kini memakainya; +7 test baru (`compute.test.ts`). Suket: 278 pass.
+
+## Perubahan Terakhir (WP4/5/6 — 01-Sep-2026, gelombang ketiga)
+
+- **WP4 — Fusi & Rekonsiliasi** — `src/lib/statistics/fusion.ts`: `fuseMetrics()` + `computeDiscrepancy()` + `plausibilityCheck()`. Contoh: 222.643 (SAPA) vs 234.740 (DTSEN-BAPPEDA) → selisih 5,4% material, caveat jujur "metodologi & tahun berbeda — jangan dijumlahkan". Prioritas sumber: sapa > dtsen-db/bappeda > demo.
+- **WP5 — Narasi "Data Bercerita"** — `src/lib/statistics/narrative.ts`: `buildNarrative()` deterministik di atas fusion, menghasilkan judul+ringkasan+poin+caveat tanpa LLM (LLM hanya opsional merapikan). Empty → "Tidak ada data".
+- **WP6 — Harness Evaluasi** — `data/golden-queries.json` (6 query) + `scripts/eval-harness.ts` + `src/lib/statistics/__tests__/harness.test.ts` + `npm run eval`. Gerbang mutu baru: 290 pass (17 files) + harness 6/6.
