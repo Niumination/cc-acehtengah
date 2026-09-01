@@ -234,7 +234,6 @@ function distinctUnits(evidence: EvidenceItem[]): string[] {
     ),
   ];
 }
-
 export function buildVizFromEvidence(evidence: EvidenceItem[]): HybridResponse['visualisasi'] {
   if (evidence.length === 0) return { tipe: 'none', konfigurasi: {} };
 
