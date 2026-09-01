@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(sse(event, data)));
         } catch {}
       };
+      let queryId = crypto.randomUUID();
+      send('trace', { queryId, phase: 'start', ts: new Date().toISOString() });
       try {
         let narasiBuffer = '';
         let lastSentPartial = ''; // Hotfix Aug 26: cegah snapshot narasi kumulatif terkirim duplikat
@@ -88,9 +90,11 @@ export async function POST(req: NextRequest) {
           { role: admin?.role ?? null },
         );
         send('result', result);
+        send('trace', { queryId, phase: 'end', ts: new Date().toISOString() });
       } catch (err) {
         console.error('AI Query streaming failed:', err);
         send('error', { error: 'Gagal memproses pertanyaan. Coba lagi.', detail: err instanceof Error ? err.message : String(err) });
+        send('trace', { queryId, phase: 'error', ts: new Date().toISOString(), detail: err instanceof Error ? err.message : String(err) });
       } finally {
         try { controller.close(); } catch {}
       }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getMockHealth } from '@/lib/mock-data';
+import { getWarehouseReportMeta } from '@/services/warehouse-sync';
 
 export async function GET() {
   if (process.env.USE_MOCK_DATA === 'true') {
@@ -50,6 +51,14 @@ export async function GET() {
     }
   } catch {
     services.qdrant = 'skip';
+  }
+
+  // Cek warehouse (PR-M7 WP7)
+  try {
+    const meta = await getWarehouseReportMeta();
+    services.warehouse = meta ? 'ok' : 'skip';
+  } catch {
+    services.warehouse = 'skip';
   }
 
   const allOk = Object.values(services).every((s) => s === 'ok' || s === 'skip');
