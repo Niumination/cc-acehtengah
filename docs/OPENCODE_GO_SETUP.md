@@ -1,7 +1,7 @@
 # Panduan Aktivasi OpenCode Go untuk SAPA Smart AI
 
 ## Status Saat Ini
-- ✅ API key OpenCode Go: `sk-XgT...kjc9` (sudah dibuat di workspace baru)
+- ✅ API key OpenCode Go: [REDACTED] (sudah dibuat di workspace baru)
 - ❌ Model `deepseek-v4-flash`: BUTUH OPT-IN di workspace Go
 - ❌ Key belum valid di endpoint `/zen/go/v1`
 

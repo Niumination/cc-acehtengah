@@ -5,11 +5,11 @@
 ## Test Summary
 
 ### API Key yang Dicoba
-1. **Key baru dari user**: `sk-XgT...kjc9`
+1. **Key baru dari user**: [REDACTED]
    - Status: ❌ INVALID (AuthError)
    - Kemungkinan: Key belum diaktifkan atau salah endpoint
 
-2. **Key lama (OPENCODE_API_KEY)**: `sk-8qZ...cmyc`
+2. **Key lama (OPENCODE_API_KEY)**: [REDACTED]
    - Status: ✅ VALID untuk endpoint Go
    - Error yang muncul:
      - `RegionError`: Model butuh opt-in di workspace

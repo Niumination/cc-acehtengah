@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAdminFromRequest } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) {
+    return NextResponse.json(
+      { error: 'Forbidden — EWS membutuhkan sesi admin.', alerts: [], ready: false },
+      { status: 403 },
+    );
+  }
   try {
     const [alerts, snapshotCount] = await Promise.all([
       prisma.ewsAlert.findMany({
@@ -19,11 +27,9 @@ export async function GET() {
       }),
       prisma.sapaSnapshot.count(),
     ]);
-
     return NextResponse.json({ alerts, ready: snapshotCount > 0 });
   } catch (err) {
     console.error('Failed to fetch EWS alerts:', err);
-    // WP0.6: jangan bohong "semua normal" — beri tahu klien warehouse belum siap.
     return NextResponse.json({ alerts: [], ready: false });
   }
 }
