@@ -10,6 +10,7 @@ export interface HybridResponse {
   rekomendasi: string[];
   dataSource: string;
   timestamp: string;
+  analysis?: string; // WP5 — insight terukur + caveat ringkas (opsional)
 }
 
 export interface IntentResult {
