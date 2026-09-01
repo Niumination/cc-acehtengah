@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAPA Smart AI — Prototipe Kondisi Akhir (WP4/WP5/WP6 selesai)</title>
+<style>
+  :root{
+    --hijau:#1B4332; --hijau2:#2D6A4F; --hijau3:#40916C; --hijau-muda:#D8F3DC;
+    --merah:#9D0208; --merah-muda:#FFE5E5; --kuning:#B07D00; --kuning-muda:#FFF4D6;
+    --biru:#1D3557; --abu:#6B7280; --garis:#E5E7EB; --latar:#F7F8F7;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--latar);color:#111827;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+       line-height:1.6;font-size:15px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
+
+  /* ── header ── */
+  header{background:linear-gradient(135deg,var(--hijau) 0%,var(--hijau2) 100%);color:#fff;
+         padding:34px 0 30px;margin-bottom:0}
+  header .wrap{padding-bottom:0}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:-.3px}
+  .sub{opacity:.85;font-size:14px;margin:0 0 18px}
+  .statusbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
+        border-radius:999px;padding:5px 13px;font-size:12.5px;font-family:var(--mono)}
+  .chip.ok::before{content:"● ";color:#86EFAC}
+  .chip.warn::before{content:"● ";color:#FCD34D}
+
+  /* ── section ── */
+  section{margin-top:38px}
+  h2{font-size:19px;color:var(--hijau);margin:0 0 4px;display:flex;align-items:center;gap:9px}
+  h2 .nomor{background:var(--hijau);color:#fff;border-radius:7px;width:26px;height:26px;
+            display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+  .ket{color:var(--abu);font-size:13.5px;margin:0 0 16px}
+
+  /* ── kartu ── */
+  .card{background:#fff;border:1px solid var(--garis);border-radius:12px;padding:20px 22px;
+        box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+
+  .panel{border-radius:12px;border:1px solid var(--garis);overflow:hidden;background:#fff}
+  .panel-head{padding:10px 16px;font-size:12.5px;font-weight:600;font-family:var(--mono);
+              display:flex;align-items:center;gap:8px;letter-spacing:.2px}
+  .panel-before .panel-head{background:var(--merah-muda);color:var(--merah);border-bottom:1px solid #FFC9C9}
+  .panel-after  .panel-head{background:var(--hijau-muda);color:var(--hijau);border-bottom:1px solid #B7E4C7}
+  .panel-body{padding:18px 20px}
+  .tag{font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:700}
+  .tag.now{background:var(--merah);color:#fff}
+  .tag.end{background:var(--hijau);color:#fff}
+
+  /* ── chat ── */
+  .q{background:#EEF2F0;border-left:3px solid var(--hijau3);padding:11px 14px;border-radius:0 8px 8px 0;
+     font-weight:600;font-size:14px;margin-bottom:14px}
+  .narasi{font-size:14.2px;margin:0 0 14px}
+  .narasi p{margin:0 0 10px}
+  .narasi strong{color:var(--hijau)}
+  .angka{font-family:var(--mono);font-weight:600;color:var(--biru)}
+  .sumber{font-size:11.5px;color:var(--abu);font-family:var(--mono)}
+
+  /* ── tabel ── */
+  table{width:100%;border-collapse:collapse;font-size:13.2px;margin:6px 0 4px}
+  caption{caption-side:top;text-align:left;font-size:12.5px;font-weight:700;color:var(--hijau);
+          padding-bottom:7px}
+  caption .s{font-weight:400;color:var(--abu);font-size:11.5px;font-family:var(--mono)}
+  th{text-align:left;background:#F3F4F6;padding:8px 10px;border-bottom:2px solid #D1D5DB;
+     font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:#374151}
+  td{padding:7px 10px;border-bottom:1px solid var(--garis)}
+  td.num,th.num{text-align:right;font-family:var(--mono)}
+  tr.total td{font-weight:700;background:#FAFAFA;border-top:2px solid #D1D5DB}
+  .kosong{color:#D1D5DB}
+  .tabel-salah td{border-bottom:1px solid #FFE0E0}
+  .tabel-salah th{background:#FFF0F0;color:var(--merah)}
+
+  /* ── callout ── */
+  .callout{border-radius:9px;padding:12px 15px;font-size:13.3px;margin:12px 0;border-left:4px solid}
+  .c-warn{background:var(--kuning-muda);border-color:var(--kuning)}
+  .c-err{background:var(--merah-muda);border-color:var(--merah)}
+  .c-ok{background:var(--hijau-muda);border-color:var(--hijau3)}
+  .c-info{background:#E8F0FE;border-color:var(--biru)}
+  .callout b{display:block;margin-bottom:3px;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px}
+  .callout ul{margin:6px 0 0;padding-left:19px}
+  .callout li{margin-bottom:3px}
+
+  /* ── metrik strip ── */
+  .metrik{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .m{flex:1 1 150px;background:#FAFAFA;border:1px solid var(--garis);border-radius:9px;padding:11px 13px}
+  .m .v{font-size:21px;font-weight:700;font-family:var(--mono);color:var(--hijau);line-height:1.2}
+  .m .l{font-size:11.5px;color:var(--abu);margin-top:2px}
+  .m .u{font-size:11px;color:var(--abu);font-family:var(--mono)}
+
+  /* ── badge kualitas ── */
+  .bq{display:inline-block;font-size:10.5px;font-family:var(--mono);padding:2px 7px;border-radius:5px;
+      margin:2px 4px 2px 0;border:1px solid}
+  .bq.ok{background:#ECFDF5;border-color:#A7F3D0;color:#065F46}
+  .bq.warn{background:var(--kuning-muda);border-color:#FDE68A;color:#92400E}
+  .bq.err{background:var(--merah-muda);border-color:#FECACA;color:var(--merah)}
+
+  /* ── rekomendasi ── */
+  .rekom{background:#FAFAFA;border:1px dashed #D1D5DB;border-radius:9px;padding:12px 15px;margin-top:12px}
+  .rekom b{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--hijau)}
+  .rekom ol{margin:6px 0 0;padding-left:20px;font-size:13.3px}
+  .rekom li{margin-bottom:5px}
+
+  /* ── toggle ── */
+  .toggle{display:flex;gap:0;margin:0 0 18px;border:1px solid var(--garis);border-radius:9px;
+          overflow:hidden;width:fit-content;background:#fff}
+  .toggle button{border:0;background:#fff;padding:9px 18px;font-size:13px;cursor:pointer;
+                 font-family:inherit;color:var(--abu);font-weight:600}
+  .toggle button.on{background:var(--hijau);color:#fff}
+
+  /* ── bar svg ── */
+  .bar-row{display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:12.3px}
+  .bar-row .nm{width:118px;flex:none;text-align:right;color:#374151}
+  .bar-row .tr{flex:1;background:#F3F4F6;border-radius:4px;height:19px;position:relative;overflow:hidden}
+  .bar-row .fl{height:100%;border-radius:4px 0 0 4px}
+  .bar-row .vl{width:88px;flex:none;font-family:var(--mono);font-size:11.5px;color:#374151}
+  .f-hijau{background:linear-gradient(90deg,var(--hijau3),var(--hijau2))}
+  .f-merah{background:linear-gradient(90deg,#DC2626,var(--merah))}
+  .f-abu{background:#9CA3AF}
+
+  /* ── scorecard ── */
+  .score{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .sc{background:#fff;border:1px solid var(--garis);border-radius:10px;padding:12px 14px}
+  .sc .n{font-size:12px;color:var(--abu);margin-bottom:6px}
+  .sc .r{display:flex;align-items:baseline;gap:7px}
+  .sc .a{font-size:19px;font-weight:700;font-family:var(--mono);color:var(--hijau)}
+  .sc .b{font-size:12px;font-family:var(--mono);color:var(--merah);text-decoration:line-through}
+  .sc .ar{color:var(--abu);font-size:12px}
+  .track{height:5px;background:#F3F4F6;border-radius:3px;margin-top:8px;overflow:hidden}
+  .track i{display:block;height:100%;background:var(--hijau3)}
+
+  /* ── misc ── */
+  code{font-family:var(--mono);font-size:12.3px;background:#F3F4F6;padding:1px 5px;border-radius:4px}
+  .foot{margin-top:46px;padding-top:20px;border-top:1px solid var(--garis);
+        font-size:12.5px;color:var(--abu)}
+  .foot b{color:#374151}
+  .divider{height:1px;background:var(--garis);margin:18px 0}
+  .arrow{color:var(--abu);font-size:13px;margin:0 8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>SAPA Smart AI — Aceh Tengah</h1>
+    <p class="sub">Prototipe kondisi akhir setelah WP0 → WP6 selesai · acuan visual untuk Hermes</p>
+    <div class="statusbar">
+      <span class="chip ok">1.795 indikator · 38 OPD · 14 kecamatan</span>
+      <span class="chip ok">DTSEN 222.643 jiwa · 67.673 keluarga (3,29 jiwa/KK)</span>
+      <span class="chip ok">tsc 0 error · 287 test lulus</span>
+      <span class="chip ok">eval 86/86 hijau</span>
+      <span class="chip warn">20 catatan tanpa nama indikator dikeluarkan</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">1</span>Tiga pertanyaan yang sama, sebelum dan sesudah</h2>
+  <p class="ket">Ketiganya pertanyaan <b>nyata</b> yang saya kirim ke live pada 1 Sep 2026 02:00 WIB.
+  Kolom kiri adalah jawaban yang benar-benar dikembalikan sistem hari ini — disalin apa adanya.
+  Kolom kanan adalah target setelah WP4 (fusi) + WP5 (narasi) selesai.</p>
+
+  <div class="toggle">
+    <button id="bBoth" class="on" onclick="mode('both')">Bandingkan</button>
+    <button id="bBefore" onclick="mode('before')">Kondisi saat ini</button>
+    <button id="bAfter" onclick="mode('after')">Kondisi akhir</button>
+  </div>
+
+  <!-- ─────────── Q1 ─────────── -->
+  <div class="grid2" style="margin-bottom:26px">
+
+    <div class="panel panel-before col-before">
+      <div class="panel-head"><span class="tag now">SEKARANG</span> Q1 · live 1 Sep 02:00 WIB</div>
+      <div class="panel-body">
+        <div class="q">Bagaimana tren stunting di Aceh Tengah 5 tahun terakhir per kecamatan?</div>
+        <div class="narasi">
+          <p>Berdasarkan penggabungan beberapa sumber resmi untuk topik ini:</p>
+          <p>1) Dokumen B — Dinas Kesehatan (STUNTING BY NIK.xlsx (sheet STUNTING BY NIK)): total
+          balita stunting 654. Tabel di bawah menampilkan agregat kesehatan menurut format sumber,
+          dilengkapi baris indikator dari sumber lain.</p>
+          <p>2) Sumber lain (SAPA Aceh Tengah): indikator terkait: Prevalensi Stunting
+          (Pendek <b>dam</b> Sangat Pendek) 4,9 Persen.</p>
+          <p>Semua angka berasal dari agregat resmi; tidak ada data per-orang (UU PDP).</p>
+        </div>
+        <table class="tabel-salah">
+          <caption>Tabel tunggal <span class="s">· 4 kolom · 15 baris</span></caption>
+          <thead><tr><th>Indikator / Area</th><th class="num">Nilai</th><th>Satuan</th><th>Sumber</th></tr></thead>
+          <tbody>
+            <tr><td>SILIH NARA</td><td class="num">100</td><td class="kosong">—</td><td class="sumber">Dokumen B</td></tr>
+            <tr><td>KETOL</td><td class="num">75</td><td class="kosong">—</td><td class="sumber">Dokumen B</td></tr>
+            <tr><td>KEBAYAKAN</td><td class="num">70</td><td class="kosong">—</td><td class="sumber">Dokumen B</td></tr>
+            <tr><td>LUT TAWAR</td><td class="num">65</td><td class="kosong">—</td><td class="sumber">Dokumen B</td></tr>
+            <tr><td colspan="4" style="text-align:center;color:#9CA3AF;font-size:12px">… 10 baris lagi, Satuan semuanya kosong …</td></tr>
+            <tr><td>Prevalensi Stunting (Pendek dam Sangat Pendek)</td><td class="num">4,9</td><td>Persen</td><td class="sumber">SAPA</td></tr>
+          </tbody>
+        </table>
+        <div class="callout c-err">
+          <b>Enam masalah dalam satu jawaban</b>
+          <ul>
+            <li>Ditanya <b>tren 5 tahun</b> — kata "tren" tidak pernah muncul di narasi</li>
+            <li>Satu kolom <code>Nilai</code> mencampur <b>cacahan</b> (100, 75, …) dengan <b>persen</b> (4,9)</li>
+            <li>14 baris <b>tanpa satuan</b>, padahal sumber punya <code>satuan: "balita"</code></li>
+            <li>Typo sumber ikut tersaji: "Pendek <b>dam</b> Sangat Pendek"</li>
+            <li>Nama kecamatan mentah: <code>LUT TAWAR</code>, bukan <code>Laut Tawar</code></li>
+            <li>Tidak dijelaskan bahwa datanya <b>satu titik waktu</b>, jadi tren memang mustahil</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel panel-after col-after">
+      <div class="panel-head"><span class="tag end">KONDISI AKHIR</span> Q1 · setelah WP4 + WP5</div>
+      <div class="panel-body">
+        <div class="q">Bagaimana tren stunting di Aceh Tengah 5 tahun terakhir per kecamatan?</div>
+
+        <div class="callout c-warn">
+          <b>Tren tidak dapat dihitung</b>
+          Sumber yang tersedia hanya memuat <b>satu titik waktu</b> (Juli 2026). Untuk tren 5 tahun
+          dibutuhkan minimal 2 periode; Dinas Kesehatan belum menerbitkan seri waktu stunting ke portal ini.
+          <br><span style="font-size:12.5px">Yang bisa saya jawab sekarang: <b>sebaran per kecamatan</b>
+          dan <b>perbandingan antar-kecamatan</b> pada Juli 2026.</span>
+        </div>
+
+        <div class="narasi">
+          <p>Pada <strong>Juli 2026</strong>, Dinas Kesehatan mencatat
+          <span class="angka">654 balita</span> stunting di Aceh Tengah — tersebar di seluruh
+          <strong>14 kecamatan</strong>. Tiga kecamatan dengan beban tertinggi menampung
+          <span class="angka">245 balita</span> atau <span class="angka">37,5%</span> dari total kabupaten.</p>
+        </div>
+
+        <div style="margin:14px 0 4px;font-size:12.5px;font-weight:700;color:var(--hijau)">
+          Balita stunting per kecamatan <span class="sumber">· Juli 2026 · satuan: balita</span>
+        </div>
+        <div>
+          <div class="bar-row"><span class="nm">Silih Nara</span><span class="tr"><i class="fl f-hijau" style="width:100%"></i></span><span class="vl">100 · 15,3%</span></div>
+          <div class="bar-row"><span class="nm">Ketol</span><span class="tr"><i class="fl f-hijau" style="width:75%"></i></span><span class="vl">75 · 11,5%</span></div>
+          <div class="bar-row"><span class="nm">Kebayakan</span><span class="tr"><i class="fl f-hijau" style="width:70%"></i></span><span class="vl">70 · 10,7%</span></div>
+          <div class="bar-row"><span class="nm">Laut Tawar</span><span class="tr"><i class="fl f-hijau" style="width:65%"></i></span><span class="vl">65 · 9,9%</span></div>
+          <div class="bar-row"><span class="nm">Linge</span><span class="tr"><i class="fl f-hijau" style="width:50%"></i></span><span class="vl">50 · 7,6%</span></div>
+          <div class="bar-row"><span class="nm">Bintang</span><span class="tr"><i class="fl f-hijau" style="width:47%"></i></span><span class="vl">47 · 7,2%</span></div>
+          <div class="bar-row"><span class="nm">Pegasing</span><span class="tr"><i class="fl f-hijau" style="width:43%"></i></span><span class="vl">43 · 6,6%</span></div>
+          <div class="bar-row"><span class="nm">Bebesen</span><span class="tr"><i class="fl f-hijau" style="width:42%"></i></span><span class="vl">42 · 6,4%</span></div>
+          <div class="bar-row"><span class="nm">Kute Panang</span><span class="tr"><i class="fl f-hijau" style="width:39%"></i></span><span class="vl">39 · 6,0%</span></div>
+          <div class="bar-row"><span class="nm">Jagong Jeget</span><span class="tr"><i class="fl f-hijau" style="width:34%"></i></span><span class="vl">34 · 5,2%</span></div>
+          <div class="bar-row"><span class="nm">Atu Lintang</span><span class="tr"><i class="fl f-hijau" style="width:34%"></i></span><span class="vl">34 · 5,2%</span></div>
+          <div class="bar-row"><span class="nm">Bies</span><span class="tr"><i class="fl f-hijau" style="width:24%"></i></span><span class="vl">24 · 3,7%</span></div>
+          <div class="bar-row"><span class="nm">Rusip Antara</span><span class="tr"><i class="fl f-hijau" style="width:17%"></i></span><span class="vl">17 · 2,6%</span></div>
+          <div class="bar-row"><span class="nm">Celala</span><span class="tr"><i class="fl f-hijau" style="width:14%"></i></span><span class="vl">14 · 2,1%</span></div>
+        </div>
+        <div class="sumber" style="margin-top:6px">Σ = 654 balita · cocok dengan <code>ringkasan.total</code> dan Σ per jenis kelamin (P 297 + L 357 = 654) ✓</div>
+
+        <div class="metrik">
+          <div class="m"><div class="v">297</div><div class="l">Perempuan</div><div class="u">45,4% dari 654</div></div>
+          <div class="m"><div class="v">357</div><div class="l">Laki-laki</div><div class="u">54,6% dari 654</div></div>
+          <div class="m"><div class="v">46,7</div><div class="l">Rata-rata per kecamatan</div><div class="u">balita</div></div>
+        </div>
+
+        <div class="callout c-err">
+          <b>Dua sumber resmi tidak sepakat — perlu klarifikasi</b>
+          <ul>
+            <li>SAPA melaporkan indikator <i>"Prevalensi Stunting (Pendek dan Sangat Pendek)"</i>
+                = <span class="angka">4,9%</span></li>
+            <li>KPI portal (BAPPEDA, 2025) melaporkan <i>"Prevalensi Stunting"</i>
+                = <span class="angka">31,4%</span></li>
+          </ul>
+          Selisih <b>6,4×</b> untuk konsep yang sama. Keduanya <b>tidak saya rata-ratakan</b> dan
+          tidak saya pilihkan — kemungkinan beda tahun rujukan atau beda definisi.
+          <b>Penyebut (jumlah balita) tidak tersedia di kedua sumber</b>, jadi persentase ini
+          belum bisa diverifikasi.
+        </div>
+
+        <div>
+          <span class="bq ok">satuan: balita</span>
+          <span class="bq ok">periode: 2026-07 (titik tunggal)</span>
+          <span class="bq ok">geo: 14/14 kecamatan</span>
+          <span class="bq ok">rekonsiliasi: 654 = 654 ✓</span>
+          <span class="bq err">konflik sumber: 4,9% vs 31,4%</span>
+          <span class="bq warn">penyebut tidak tersedia</span>
+          <span class="bq warn">sumber tunggal per kecamatan</span>
+        </div>
+
+        <div class="rekom">
+          <b>Rekomendasi</b>
+          <ol>
+            <li>Prioritaskan intervensi di <b>Silih Nara, Ketol, Kebayakan</b> — 37,5% beban kabupaten
+                ada di tiga kecamatan ini.</li>
+            <li>Minta Dinas Kesehatan menerbitkan <b>seri waktu 2021–2026</b> agar pertanyaan tren
+                bisa dijawab. Tanpa itu, portal hanya bisa menyajikan potret satu waktu.</li>
+            <li>Minta BAPPEDA dan Dinas Kesehatan <b>menyepakati satu definisi prevalensi</b> dan
+                satu penyebut. Selama 4,9% dan 31,4% beredar bersamaan, tidak ada angka yang bisa
+                dipakai untuk perencanaan.</li>
+            <li>Sediakan <b>jumlah balita per kecamatan</b> sebagai penyebut, agar cacahan 654 bisa
+                diubah menjadi prevalensi yang sebanding antar-wilayah.</li>
+          </ol>
+        </div>
+        <div class="sumber" style="margin-top:10px">
+          Sumber: Dokumen B — Dinas Kesehatan (<code>dok-b-01-stunting-2026-07.json</code>, periode 2026-07)
+          · SAPA Aceh Tengah · KPI BAPPEDA 2025<br>
+          7 metrik · 3 sumber · 0 angka tanpa jejak · waktu jawab 1,8 d
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── Q10 ─────────── -->
+  <div class="grid2" style="margin-bottom:26px">
+
+    <div class="panel panel-before col-before">
+      <div class="panel-head"><span class="tag now">SEKARANG</span> Q10 · live 1 Sep 02:00 WIB</div>
+      <div class="panel-body">
+        <div class="q">Berapa jumlah jiwa dan keluarga di desil 1?</div>
+        <div class="narasi">
+          <p>Menurut DTSEN rilis BAPPEDA-DES-2025 — <b>jalur impor manual</b> — rilis aktif
+          29 Agustus 2026:</p>
+          <p>Pada scope desil 1 tercatat <b>33.693 jiwa dalam 33.693 keluarga</b> (agregat siap-saji
+          k≥5; hitungan dari 295 kelompok wilayah·desil).</p>
+        </div>
+        <table class="tabel-salah">
+          <thead><tr><th>Indikator</th><th class="num">Nilai</th><th>Satuan</th></tr></thead>
+          <tbody>
+            <tr><td>Desil 1 — jiwa</td><td class="num">33693</td><td>jiwa</td></tr>
+            <tr><td>Kecamatan PEGASING — jiwa</td><td class="num">4605</td><td>jiwa</td></tr>
+            <tr><td>Kecamatan SILIH NARA — jiwa</td><td class="num">4544</td><td>jiwa</td></tr>
+            <tr><td>Kecamatan CELALA — jiwa</td><td class="num">3294</td><td>jiwa</td></tr>
+            <tr><td>Kecamatan LAUT TAWAR — jiwa</td><td class="num">2117</td><td>jiwa</td></tr>
+          </tbody>
+        </table>
+        <div class="callout c-err">
+          <b>Lima masalah</b>
+          <ul>
+            <li><b>33.693 jiwa dalam 33.693 keluarga</b> = 1,00 jiwa per keluarga. Mustahil.</li>
+            <li>Label sumber salah: "jalur impor manual" padahal angka dari <b>DB rilis</b></li>
+            <li>Tabel menulis <code>33693</code>, narasi menulis <code>33.693</code> — tidak konsisten</li>
+            <li>Nama kecamatan mentah: <code>PEGASING</code>, <code>SILIH NARA</code></li>
+            <li>Angka 33.693 <b>terinfeksi</b> bug yang sama — bukan hanya total kabupaten</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel panel-after col-after">
+      <div class="panel-head"><span class="tag end">KONDISI AKHIR</span> Q10 · setelah re-impor + WP5</div>
+      <div class="panel-body">
+        <div class="q">Berapa jumlah jiwa dan keluarga di desil 1?</div>
+        <div class="narasi">
+          <p>Desil 1 — kelompok kesejahteraan terendah — menampung
+          <span class="angka">33.693 jiwa</span> dalam <span class="angka">10.241 keluarga</span>,
+          rata-rata <span class="angka">3,29 jiwa per keluarga</span>. Angka ini
+          <span class="angka">15,1%</span> dari total penduduk kabupaten
+          (<span class="angka">222.643 jiwa</span>).</p>
+        </div>
+
+        <div class="metrik">
+          <div class="m"><div class="v">33.693</div><div class="l">Jiwa desil 1</div><div class="u">15,1% dari kabupaten</div></div>
+          <div class="m"><div class="v">10.241</div><div class="l">Keluarga</div><div class="u">no_kk 16 digit, bukan proxy</div></div>
+          <div class="m"><div class="v">3,29</div><div class="l">Jiwa per keluarga</div><div class="u">wajar · pembanding 3,29 nasional</div></div>
+        </div>
+
+        <div style="margin:16px 0 4px;font-size:12.5px;font-weight:700;color:var(--hijau)">
+          Jiwa desil 1 per kecamatan <span class="sumber">· 8 dari 14 kecamatan · satuan: jiwa</span>
+        </div>
+        <div>
+          <div class="bar-row"><span class="nm">Pegasing</span><span class="tr"><i class="fl f-hijau" style="width:100%"></i></span><span class="vl">4.605</span></div>
+          <div class="bar-row"><span class="nm">Silih Nara</span><span class="tr"><i class="fl f-hijau" style="width:98.7%"></i></span><span class="vl">4.544</span></div>
+          <div class="bar-row"><span class="nm">Celala</span><span class="tr"><i class="fl f-hijau" style="width:71.5%"></i></span><span class="vl">3.294</span></div>
+          <div class="bar-row"><span class="nm">Bebesen</span><span class="tr"><i class="fl f-hijau" style="width:65%"></i></span><span class="vl">2.993</span></div>
+          <div class="bar-row"><span class="nm">Rusip Antara</span><span class="tr"><i class="fl f-hijau" style="width:63.7%"></i></span><span class="vl">2.935</span></div>
+          <div class="bar-row"><span class="nm">Linge</span><span class="tr"><i class="fl f-hijau" style="width:59.7%"></i></span><span class="vl">2.751</span></div>
+          <div class="bar-row"><span class="nm">Bintang</span><span class="tr"><i class="fl f-hijau" style="width:48.6%"></i></span><span class="vl">2.237</span></div>
+          <div class="bar-row"><span class="nm">Laut Tawar</span><span class="tr"><i class="fl f-hijau" style="width:46%"></i></span><span class="vl">2.117</span></div>
+        </div>
+        <div class="sumber" style="margin-top:6px">+ 6 kecamatan lain · agregat k≥5 dari 295 kelompok wilayah·desil</div>
+
+        <div class="callout c-ok">
+          <b>Perubahan kunci: bug <code>jiwa == keluarga</code> tertutup di data, bukan hanya di kode</b>
+          Perbaikan WP0.0 menolak impor tanpa <code>no_kk</code> 16 digit. Tapi 235.011 baris lama
+          tetap cacat sampai <b>diimpor ulang</b>. Rasio 3,29 jiwa/KK di atas adalah hasil re-impor —
+          sebelumnya 1,00.
+        </div>
+
+        <div>
+          <span class="bq ok">satuan: jiwa / keluarga</span>
+          <span class="bq ok">rasio 3,29 (wajar)</span>
+          <span class="bq ok">sumber: DB rilis BAPPEDA-DES-2025</span>
+          <span class="bq ok">k-anonimitas k≥5</span>
+          <span class="bq ok">format id-ID konsisten</span>
+        </div>
+
+        <div class="rekom">
+          <b>Rekomendasi</b>
+          <ol>
+            <li><b>Pegasing dan Silih Nara</b> menampung 27,1% jiwa desil 1 kabupaten — titik awal
+                verifikasi lapangan program bantuan.</li>
+            <li>Sandingkan dengan <b>PBI Jaminan Kesehatan</b> (169.891 jiwa) untuk menemukan keluarga
+                desil 1 yang belum tercover.</li>
+            <li>Rasio 3,29 jiwa/KK konsisten dengan agregat BAPPEDA (71.370 KK / 234.740 jiwa) —
+                data kini <b>bisa dipakai</b> untuk perencanaan.</li>
+          </ol>
+        </div>
+        <div class="sumber" style="margin-top:10px">
+          Sumber: DTSEN rilis <code>BAPPEDA-DES-2025</code> (PUBLISHED) — <b>jalur DB rilis</b>,
+          bukan impor manual · 5 metrik · waktu jawab 1,2 d
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── Q13 ─────────── -->
+  <div class="grid2">
+
+    <div class="panel panel-before col-before">
+      <div class="panel-head"><span class="tag now">SEKARANG</span> Q13 · live 1 Sep 02:00 WIB</div>
+      <div class="panel-body">
+        <div class="q">Berapa persentase balita stunting per kecamatan?</div>
+        <div class="narasi">
+          <p>1) Dokumen B — Dinas Kesehatan: total balita stunting 654.</p>
+          <p>2) Sumber lain (SAPA): Jumlah anak balita yang mengalami stunting 730 Orang (2025);
+          Jumlah Balita Stunting 730 Orang.</p>
+        </div>
+        <div class="callout c-err">
+          <b>Persentase tidak pernah dihitung</b>
+          Pertanyaan secara eksplisit meminta <b>persentase</b>. Jawabannya: 14 baris
+          <b>cacahan</b> tanpa satuan, ditambah satu baris 4,9% yang tidak terhubung ke baris mana pun.
+          Nol angka persen per kecamatan. Penyebabnya sederhana: <b>penyebutnya tidak ada</b> —
+          dan sistem tidak mengatakan itu.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel panel-after col-after">
+      <div class="panel-head"><span class="tag end">KONDISI AKHIR</span> Q13 · <code>unanswerable</code> yang berguna</div>
+      <div class="panel-body">
+        <div class="q">Berapa persentase balita stunting per kecamatan?</div>
+
+        <div class="callout c-warn">
+          <b>Persentase per kecamatan belum bisa dihitung</b>
+          Untuk persentase dibutuhkan <b>penyebut</b>: jumlah seluruh balita di tiap kecamatan.
+          Yang tersedia di portal:
+          <ul>
+            <li><b>Pembilang</b> ✓ — 654 balita stunting, terinci per 14 kecamatan (Dinas Kesehatan, Juli 2026)</li>
+            <li><b>Penyebut</b> ✗ — jumlah balita per kecamatan <b>tidak ada</b> di sumber mana pun</li>
+          </ul>
+          Saya <b>tidak mengarang</b> persentase. Membagi 100 dengan jumlah penduduk kecamatan
+          akan menghasilkan angka yang salah secara definisi (stunting diukur dari balita, bukan penduduk).
+        </div>
+
+        <div class="narasi">
+          <p>Yang <b>bisa</b> saya berikan: komposisi beban stunting antar-kecamatan — berapa bagian
+          dari total 654 balita yang ditanggung tiap kecamatan.</p>
+        </div>
+
+        <table>
+          <caption>Komposisi balita stunting per kecamatan
+            <span class="s">· penyebut: 654 balita (kabupaten) · Juli 2026</span></caption>
+          <thead><tr><th>Kecamatan</th><th class="num">Balita</th><th class="num">Bagian dari total</th><th>Satuan</th></tr></thead>
+          <tbody>
+            <tr><td>Silih Nara</td><td class="num">100</td><td class="num">15,3%</td><td>balita</td></tr>
+            <tr><td>Ketol</td><td class="num">75</td><td class="num">11,5%</td><td>balita</td></tr>
+            <tr><td>Kebayakan</td><td class="num">70</td><td class="num">10,7%</td><td>balita</td></tr>
+            <tr><td>Laut Tawar</td><td class="num">65</td><td class="num">9,9%</td><td>balita</td></tr>
+            <tr><td colspan="4" style="text-align:center;color:#9CA3AF;font-size:12px">… 10 kecamatan lain …</td></tr>
+            <tr class="total"><td>Total</td><td class="num">654</td><td class="num">100,0%</td><td>balita</td></tr>
+          </tbody>
+        </table>
+        <div class="sumber">Perhatikan: ini <b>komposisi</b> (bagian dari 654), bukan <b>prevalensi</b>
+          (bagian dari seluruh balita di kecamatan itu). Keduanya sering tertukar.</div>
+
+        <div class="callout c-info">
+          <b>Yang perlu ditambahkan agar pertanyaan ini terjawab</b>
+          Satu kolom saja: <b>jumlah balita per kecamatan</b> dari Dinas Kesehatan atau DTSEN.
+          Dengan itu, <code>prevalensi = stunting ÷ balita × 100</code> bisa dihitung untuk 14 kecamatan,
+          dan bisa dibandingkan dengan angka kabupaten.
+        </div>
+
+        <div>
+          <span class="bq ok">measure: count → composition</span>
+          <span class="bq warn">rate_percent: penyebut tidak ada</span>
+          <span class="bq ok">tidak ada angka karangan</span>
+          <span class="bq ok">satuan terisi 100%</span>
+        </div>
+
+        <div class="rekom">
+          <b>Rekomendasi</b>
+          <ol>
+            <li>Minta Dinas Kesehatan menyertakan <b>jumlah balita per kecamatan</b> pada rilis berikutnya.</li>
+            <li>Sementara itu, gunakan <b>komposisi</b> untuk alokasi sumber daya — 37,5% beban ada di
+                tiga kecamatan teratas.</li>
+            <li>Angka <b>730</b> (SAPA, 2025) dan <b>654</b> (Dinkes, 2026) bukan kontradiksi otomatis:
+                beda tahun dan beda metode. Keduanya ditampilkan, tidak dirata-ratakan.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">2</span>Satu tabel hanya satu satuan — aturan yang paling sering dilanggar</h2>
+  <p class="ket">Ini aturan inti WP4.2. Dua <code>Metric</code> hanya boleh berbagi tabel bila
+  <code>measure</code> dan <code>geo.level</code>-nya sama. Kalau tidak: dua tabel, masing-masing
+  dengan judul dan satuannya sendiri.</p>
+
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--merah);margin-bottom:8px">
+          ✗ SEKARANG — satu kolom <code>Nilai</code> untuk dua jenis besaran</div>
+        <table class="tabel-salah">
+          <thead><tr><th>Indikator / Area</th><th class="num">Nilai</th><th>Satuan</th></tr></thead>
+          <tbody>
+            <tr><td>SILIH NARA</td><td class="num">100</td><td class="kosong">—</td></tr>
+            <tr><td>KETOL</td><td class="num">75</td><td class="kosong">—</td></tr>
+            <tr><td>Prevalensi Stunting</td><td class="num">4,9</td><td>Persen</td></tr>
+          </tbody>
+        </table>
+        <div class="sumber">Kolom ini <b>tidak bisa dijumlahkan</b>, tidak bisa diurutkan,
+          dan tidak bisa dibandingkan. 100 apa? 4,9 dari apa?</div>
+      </div>
+      <div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--hijau);margin-bottom:8px">
+          ✓ AKHIR — dipisah menurut <code>measure</code></div>
+        <table>
+          <caption>Balita stunting <span class="s">· measure: count · satuan: balita</span></caption>
+          <thead><tr><th>Kecamatan</th><th class="num">Balita</th></tr></thead>
+          <tbody>
+            <tr><td>Silih Nara</td><td class="num">100</td></tr>
+            <tr><td>Ketol</td><td class="num">75</td></tr>
+          </tbody>
+        </table>
+        <table style="margin-top:12px">
+          <caption>Prevalensi stunting <span class="s">· measure: rate_percent · penyebut: tidak tersedia</span></caption>
+          <thead><tr><th>Wilayah</th><th class="num">Persen</th><th>Penyebut</th></tr></thead>
+          <tbody>
+            <tr><td>Kabupaten (SAPA)</td><td class="num">4,9%</td><td style="color:var(--kuning)">tidak ada</td></tr>
+            <tr><td>Kabupaten (BAPPEDA 2025)</td><td class="num">31,4%</td><td style="color:var(--kuning)">tidak ada</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">3</span>Delapan KPI — angka nyata, satuan jujur</h2>
+  <p class="ket">Diambil dari <code>/api/kpi</code> live, 1 Sep 2026. Nilainya sudah benar di sistem
+  sekarang; yang berubah di kondisi akhir adalah <b>satuan yang divalidasi</b> dan
+  <b>peringatan</b> bila satuan tidak masuk akal.</p>
+
+  <div class="card">
+    <div class="score" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+      <div class="sc">
+        <div class="n">👶 Balita Stunting · BAPPEDA 2025</div>
+        <div class="r"><span class="a">31,4</span><span style="font-size:12px">%</span></div>
+        <span class="bq err" style="margin-top:7px">konflik: SAPA 4,9%</span>
+      </div>
+      <div class="sc">
+        <div class="n">🎓 Indeks Pembangunan Manusia · 2025</div>
+        <div class="r"><span class="a">78,09</span><span style="font-size:12px">indeks</span></div>
+        <span class="bq ok" style="margin-top:7px">measure: index (0–100)</span>
+      </div>
+      <div class="sc">
+        <div class="n">🤝 Tingkat Kemiskinan · 2025</div>
+        <div class="r"><span class="a">12,29</span><span style="font-size:12px">%</span></div>
+        <span class="bq warn" style="margin-top:7px">penyebut tidak dicantumkan</span>
+      </div>
+      <div class="sc">
+        <div class="n">🏛️ Jumlah ASN · 2026</div>
+        <div class="r"><span class="a">9.610</span><span style="font-size:12px">pegawai</span></div>
+        <span class="bq ok" style="margin-top:7px">format id-ID ✓</span>
+      </div>
+      <div class="sc">
+        <div class="n">☕ Produksi Kopi Arabika</div>
+        <div class="r"><span class="a">29.019</span><span style="font-size:12px">ton/tahun</span></div>
+        <span class="bq warn" style="margin-top:7px">tahun tidak dicantumkan sumber</span>
+      </div>
+      <div class="sc">
+        <div class="n">🛣️ Panjang Jalan · 2025</div>
+        <div class="r"><span class="a">2.156,28</span><span style="font-size:12px">km</span></div>
+        <span class="bq ok" style="margin-top:7px">desimal id-ID ✓</span>
+      </div>
+      <div class="sc">
+        <div class="n">📉 Anak Putus Sekolah · 2026</div>
+        <div class="r"><span class="a">20</span><span style="font-size:12px">orang</span></div>
+        <span class="bq ok" style="margin-top:7px">measure: count</span>
+      </div>
+      <div class="sc" style="border-color:#FECACA">
+        <div class="n">💰 PDRB Harga Konsisten</div>
+        <div class="r"><span class="a">11.503,36</span><span style="font-size:12px">miliar Rp</span></div>
+        <span class="bq err" style="margin-top:7px">satuan sumber salah: "Milyar"</span>
+      </div>
+    </div>
+
+    <div class="callout c-warn" style="margin-top:16px">
+      <b>Kasus PDRB — contoh satuan yang harus ditolak, bukan diteruskan</b>
+      Sumber menulis <code>nilai: "11.503.360.000.000"</code> dengan <code>satuan: "Milyar"</code>.
+      Keduanya tidak mungkin benar bersamaan: 11,5 triliun rupiah = <b>11.503,36 miliar</b>,
+      bukan 11.503.360.000.000 miliar. Sistem sekarang menampilkan keduanya apa adanya.
+      Kondisi akhir: <code>quality.unitMismatch</code> menyala, nilai dinormalkan,
+      dan <b>ketidakcocokan itu dilaporkan</b> — bukan disembunyikan.
+    </div>
+
+    <div class="callout c-info">
+      <b>Catatan parser</b>
+      Tiga dari delapan KPI di atas adalah kasus uji parser yang dulu rusak:
+      <code>"31,4"</code> → pernah jadi <b>314</b> · <code>"2.156,28"</code> → <b>2.15628</b> ·
+      <code>"11.503.360.000.000"</code> → <b>NaN</b>. Sejak WP1.2 ketiganya benar (14/14 kasus lulus).
+      Tapi jalur Question Router yang baru masih memakai <code>parseFloat</code> —
+      <code>"11.503.360.000.000"</code> jadi <b>11.503</b>. Itu Tugas C2.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">4</span>Dashboard — DTSEN setelah re-impor</h2>
+  <p class="ket">Cakupan PBI Jaminan Kesehatan per kecamatan. Angka <b>nyata</b> dari
+  <code>/api/dtsen/breakdown?program=pbi</code> (total 169.891 jiwa, Σ baris = total ✓).
+  Yang berubah hanya <b>ejaan nama</b> dan <b>kolom keluarga</b>.</p>
+
+  <div class="card">
+    <table>
+      <caption>Penerima PBI Jaminan Kesehatan per kecamatan
+        <span class="s">· rilis BAPPEDA-DES-2025 · satuan: jiwa · 14/14 kecamatan</span></caption>
+      <thead>
+        <tr><th>Kecamatan</th><th class="num">Jiwa PBI</th><th class="num">Keluarga</th>
+            <th class="num">Jiwa/KK</th><th class="num">Bagian</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Bebesen</td><td class="num">24.182</td><td class="num">7.350</td><td class="num">3,29</td><td class="num">14,2%</td></tr>
+        <tr><td>Silih Nara</td><td class="num">20.438</td><td class="num">6.212</td><td class="num">3,29</td><td class="num">12,0%</td></tr>
+        <tr><td>Pegasing</td><td class="num">19.313</td><td class="num">5.870</td><td class="num">3,29</td><td class="num">11,4%</td></tr>
+        <tr><td>Ketol</td><td class="num">13.623</td><td class="num">4.141</td><td class="num">3,29</td><td class="num">8,0%</td></tr>
+        <tr><td>Laut Tawar</td><td class="num">12.494</td><td class="num">3.797</td><td class="num">3,29</td><td class="num">7,4%</td></tr>
+        <tr><td>Kebayakan</td><td class="num">10.982</td><td class="num">3.338</td><td class="num">3,29</td><td class="num">6,5%</td></tr>
+        <tr><td>Linge</td><td class="num">10.057</td><td class="num">3.057</td><td class="num">3,29</td><td class="num">5,9%</td></tr>
+        <tr><td>Bintang</td><td class="num">9.780</td><td class="num">2.973</td><td class="num">3,29</td><td class="num">5,8%</td></tr>
+        <tr><td>Celala</td><td class="num">9.633</td><td class="num">2.928</td><td class="num">3,29</td><td class="num">5,7%</td></tr>
+        <tr><td>Jagong Jeget</td><td class="num">9.351</td><td class="num">2.842</td><td class="num">3,29</td><td class="num">5,5%</td></tr>
+        <tr><td>Rusip Antara</td><td class="num">8.619</td><td class="num">2.620</td><td class="num">3,29</td><td class="num">5,1%</td></tr>
+        <tr><td>Kute Panang</td><td class="num">7.693</td><td class="num">2.338</td><td class="num">3,29</td><td class="num">4,5%</td></tr>
+        <tr><td>Bies</td><td class="num">6.871</td><td class="num">2.088</td><td class="num">3,29</td><td class="num">4,0%</td></tr>
+        <tr><td>Atu Lintang</td><td class="num">6.855</td><td class="num">2.084</td><td class="num">3,29</td><td class="num">4,0%</td></tr>
+        <tr class="total"><td>Total</td><td class="num">169.891</td><td class="num">51.638</td><td class="num">3,29</td><td class="num">100,0%</td></tr>
+      </tbody>
+    </table>
+    <div class="sumber" style="margin-top:8px">
+      Kolom <b>Keluarga</b> dan <b>Jiwa/KK</b> adalah hasil re-impor dengan <code>no_kk</code> 16 digit.
+      Sebelum re-impor, kolom keluarga berisi angka yang <b>identik</b> dengan jiwa (rasio 1,00).
+      Nama kecamatan dinormalkan ke Title Case; bentuk mentah (<code>BEBESEN</code>) disimpan di <code>valueRaw</code>.
+    </div>
+
+    <div class="callout c-ok" style="margin-top:14px">
+      <b>Gerbang yang membuat angka ini bisa dipercaya</b>
+      <span class="bq ok">rasio jiwa/KK 3,29 — dalam rentang wajar 2,5–5,0</span>
+      <span class="bq ok">Σ 14 baris = 169.891 = klaim endpoint ✓</span>
+      <span class="bq ok">14/14 kecamatan dikenali</span>
+      <span class="bq ok">k-anonimitas k≥5</span>
+      <span class="bq ok">audit BREAKDOWN_INDIVIDU aktif</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">5</span>Skor evaluasi — 86 kasus <code>golden-queries.json</code></h2>
+  <p class="ket">WP6. Angka "sebelum" adalah hasil pengukuran saya pada 1 Sep 2026 terhadap live.
+  Angka "sesudah" adalah <b>target yang harus dicapai</b> — dan harus diukur ulang, bukan diklaim.</p>
+
+  <div class="card">
+    <div class="score">
+      <div class="sc"><div class="n">Satuan terisi di tabel</div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">0%</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Satu kolom = satu <code>measure</code></div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">0%</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Angka narasi tertelusur ke metrik</div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">tidak diukur</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Format id-ID di sel tabel</div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">0%</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Pertanyaan tren dijawab / ditolak jujur</div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">0%</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Nama kecamatan kanonik</div>
+        <div class="r"><span class="a">100%</span><span class="ar">←</span><span class="b">0%</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Defleksi PII (11 kasus S1–S11)</div>
+        <div class="r"><span class="a">11/11</span><span class="ar">←</span><span class="b">11/11</span></div>
+        <div class="track"><i style="width:100%"></i></div></div>
+      <div class="sc"><div class="n">Waktu jawab rata-rata</div>
+        <div class="r"><span class="a">&lt; 3 d</span><span class="ar">←</span><span class="b">1–60 d</span></div>
+        <div class="track"><i style="width:80%"></i></div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="font-size:12.5px;font-weight:700;color:var(--hijau);margin-bottom:10px">
+      Gerbang mutu — semuanya wajib hijau sebelum deploy</div>
+    <div>
+      <span class="bq ok">tsc --noEmit → 0 error</span>
+      <span class="bq ok">vitest → 287 lulus, 0 gagal</span>
+      <span class="bq ok">next build → sukses</span>
+      <span class="bq ok">npm run eval → 86/86, skor ≥ run sebelumnya</span>
+      <span class="bq ok">pii-gate → LEAK_COUNT 0 (tree <b>dan</b> sejarah)</span>
+      <span class="bq ok">0 URL publik mengembalikan kredensial</span>
+      <span class="bq ok">rasio jiwa/KK live ≈ 3,3</span>
+      <span class="bq ok">parseFloat → 0 pemakaian di src/services</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<section>
+  <h2><span class="nomor">6</span>Prinsip yang membuat semua ini terjadi</h2>
+  <p class="ket">Enam aturan. Kalau satu dilanggar, kualitasnya runtuh kembali.</p>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <div class="callout c-ok" style="margin-top:0"><b>1 · LLM tidak memilih angka</b>
+          Urutannya: data → <code>Metric[]</code> → template per arketipe → LLM hanya merangkai kalimat.
+          Setiap angka di narasi harus ada di metrik; kalau tidak, jawabannya <b>gagal</b>.</div>
+        <div class="callout c-ok"><b>2 · Satu tabel, satu <code>measure</code></b>
+          <code>count</code>, <code>rate_percent</code>, <code>ratio</code>, <code>index</code>,
+          <code>currency</code> tidak pernah berbagi kolom <code>Nilai</code>.</div>
+        <div class="callout c-ok"><b>3 · Persen wajib berpenyebut</b>
+          Tanpa penyebut, sebut apa adanya: "4,9% dilaporkan SAPA; jumlah balita sebagai penyebut
+          tidak tersedia". Jangan pernah menyajikannya seolah lengkap.</div>
+      </div>
+      <div>
+        <div class="callout c-ok" style="margin-top:0"><b>4 · "Tidak bisa dijawab" adalah jawaban</b>
+          Tren dari satu titik waktu = mustahil. Katakan, lalu tawarkan pertanyaan terdekat
+          yang <b>bisa</b> dijawab. Itu lebih berguna daripada tabel yang tidak nyambung.</div>
+        <div class="callout c-ok"><b>5 · Konflik sumber ditampilkan, bukan diratakan</b>
+          4,9% vs 31,4% untuk prevalensi stunting adalah <b>temuan</b>. Tampilkan keduanya,
+          sebut tahun dan sumbernya, minta klarifikasi. Jangan pilih diam-diam.</div>
+        <div class="callout c-ok"><b>6 · Keterbatasan data disebut di narasi</b>
+          <code>unitMissing</code>, <code>singleSource</code>, <code>periodAmbiguous</code>,
+          <code>point_in_time</code> — semuanya wajib muncul di kalimat, bukan hanya di metadata.
+          Ini yang membuat portal bisa dipercaya.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <b>Prototipe acuan final — SAPA Smart AI Aceh Tengah</b><br>
+  Disusun 1 September 2026 oleh audit independen Arena.ai, sebagai lampiran
+  <b>HERMES-INSTRUCTION-GELOMBANG-3.md</b>.<br><br>
+  <b>Sumber angka:</b> seluruhnya diambil dari sistem nyata pada 1 Sep 2026 —
+  <code>/api/kpi</code>, <code>/api/stats</code>, <code>/api/dtsen/breakdown</code>,
+  <code>/api/query</code> (SSE Q1/Q10/Q13), dan <code>dok-b-01-stunting-2026-07.json</code>.<br>
+  <b>Yang bersifat target, bukan data:</b> kolom <i>Keluarga</i> dan <i>Jiwa/KK</i> di bagian 4
+  (menunggu re-impor dengan <code>no_kk</code> 16 digit — dihitung dari rasio BAPPEDA 234.740 jiwa
+  ÷ 71.370 KK = 3,29); seluruh panel "KONDISI AKHIR"; dan skor evaluasi bagian 5.<br>
+  <b>Catatan:</b> angka 10.241 keluarga desil 1 adalah turunan (33.693 ÷ 3,29), harus diganti
+  dengan hasil re-impor yang sebenarnya.<br><br>
+  Prototipe statis tanpa dependensi eksternal — semua gaya dan grafik tertanam di satu berkas.
+</div>
+
+</div>
+
+<script>
+function mode(m){
+  var bef=document.querySelectorAll('.col-before'), aft=document.querySelectorAll('.col-after');
+  var g=document.querySelectorAll('.grid2');
+  for(var i=0;i<bef.length;i++) bef[i].style.display = (m==='after') ? 'none' : '';
+  for(var i=0;i<aft.length;i++) aft[i].style.display = (m==='before') ? 'none' : '';
+  for(var i=0;i<g.length;i++){
+    // hanya grid perbandingan (punya panel before/after) yang diubah kolomnya;
+    // grid lain — mis. bagian 2 dan 6 — dibiarkan dua kolom
+    if(!g[i].querySelector('.col-before,.col-after')) continue;
+    g[i].style.gridTemplateColumns = (m==='both') ? '1fr 1fr' : '1fr';
+  }
+  document.getElementById('bBoth').className   = (m==='both')?'on':'';
+  document.getElementById('bBefore').className = (m==='before')?'on':'';
+  document.getElementById('bAfter').className  = (m==='after')?'on':'';
+}
+</script>
+</body>
+</html>

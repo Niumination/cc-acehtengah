@@ -1,0 +1,1 @@
+{"status":"healthy","timestamp":"2026-08-31T14:12:51.108Z","services":{"sapa":"ok","ai":"ok","qdrant":"skip"},"config":{"sapa":"direct: https://sapa.acehtengahkab.go.id/api/daftar_data (fallback SPLP)","ai":"https://api.hcnsec.cn/v1","aiModel":"auto","qdrant":"(not configured)"}}
