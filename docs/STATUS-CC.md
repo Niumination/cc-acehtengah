@@ -39,10 +39,14 @@ bash scripts/pii-gate.sh .
 
 ## Deploy
 
-Siap promote ke production Vercel dari `hotfix/meeting-ready` HEAD `7c48273`.
+✅ **Production Live** — `https://cc-acehtengah.vercel.app`  
+Deployed: 01-Sep-2026 15:10 UTC from `hotfix/meeting-ready` HEAD `a373f73`  
+Verification:
+- `/api/health` → `{"status":"healthy","services":{"sapa":"ok","ai":"ok","qdrant":"skip","warehouse":"skip"}}`
+- `/api/ews` → `{"error":"Forbidden — EWS membutuhkan sesi admin.","ready":false}` (fail-closed correct without admin session)
 
 ```bash
-vercel promote hotfix/meeting-ready --yes
+vercel deploy --prod
 ```
 
 > **Aturan status deploy** (WP0.7): setelah deploy, verifikasi `/api/health` + `/api/ews` + `/api/query` SSE live.
